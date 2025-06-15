@@ -28,10 +28,10 @@ export interface CartItem extends Product {
 }
 
 export interface Sale {
-  id: string;
+  id:string;
   customerId?: string;
   customerName?: string; // Denormalized for quick display
-  items: CartItem[]; // Should now contain CartItem with appliedPrice
+  items: CartItem[];
   totalAmount: number;
   paymentMethod: "Cash" | "Card" | "Online";
   saleDate: Date;
@@ -53,8 +53,28 @@ export interface SalesChartData {
 export type UserRole = "admin" | "cashier";
 
 export interface NavItemConfig {
-  href: string;
+  href?: string; // Optional: if not provided, it's a parent/header for children
   label: string;
   icon: React.ElementType;
   allowedRoles: UserRole[];
+  children?: NavItemConfig[]; // For sub-menus
+  id: string; // Unique ID for accordion items
+}
+
+export type StockTransactionType = 
+  | "ADD_STOCK_INVENTORY" 
+  | "LOAD_TO_VEHICLE" 
+  | "UNLOAD_FROM_VEHICLE" 
+  | "REMOVE_STOCK_WASTAGE"
+  | "STOCK_ADJUSTMENT_MANUAL";
+
+export interface StockTransaction {
+  id: string;
+  productId: string;
+  productName: string; // Denormalized
+  type: StockTransactionType;
+  quantity: number;
+  transactionDate: Date;
+  notes?: string;
+  vehicleId?: string; // Optional, for vehicle loading/unloading
 }

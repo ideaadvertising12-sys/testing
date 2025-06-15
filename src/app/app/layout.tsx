@@ -9,6 +9,9 @@ import {
   Package,
   ShoppingCart,
   Users,
+  ChevronDown,
+  View,
+  PlusSquare,
 } from "lucide-react";
 import {
   SidebarProvider,
@@ -22,18 +25,35 @@ import {
   SidebarTrigger,
   SidebarInset,
 } from "@/components/ui/sidebar";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { AppLogo } from "@/components/AppLogo";
 import { UserProfile } from "@/components/UserProfile";
 import { Separator } from "@/components/ui/separator";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
-import type { NavItemConfig, UserRole } from "@/lib/types";
+import type { NavItemConfig } from "@/lib/types";
+import { cn } from "@/lib/utils";
+
 
 const allNavItems: NavItemConfig[] = [
-  { href: "/app/dashboard", label: "Dashboard", icon: LayoutDashboard, allowedRoles: ["admin"] },
-  { href: "/app/products", label: "Products", icon: Package, allowedRoles: ["admin"] },
-  { href: "/app/customers", label: "Customers", icon: Users, allowedRoles: ["admin", "cashier"] },
-  { href: "/app/sales", label: "Sales (POS)", icon: ShoppingCart, allowedRoles: ["admin", "cashier"] },
-  { href: "/app/inventory", label: "Inventory", icon: Archive, allowedRoles: ["admin", "cashier"] },
+  { id: "dashboard", href: "/app/dashboard", label: "Dashboard", icon: LayoutDashboard, allowedRoles: ["admin"] },
+  { id: "products", href: "/app/products", label: "Products", icon: Package, allowedRoles: ["admin"] },
+  { id: "customers", href: "/app/customers", label: "Customers", icon: Users, allowedRoles: ["admin", "cashier"] },
+  { id: "sales", href: "/app/sales", label: "Sales (POS)", icon: ShoppingCart, allowedRoles: ["admin", "cashier"] },
+  { 
+    id: "inventory", 
+    label: "Inventory", 
+    icon: Archive, 
+    allowedRoles: ["admin", "cashier"],
+    children: [
+      { id: "view-stock", href: "/app/inventory/view-stock", label: "View Stock", icon: View, allowedRoles: ["admin", "cashier"] },
+      { id: "manage-stock", href: "/app/inventory/manage-stock", label: "Manage Stock", icon: PlusSquare, allowedRoles: ["admin", "cashier"] },
+    ]
+  },
 ];
 
 function AppLayoutContent({ children }: { children: React.ReactNode }) {
@@ -43,18 +63,41 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
   const navItems = allNavItems.filter(item => item.allowedRoles.includes(userRole));
 
   const getCurrentPageLabel = () => {
-    const currentNavItem = navItems.find(item => pathname === item.href || (item.href !== "/app/dashboard" && pathname.startsWith(item.href)));
-    if (currentNavItem) {
-      return currentNavItem.label;
+    for (const item of navItems) {
+      if (item.href && (pathname === item.href || (item.href !== "/app/dashboard" && pathname.startsWith(item.href)))) {
+        return item.label;
+      }
+      if (item.children) {
+        for (const child of item.children) {
+          if (child.href && (pathname === child.href || pathname.startsWith(child.href))) {
+            return child.label;
+          }
+        }
+      }
     }
-    // Fallback for pages not directly in nav, or if user lands on a restricted page title
+    // Fallback titles
     if (pathname.startsWith("/app/dashboard") && userRole === "admin") return "Dashboard";
     if (pathname.startsWith("/app/products") && userRole === "admin") return "Products";
     if (pathname.startsWith("/app/customers")) return "Customers";
     if (pathname.startsWith("/app/sales")) return "Sales (POS)";
+    if (pathname.startsWith("/app/inventory/view-stock")) return "View Stock";
+    if (pathname.startsWith("/app/inventory/manage-stock")) return "Manage Stock";
     if (pathname.startsWith("/app/inventory")) return "Inventory";
     return "NGroup Products";
   }
+  
+  const isNavItemActive = (item: NavItemConfig) => {
+    if (item.href) {
+      return pathname === item.href || (item.href !== "/app/dashboard" && pathname.startsWith(item.href));
+    }
+    if (item.children) {
+      return item.children.some(child => child.href && pathname.startsWith(child.href));
+    }
+    return false;
+  };
+  
+  const defaultOpenAccordion = navItems.find(item => item.children && item.children.some(child => child.href && pathname.startsWith(child.href)))?.id;
+
 
   return (
     <SidebarProvider defaultOpen>
@@ -72,21 +115,60 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
         </SidebarHeader>
         <Separator className="group-data-[collapsible=icon]:hidden" />
         <SidebarContent>
-          <SidebarMenu className="p-2">
-            {navItems.map((item) => (
-              <SidebarMenuItem key={item.href}>
-                <Link href={item.href} asChild>
-                  <SidebarMenuButton
-                    isActive={pathname === item.href || (item.href !== "/app/dashboard" && pathname.startsWith(item.href))}
-                    tooltip={item.label}
-                  >
-                    <item.icon />
-                    <span>{item.label}</span>
-                  </SidebarMenuButton>
-                </Link>
-              </SidebarMenuItem>
-            ))}
-          </SidebarMenu>
+          <Accordion type="single" collapsible className="w-full" defaultValue={defaultOpenAccordion}>
+            <SidebarMenu className="p-2">
+              {navItems.map((item) => (
+                item.children ? (
+                  <AccordionItem key={item.id} value={item.id} className="border-b-0">
+                     <SidebarMenuItem className="p-0">
+                        <AccordionTrigger 
+                          className={cn(
+                            "flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm outline-none ring-sidebar-ring transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 group-has-[[data-sidebar=menu-action]]/menu-item:pr-8 data-[state=open]:bg-sidebar-accent/80 data-[state=open]:text-sidebar-accent-foreground group-data-[collapsible=icon]:!size-8 group-data-[collapsible=icon]:!p-2 [&>svg:last-child]:ml-auto [&>svg:last-child]:group-data-[collapsible=icon]:hidden",
+                            isNavItemActive(item) && "bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90 hover:text-sidebar-primary-foreground data-[state=open]:bg-sidebar-primary data-[state=open]:text-sidebar-primary-foreground",
+                            "group-data-[collapsible=icon]:justify-center"
+                          )}
+                        >
+                          <item.icon className="group-data-[collapsible=icon]:mx-auto" />
+                          <span className="group-data-[collapsible=icon]:hidden truncate">{item.label}</span>
+                          {/* Chevron is part of AccordionTrigger */}
+                        </AccordionTrigger>
+                      </SidebarMenuItem>
+                    <AccordionContent className="pb-0 group-data-[collapsible=icon]:hidden">
+                      <SidebarMenu className="pl-6 pr-0 py-1">
+                        {item.children.filter(child => child.allowedRoles.includes(userRole)).map((child) => (
+                          <SidebarMenuItem key={child.id}>
+                            <Link href={child.href!} asChild>
+                              <SidebarMenuButton
+                                isActive={pathname === child.href || pathname.startsWith(child.href!)}
+                                tooltip={child.label}
+                                size="sm"
+                                className="gap-1.5"
+                              >
+                                <child.icon className="h-3.5 w-3.5" />
+                                <span>{child.label}</span>
+                              </SidebarMenuButton>
+                            </Link>
+                          </SidebarMenuItem>
+                        ))}
+                      </SidebarMenu>
+                    </AccordionContent>
+                  </AccordionItem>
+                ) : (
+                  <SidebarMenuItem key={item.id}>
+                    <Link href={item.href!} asChild>
+                      <SidebarMenuButton
+                        isActive={isNavItemActive(item)}
+                        tooltip={item.label}
+                      >
+                        <item.icon />
+                        <span>{item.label}</span>
+                      </SidebarMenuButton>
+                    </Link>
+                  </SidebarMenuItem>
+                )
+              ))}
+            </SidebarMenu>
+          </Accordion>
         </SidebarContent>
         <SidebarFooter className="p-4 items-center group-data-[collapsible=icon]:hidden">
            <p className="text-xs text-muted-foreground">&copy; {new Date().getFullYear()} NGroup Products</p>
