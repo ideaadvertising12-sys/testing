@@ -4,7 +4,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Archive,
   LayoutDashboard,
   Package,
   ShoppingCart,
@@ -38,6 +37,24 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import type { NavItemConfig } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
+const CustomInventoryIcon = ({ className: propClassName }: { className?: string }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="15"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={cn("lucide lucide-archive", propClassName)}
+  >
+    <rect width="20" height="5" x="2" y="3" rx="1"></rect>
+    <path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"></path>
+    <path d="M10 12h4"></path>
+  </svg>
+);
 
 const allNavItems: NavItemConfig[] = [
   { id: "dashboard", href: "/app/dashboard", label: "Dashboard", icon: LayoutDashboard, allowedRoles: ["admin"] },
@@ -47,7 +64,7 @@ const allNavItems: NavItemConfig[] = [
   { 
     id: "inventory", 
     label: "Inventory", 
-    icon: Archive, 
+    icon: CustomInventoryIcon, 
     allowedRoles: ["admin", "cashier"],
     children: [
       { id: "view-stock", href: "/app/inventory/view-stock", label: "View Stock", icon: View, allowedRoles: ["admin", "cashier"] },
@@ -222,3 +239,4 @@ const AppLogoIconOnly = () => (
     <path d="M20.56 10.44 15.3 3.29A2.52 2.52 0 0 0 13.14 2H10.9A2.52 2.52 0 0 0 8.7 3.29L3.44 10.44A2.13 2.13 0 0 0 3 11.79V20a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-8.21a2.13 2.13 0 0 0-.44-1.35Z"/><path d="m3.5 10.5 17 0"/><path d="M12 22V10.5"/>
   </svg>
 );
+
