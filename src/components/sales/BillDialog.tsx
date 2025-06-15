@@ -48,8 +48,8 @@ export function BillDialog({ isOpen, onOpenChange, cartItems, customer, discount
             <div className="flex justify-center mb-2">
                <AppLogo size="md"/>
             </div>
-            <p className="text-sm">123 Milk Lane, Dairyville, CA 98765</p>
-            <p className="text-sm">Phone: (555) 123-MILK</p>
+            <p className="text-sm">4/1 Bujjampala, Dankotuwa</p>
+            <p className="text-sm">Hotline: 077-3383721, 077-1066595</p>
           </div>
 
           <Separator className="my-4"/>

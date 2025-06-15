@@ -4,7 +4,7 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
-  title: 'MilkPOS',
+  title: 'NGroup Products',
   description: 'Point of Sale system for milk products.',
 };
 

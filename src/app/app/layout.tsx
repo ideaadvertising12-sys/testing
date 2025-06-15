@@ -53,7 +53,7 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
     if (pathname.startsWith("/app/customers")) return "Customers";
     if (pathname.startsWith("/app/sales")) return "Sales (POS)";
     if (pathname.startsWith("/app/inventory")) return "Inventory";
-    return "MilkPOS";
+    return "NGroup Products";
   }
 
   return (
@@ -89,7 +89,7 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
           </SidebarMenu>
         </SidebarContent>
         <SidebarFooter className="p-4 items-center group-data-[collapsible=icon]:hidden">
-           <p className="text-xs text-muted-foreground">&copy; {new Date().getFullYear()} MilkPOS</p>
+           <p className="text-xs text-muted-foreground">&copy; {new Date().getFullYear()} NGroup Products</p>
         </SidebarFooter>
       </Sidebar>
 

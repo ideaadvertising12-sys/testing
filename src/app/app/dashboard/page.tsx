@@ -42,7 +42,7 @@ export default function DashboardPage() {
 
   return (
     <>
-      <PageHeader title="Dashboard Overview" description="Welcome back! Here's what's happening with MilkPOS." icon={Activity} />
+      <PageHeader title="Dashboard Overview" description="Welcome back! Here's what's happening with NGroup Products." icon={Activity} />
       
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-6">
         <StatsCard 

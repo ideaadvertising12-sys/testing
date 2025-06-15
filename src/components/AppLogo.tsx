@@ -1,3 +1,4 @@
+
 import { Milk } from "lucide-react"; // Or a more generic icon if Milk is not available
 
 // Using a generic SVG icon as Milk is not in lucide-react
@@ -47,7 +48,7 @@ export function AppLogo({ size = "md" }: { size?: "sm" | "md" | "lg" }) {
         <path d="M20.56 10.44 15.3 3.29A2.52 2.52 0 0 0 13.14 2H10.9A2.52 2.52 0 0 0 8.7 3.29L3.44 10.44A2.13 2.13 0 0 0 3 11.79V20a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-8.21a2.13 2.13 0 0 0-.44-1.35Z"/><path d="m3.5 10.5 17 0"/><path d="M12 22V10.5"/>
       </svg>
       <span className={`font-headline font-bold ${size === 'sm' ? 'text-xl' : size === 'md' ? 'text-2xl' : 'text-3xl'} text-primary`}>
-        MilkPOS
+        NGroup Products
       </span>
     </div>
   );

@@ -16,7 +16,7 @@ export default function LoginPage() {
           <div className="mx-auto mb-4">
             <AppLogo />
           </div>
-          <CardTitle className="text-3xl font-headline">Welcome to MilkPOS</CardTitle>
+          <CardTitle className="text-3xl font-headline">Welcome to NGroup Products</CardTitle>
           <CardDescription>Enter your credentials to access your account</CardDescription>
         </CardHeader>
         <CardContent>
@@ -38,7 +38,7 @@ export default function LoginPage() {
         </CardContent>
       </Card>
       <footer className="mt-8 text-center text-sm text-muted-foreground">
-        © {new Date().getFullYear()} MilkPOS. All rights reserved.
+        © {new Date().getFullYear()} NGroup Products. All rights reserved.
       </footer>
     </div>
   );
