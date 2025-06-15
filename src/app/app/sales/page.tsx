@@ -122,18 +122,10 @@ export default function SalesPage() {
   };
 
   const handleSuccessfulSale = () => {
-    // This function would typically involve:
-    // 1. Saving the sale to a database
-    // 2. Updating stock levels based on items sold
-    // For now, we'll just clear the cart and related states.
     setCartItems([]);
     setSelectedCustomer(null);
     setDiscountPercentage(0);
     setCurrentSaleType('retail');
-    // Consider if you want to keep the search term or selected category or reset them too.
-    // setSearchTerm("");
-    // setSelectedCategory("All");
-    // filterAndCategorizeProducts("", "All");
   };
 
 
@@ -144,8 +136,8 @@ export default function SalesPage() {
         description="Create new sales transactions quickly."
         icon={ShoppingCart}
       />
-      <div className="flex-grow grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-0">
-        <div className="min-h-[450px] lg:min-h-0 lg:col-span-2 flex flex-col">
+      <div className="flex-grow flex flex-col lg:grid lg:grid-cols-3 gap-6 min-h-0">
+        <div className="flex-1 min-h-0 lg:col-span-2 flex flex-col">
           <div className="p-1 mb-4">
             <div className="flex flex-col sm:flex-row gap-4 mb-4">
               <div className="relative flex-grow">
@@ -179,7 +171,7 @@ export default function SalesPage() {
             </Tabs>
           </div>
 
-          <ScrollArea className="flex-grow p-1"> {/* Removed lg:max-w-md lg:mx-auto for full width */}
+          <ScrollArea className="flex-grow p-1">
             {filteredProducts.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-muted-foreground pt-10">
                     <PackageSearch className="w-16 h-16 mb-4" />
@@ -187,7 +179,7 @@ export default function SalesPage() {
                     <p>Try adjusting your search or category filters.</p>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-4"> {/* Adjusted grid for more items */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {filteredProducts.map(product => (
                     <POSProductCard key={product.id} product={product} onAddToCart={handleAddToCart} />
                 ))}
@@ -196,7 +188,7 @@ export default function SalesPage() {
           </ScrollArea>
         </div>
 
-        <div className="lg:col-span-1 flex flex-col min-h-0 overflow-y-auto">
+        <div className="flex-1 min-h-0 lg:col-span-1 flex flex-col overflow-y-auto">
           <CartView 
             cartItems={cartItems}
             selectedCustomer={selectedCustomer}
@@ -215,9 +207,6 @@ export default function SalesPage() {
         onOpenChange={(isOpen) => {
           setIsBillOpen(isOpen);
           if (!isOpen) { 
-             // This logic is called when the dialog is closed, regardless of whether it was a successful sale or just closed.
-             // If you want to clear the cart ONLY on successful sale, that logic should be handled separately.
-             // For now, let's assume closing means the sale is 'done' (either completed or cancelled and reset from within the dialog/process)
              handleSuccessfulSale(); 
           }
         }} 
