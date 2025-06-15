@@ -1,11 +1,11 @@
 
 "use client";
 
-import { Banknote, Package, Users, TrendingDown, TrendingUp, Activity } from "lucide-react";
+import { Banknote, Package, Users, TrendingDown, TrendingUp, Activity, AlertTriangle } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { SalesChart } from "@/components/dashboard/SalesChart";
-import { RecentActivity } from "@/components/dashboard/RecentActivity";
+import { AlertQuantityTable } from "@/components/dashboard/AlertQuantityTable";
 import { placeholderStats, placeholderSalesChartData, placeholderMonthlySalesData } from "@/lib/placeholder-data";
 import {
   Table,
@@ -62,7 +62,7 @@ export default function DashboardPage() {
         <StatsCard 
           title="Low Stock Items" 
           value={placeholderStats.lowStockItems}
-          icon={TrendingDown}
+          icon={AlertTriangle} // Changed from TrendingDown to AlertTriangle for consistency
           description="Needs reordering soon"
           iconColor="text-red-600" 
         />
@@ -111,7 +111,7 @@ export default function DashboardPage() {
         </Card>
       </div>
       
-      <RecentActivity />
+      <AlertQuantityTable />
     </>
   );
 }
