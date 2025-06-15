@@ -20,17 +20,17 @@ export default function LoginPage() {
           <CardDescription>Enter your credentials to access your account</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            <div className="space-y-2">
+          <div> {/* Removed space-y-4 from here */}
+            <div className="space-y-2"> {/* Email group */}
               <Label htmlFor="email">Email</Label>
               <Input id="email" type="email" placeholder="admin@example.com" required />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-2 mt-4"> {/* Password group with mt-4 */}
               <Label htmlFor="password">Password</Label>
               <Input id="password" type="password" required placeholder="••••••••" />
             </div>
             <Link href="/app/dashboard" asChild>
-              <Button type="submit" className="w-full">
+              <Button type="submit" className="w-full mt-6"> {/* Login button with mt-6 */}
                 Login
               </Button>
             </Link>
@@ -43,3 +43,4 @@ export default function LoginPage() {
     </div>
   );
 }
+
