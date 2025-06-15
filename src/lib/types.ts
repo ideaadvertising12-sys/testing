@@ -1,8 +1,10 @@
+
 export interface Product {
   id: string;
   name: string;
   category: "Milk" | "Yogurt" | "Watallappan" | "Ghee" | "Other";
   price: number;
+  wholesalePrice?: number; // Added wholesale price
   stock: number;
   imageUrl?: string;
   description?: string;

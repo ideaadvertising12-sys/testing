@@ -36,6 +36,7 @@ const defaultProduct: Product = {
   name: "",
   category: "Other",
   price: 0,
+  wholesalePrice: 0,
   stock: 0,
   description: "",
   sku: "",
@@ -57,7 +58,7 @@ export function ProductDialog({ product, trigger, onSave }: ProductDialogProps) 
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: name === 'price' || name === 'stock' || name === 'reorderLevel' ? parseFloat(value) || 0 : value }));
+    setFormData(prev => ({ ...prev, [name]: name === 'price' || name === 'stock' || name === 'reorderLevel' || name === 'wholesalePrice' ? parseFloat(value) || 0 : value }));
   };
 
   const handleCategoryChange = (value: Product["category"]) => {
@@ -124,11 +125,18 @@ export function ProductDialog({ product, trigger, onSave }: ProductDialogProps) 
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <Label htmlFor="price">Price (Rs.)</Label>
+              <Label htmlFor="price">Retail Price (Rs.)</Label>
               <Input id="price" name="price" type="number" value={formData.price} onChange={handleChange} className="mt-1" min="0" step="0.01" />
             </div>
+            <div>
+              <Label htmlFor="wholesalePrice">Wholesale Price (Rs.)</Label>
+              <Input id="wholesalePrice" name="wholesalePrice" type="number" value={formData.wholesalePrice || ''} onChange={handleChange} className="mt-1" min="0" step="0.01" placeholder="Optional"/>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <Label htmlFor="stock">Stock Quantity</Label>
               <Input id="stock" name="stock" type="number" value={formData.stock} onChange={handleChange} className="mt-1" min="0" />

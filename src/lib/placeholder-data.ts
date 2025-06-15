@@ -2,12 +2,12 @@
 import type { Product, Customer, Sale, StatsData, SalesChartData } from "./types";
 
 export const placeholderProducts: Product[] = [
-  { id: "1", name: "Fresh Milk (1L)", category: "Milk", price: 2.50, stock: 120, imageUrl: "https://placehold.co/300x200.png", description: "Pasteurized full cream milk.", sku: "MILK001", reorderLevel: 20 },
-  { id: "2", name: "Natural Yogurt (500g)", category: "Yogurt", price: 3.00, stock: 80, imageUrl: "https://placehold.co/300x200.png", description: "Creamy natural yogurt.", sku: "YOG001", reorderLevel: 15 },
-  { id: "3", name: "Watallappan Delight", category: "Watallappan", price: 4.50, stock: 50, imageUrl: "https://placehold.co/300x200.png", description: "Traditional Sri Lankan coconut custard pudding.", sku: "WAT001", reorderLevel: 10 },
-  { id: "4", name: "Pure Ghee (250g)", category: "Ghee", price: 7.00, stock: 60, imageUrl: "https://placehold.co/300x200.png", description: "Clarified butter made from cow's milk.", sku: "GHEE001", reorderLevel: 10 },
-  { id: "5", name: "Skimmed Milk (1L)", category: "Milk", price: 2.30, stock: 75, imageUrl: "https://placehold.co/300x200.png", description: "Low-fat skimmed milk.", sku: "MILK002", reorderLevel: 20 },
-  { id: "6", name: "Fruit Yogurt (Pack of 4)", category: "Yogurt", price: 5.00, stock: 40, imageUrl: "https://placehold.co/300x200.png", description: "Assorted fruit flavored yogurts.", sku: "YOG002", reorderLevel: 10 },
+  { id: "1", name: "Fresh Milk (1L)", category: "Milk", price: 2.50, wholesalePrice: 2.30, stock: 120, imageUrl: "https://placehold.co/300x200.png", description: "Pasteurized full cream milk.", sku: "MILK001", reorderLevel: 20 },
+  { id: "2", name: "Natural Yogurt (500g)", category: "Yogurt", price: 3.00, wholesalePrice: 2.80, stock: 80, imageUrl: "https://placehold.co/300x200.png", description: "Creamy natural yogurt.", sku: "YOG001", reorderLevel: 15 },
+  { id: "3", name: "Watallappan Delight", category: "Watallappan", price: 4.50, wholesalePrice: 4.20, stock: 50, imageUrl: "https://placehold.co/300x200.png", description: "Traditional Sri Lankan coconut custard pudding.", sku: "WAT001", reorderLevel: 10 },
+  { id: "4", name: "Pure Ghee (250g)", category: "Ghee", price: 7.00, wholesalePrice: 6.50, stock: 60, imageUrl: "https://placehold.co/300x200.png", description: "Clarified butter made from cow's milk.", sku: "GHEE001", reorderLevel: 10 },
+  { id: "5", name: "Skimmed Milk (1L)", category: "Milk", price: 2.30, wholesalePrice: 2.10, stock: 75, imageUrl: "https://placehold.co/300x200.png", description: "Low-fat skimmed milk.", sku: "MILK002", reorderLevel: 20 },
+  { id: "6", name: "Fruit Yogurt (Pack of 4)", category: "Yogurt", price: 5.00, wholesalePrice: 4.70, stock: 40, imageUrl: "https://placehold.co/300x200.png", description: "Assorted fruit flavored yogurts.", sku: "YOG002", reorderLevel: 10 },
 ];
 
 export const placeholderCustomers: Customer[] = [
