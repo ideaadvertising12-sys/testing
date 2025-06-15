@@ -1,0 +1,104 @@
+"use client";
+
+import Image from "next/image";
+import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import type { Product } from "@/lib/types";
+import { placeholderProducts } from "@/lib/placeholder-data";
+import { cn } from "@/lib/utils";
+
+export function InventoryDataTable() {
+  const products = placeholderProducts; // Use placeholder data
+
+  const getStockStatus = (stock: number, reorderLevel?: number) => {
+    if (reorderLevel === undefined) reorderLevel = 10; // Default reorder level
+    if (stock <= 0) return { text: "Out of Stock", color: "bg-red-500 text-destructive-foreground", variant: "destructive" as const };
+    if (stock <= reorderLevel) return { text: "Low Stock", color: "bg-orange-500 text-destructive-foreground", variant: "default" as const }; // Using default for orange
+    return { text: "In Stock", color: "bg-green-500 text-primary-foreground", variant: "default" as const }; // Using default for green
+  };
+
+  return (
+    <Card className="shadow-lg">
+      <CardHeader>
+        <CardTitle className="font-headline">Inventory Status</CardTitle>
+        <CardDescription>Current stock levels for all products.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="hidden w-[80px] sm:table-cell">Image</TableHead>
+              <TableHead>Product Name</TableHead>
+              <TableHead>Category</TableHead>
+              <TableHead className="text-center">Current Stock</TableHead>
+              <TableHead className="hidden md:table-cell text-center">Reorder Level</TableHead>
+              <TableHead className="text-center">Status</TableHead>
+              <TableHead className="hidden lg:table-cell w-[200px] text-center">Stock Progress</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {products.map((product) => {
+              const status = getStockStatus(product.stock, product.reorderLevel);
+              const progressValue = product.stock > 0 ? Math.min((product.stock / ( (product.reorderLevel || 10) * 2)) * 100, 100) : 0;
+              let progressColorClass = "bg-primary";
+              if (status.text === "Out of Stock") progressColorClass = "bg-red-500";
+              else if (status.text === "Low Stock") progressColorClass = "bg-orange-500";
+
+
+              return (
+                <TableRow key={product.id}>
+                  <TableCell className="hidden sm:table-cell">
+                    <Image
+                      alt={product.name}
+                      className="aspect-square rounded-md object-cover"
+                      height="48"
+                      src={product.imageUrl || "https://placehold.co/48x48.png"}
+                      width="48"
+                      data-ai-hint={`${product.category.toLowerCase()} inventory`}
+                    />
+                  </TableCell>
+                  <TableCell className="font-medium">{product.name}</TableCell>
+                  <TableCell>
+                    <Badge variant="secondary">{product.category}</Badge>
+                  </TableCell>
+                  <TableCell className="text-center">{product.stock}</TableCell>
+                  <TableCell className="hidden md:table-cell text-center">{product.reorderLevel || 10}</TableCell>
+                  <TableCell className="text-center">
+                    <Badge className={cn(status.color, "text-xs")}>{status.text}</Badge>
+                  </TableCell>
+                  <TableCell className="hidden lg:table-cell">
+                     <Progress value={progressValue} indicatorClassName={progressColorClass} aria-label={`${product.stock} in stock`} />
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+}
+
+// Custom Progress component to allow indicator color change
+const CustomProgress = ({ value, className, indicatorClassName }: { value: number | null | undefined, className?: string, indicatorClassName?: string }) => (
+  <ProgressPrimitive.Root
+    className={cn("relative h-2 w-full overflow-hidden rounded-full bg-secondary", className)}
+  >
+    <ProgressPrimitive.Indicator
+      className={cn("h-full w-full flex-1 bg-primary transition-all", indicatorClassName)}
+      style={{ transform: `translateX(-${100 - (value || 0)}%)` }}
+    />
+  </ProgressPrimitive.Root>
+);
+
+// Need to re-import ProgressPrimitive if it's not exported from ui/progress
+import * as ProgressPrimitive from "@radix-ui/react-progress";
