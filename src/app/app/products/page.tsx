@@ -15,12 +15,12 @@ export default function ProductsPage() {
 
   useEffect(() => {
     if (userRole === "cashier") {
-      router.replace("/app/inventory"); // Redirect cashier to inventory page
+      router.replace("/app/sales"); 
     }
   }, [userRole, router]);
 
   if (userRole === "cashier") {
-    return <AccessDenied message="Product management is not available for your role. You can view stock levels in Inventory." />;
+    return <AccessDenied message="Product management is not available for your role. Redirecting..." />;
   }
 
   return (

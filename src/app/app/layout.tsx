@@ -51,7 +51,7 @@ const allNavItems: NavItemConfig[] = [
     allowedRoles: ["admin", "cashier"],
     children: [
       { id: "view-stock", href: "/app/inventory/view-stock", label: "View Stock", icon: View, allowedRoles: ["admin", "cashier"] },
-      { id: "manage-stock", href: "/app/inventory/manage-stock", label: "Manage Stock", icon: PlusSquare, allowedRoles: ["admin", "cashier"] },
+      { id: "manage-stock", href: "/app/inventory/manage-stock", label: "Manage Stock", icon: PlusSquare, allowedRoles: ["admin"] },
     ]
   },
 ];
@@ -81,7 +81,7 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
     if (pathname.startsWith("/app/customers")) return "Customers";
     if (pathname.startsWith("/app/sales")) return "Sales (POS)";
     if (pathname.startsWith("/app/inventory/view-stock")) return "View Stock";
-    if (pathname.startsWith("/app/inventory/manage-stock")) return "Manage Stock";
+    if (pathname.startsWith("/app/inventory/manage-stock") && userRole === "admin") return "Manage Stock";
     if (pathname.startsWith("/app/inventory")) return "Inventory";
     return "NGroup Products";
   }
