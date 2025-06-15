@@ -26,12 +26,24 @@ import { CustomerDialog } from "./CustomerDialog";
 import { useState } from "react";
 import { placeholderCustomers } from "@/lib/placeholder-data";
 import { useAuth } from "@/contexts/AuthContext";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const getInitials = (name: string) => name.split(" ").map(n => n[0]).join("").toUpperCase();
 
 export function CustomerDataTable() {
   const [customers, setCustomers] = useState<Customer[]>(placeholderCustomers);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+  const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
+  const [customerToDeleteId, setCustomerToDeleteId] = useState<string | null>(null);
   const { userRole } = useAuth();
   const canManageCustomers = userRole === 'admin'; 
   const canAddCustomers = userRole === 'admin' || userRole === 'cashier';
@@ -47,9 +59,17 @@ export function CustomerDataTable() {
     setEditingCustomer(null);
   };
 
-  const handleDeleteCustomer = (customerId: string) => {
+  const openDeleteConfirmation = (customerId: string) => {
     if (!canManageCustomers) return;
-    setCustomers(customers.filter(c => c.id !== customerId));
+    setCustomerToDeleteId(customerId);
+    setIsDeleteAlertOpen(true);
+  };
+
+  const handleDeleteCustomer = () => {
+    if (!canManageCustomers || !customerToDeleteId) return;
+    setCustomers(customers.filter(c => c.id !== customerToDeleteId));
+    setIsDeleteAlertOpen(false);
+    setCustomerToDeleteId(null);
   };
   
   const handleEditCustomer = (customer: Customer) => {
@@ -58,87 +78,107 @@ export function CustomerDataTable() {
   }
 
   return (
-    <Card className="shadow-lg">
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="font-headline">Customer List</CardTitle>
-        {canAddCustomers && (
-          <CustomerDialog
-            customer={null} 
-            onSave={handleSaveCustomer}
-            isEditMode={false} 
-            trigger={
-              <Button size="sm">
-                <PlusCircle className="mr-2 h-4 w-4" /> Add Customer
-              </Button>
-            }
-          />
-        )}
-      </CardHeader>
-      <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Phone</TableHead>
-              <TableHead className="hidden md:table-cell">Address</TableHead>
-              <TableHead className="hidden md:table-cell">Shop Name</TableHead>
-              {canManageCustomers && (
-                <TableHead>
-                  <span className="sr-only">Actions</span>
-                </TableHead>
-              )}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {customers.map((customer) => (
-              <TableRow key={customer.id}>
-                <TableCell>
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-9 w-9 hidden sm:flex">
-                      <AvatarFallback>{getInitials(customer.name)}</AvatarFallback>
-                    </Avatar>
-                    <span className="font-medium">{customer.name}</span>
-                  </div>
-                </TableCell>
-                <TableCell>{customer.phone}</TableCell>
-                <TableCell className="hidden md:table-cell">{customer.address || "N/A"}</TableCell>
-                <TableCell className="hidden md:table-cell">{customer.shopName || "N/A"}</TableCell>
+    <>
+      <Card className="shadow-lg">
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="font-headline">Customer List</CardTitle>
+          {canAddCustomers && (
+            <CustomerDialog
+              customer={null} 
+              onSave={handleSaveCustomer}
+              isEditMode={false} 
+              trigger={
+                <Button size="sm">
+                  <PlusCircle className="mr-2 h-4 w-4" /> Add Customer
+                </Button>
+              }
+            />
+          )}
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Phone</TableHead>
+                <TableHead className="hidden md:table-cell">Address</TableHead>
+                <TableHead className="hidden md:table-cell">Shop Name</TableHead>
                 {canManageCustomers && (
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button aria-haspopup="true" size="icon" variant="ghost">
-                          <MoreHorizontal className="h-4 w-4" />
-                          <span className="sr-only">Toggle menu</span>
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem onClick={() => handleEditCustomer(customer)}>
-                           <Edit className="mr-2 h-4 w-4" /> Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive focus:text-destructive focus:bg-destructive/10" onClick={() => handleDeleteCustomer(customer.id)}>
-                           <Trash2 className="mr-2 h-4 w-4" /> Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
+                  <TableHead>
+                    <span className="sr-only">Actions</span>
+                  </TableHead>
                 )}
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-        {canManageCustomers && editingCustomer && (
-          <CustomerDialog
-            customer={editingCustomer}
-            onSave={handleSaveCustomer}
-            isEditMode={true} 
-            onOpenChange={(isOpen) => { if (!isOpen) setEditingCustomer(null); }}
-            open={!!editingCustomer} 
-            trigger={<></>} 
-          />
-        )}
-      </CardContent>
-    </Card>
+            </TableHeader>
+            <TableBody>
+              {customers.map((customer) => (
+                <TableRow key={customer.id}>
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-9 w-9 hidden sm:flex">
+                        <AvatarFallback>{getInitials(customer.name)}</AvatarFallback>
+                      </Avatar>
+                      <span className="font-medium">{customer.name}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell>{customer.phone}</TableCell>
+                  <TableCell className="hidden md:table-cell">{customer.address || "N/A"}</TableCell>
+                  <TableCell className="hidden md:table-cell">{customer.shopName || "N/A"}</TableCell>
+                  {canManageCustomers && (
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button aria-haspopup="true" size="icon" variant="ghost">
+                            <MoreHorizontal className="h-4 w-4" />
+                            <span className="sr-only">Toggle menu</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                          <DropdownMenuItem onClick={() => handleEditCustomer(customer)}>
+                             <Edit className="mr-2 h-4 w-4" /> Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="text-destructive focus:text-destructive focus:bg-destructive/10" onClick={() => openDeleteConfirmation(customer.id)}>
+                             <Trash2 className="mr-2 h-4 w-4" /> Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  )}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          {canManageCustomers && editingCustomer && (
+            <CustomerDialog
+              customer={editingCustomer}
+              onSave={handleSaveCustomer}
+              isEditMode={true} 
+              onOpenChange={(isOpen) => { if (!isOpen) setEditingCustomer(null); }}
+              open={!!editingCustomer} 
+              trigger={<></>} 
+            />
+          )}
+        </CardContent>
+      </Card>
+
+      <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the customer
+              and remove their data from our servers.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setCustomerToDeleteId(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteCustomer} className="bg-destructive hover:bg-destructive/90">
+              Yes, delete customer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
