@@ -97,7 +97,7 @@ export function BillDialog({ isOpen, onOpenChange, cartItems, customer, discount
             </div>
             {discountPercentage > 0 && (
               <div className="flex justify-between">
-                <span>Discount ({discountPercentage}%):</span>
+                <span>Discount:</span>
                 <span>- Rs. {calculatedDiscountAmount.toFixed(2)}</span>
               </div>
             )}
@@ -122,3 +122,4 @@ export function BillDialog({ isOpen, onOpenChange, cartItems, customer, discount
     </Dialog>
   );
 }
+
