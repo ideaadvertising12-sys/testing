@@ -20,20 +20,18 @@ import { useAuth } from "@/contexts/AuthContext";
 
 interface CustomerDialogProps {
   customer?: Customer | null;
-  trigger?: React.ReactNode; // Made optional for controlled dialog
+  trigger?: React.ReactNode; 
   onSave: (customer: Customer) => void;
-  isEditMode: boolean; // To differentiate between add and edit
-  open?: boolean; // For controlled dialog
-  onOpenChange?: (isOpen: boolean) => void; // For controlled dialog
+  isEditMode: boolean; 
+  open?: boolean; 
+  onOpenChange?: (isOpen: boolean) => void; 
 }
 
-const defaultCustomer: Customer = {
-  id: "",
+const defaultCustomer: Omit<Customer, 'id'> = {
   name: "",
   phone: "",
-  email: "",
   address: "",
-  loyaltyPoints: 0,
+  shopName: "",
 };
 
 export function CustomerDialog({ 
@@ -48,24 +46,26 @@ export function CustomerDialog({
   const isOpen = controlledOpen !== undefined ? controlledOpen : internalOpen;
   const setIsOpen = controlledOnOpenChange !== undefined ? controlledOnOpenChange : setInternalOpen;
 
-  const [formData, setFormData] = useState<Customer>(customer && isEditMode ? customer : defaultCustomer);
+  const [formData, setFormData] = useState<Omit<Customer, 'id'>>(
+    customer && isEditMode ? { name: customer.name, phone: customer.phone, address: customer.address, shopName: customer.shopName } : defaultCustomer
+  );
   const { userRole } = useAuth();
   const canEditDetails = userRole === 'admin';
 
   useEffect(() => {
     if (isOpen) {
-      setFormData(customer && isEditMode ? customer : defaultCustomer);
+      setFormData(customer && isEditMode ? { name: customer.name, phone: customer.phone, address: customer.address, shopName: customer.shopName } : defaultCustomer);
     }
   }, [isOpen, customer, isEditMode]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: name === 'loyaltyPoints' ? parseInt(value) || 0 : value }));
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = () => {
-    if (!formData.name) {
-      alert("Customer name is required."); // Replace with toast
+    if (!formData.name || !formData.phone) {
+      alert("Customer name and phone number are required."); // Replace with toast
       return;
     }
     onSave({ ...formData, id: (customer && isEditMode) ? customer.id : Date.now().toString() });
@@ -75,10 +75,7 @@ export function CustomerDialog({
   const dialogTitle = isEditMode ? "Edit Customer" : "Add New Customer";
   const dialogDescription = isEditMode ? "Update customer details." : "Fill in the new customer's information.";
 
-  // For cashier, some fields might be read-only if they are editing (though current logic prevents cashier from editing)
-  // This is more for if we allow cashiers to edit *some* fields in the future.
   const readOnlyForCashier = isEditMode && !canEditDetails;
-
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -95,20 +92,16 @@ export function CustomerDialog({
               <Input id="name" name="name" value={formData.name} onChange={handleChange} className="mt-1" readOnly={readOnlyForCashier} />
             </div>
             <div>
-              <Label htmlFor="email">Email Address</Label>
-              <Input id="email" name="email" type="email" value={formData.email || ""} onChange={handleChange} className="mt-1" readOnly={readOnlyForCashier} />
-            </div>
-            <div>
               <Label htmlFor="phone">Phone Number</Label>
-              <Input id="phone" name="phone" type="tel" value={formData.phone || ""} onChange={handleChange} className="mt-1" readOnly={readOnlyForCashier} />
+              <Input id="phone" name="phone" type="tel" value={formData.phone} onChange={handleChange} className="mt-1" readOnly={readOnlyForCashier} />
             </div>
             <div>
-              <Label htmlFor="address">Address</Label>
+              <Label htmlFor="address">Address (Optional)</Label>
               <Textarea id="address" name="address" value={formData.address || ""} onChange={handleChange} className="mt-1" rows={3} readOnly={readOnlyForCashier}/>
             </div>
-             <div>
-              <Label htmlFor="loyaltyPoints">Loyalty Points</Label>
-              <Input id="loyaltyPoints" name="loyaltyPoints" type="number" value={formData.loyaltyPoints} onChange={handleChange} className="mt-1" min="0" readOnly={!canEditDetails}/>
+            <div>
+              <Label htmlFor="shopName">Shop Name (Optional)</Label>
+              <Input id="shopName" name="shopName" value={formData.shopName || ""} onChange={handleChange} className="mt-1" readOnly={readOnlyForCashier} />
             </div>
           </div>
         </div>

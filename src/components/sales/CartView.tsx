@@ -70,7 +70,8 @@ export function CartView({
               <SelectItem value="guest">Walk-in / Guest</SelectItem>
               {placeholderCustomers.map(customer => (
                 <SelectItem key={customer.id} value={customer.id}>
-                  {customer.name} ({customer.phone || customer.email})
+                  {customer.name} ({customer.phone})
+                  {customer.shopName && ` - ${customer.shopName}`}
                 </SelectItem>
               ))}
             </SelectContent>

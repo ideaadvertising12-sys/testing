@@ -17,17 +17,17 @@ export const placeholderProducts: Product[] = [
 ];
 
 export const placeholderCustomers: Customer[] = [
-  { id: "1", name: "John Doe", phone: "555-1234", email: "john.doe@example.com", address: "123 Main St, Anytown", loyaltyPoints: 150 },
-  { id: "2", name: "Jane Smith", phone: "555-5678", email: "jane.smith@example.com", address: "456 Oak Ave, Anytown", loyaltyPoints: 230 },
-  { id: "3", name: "Alice Johnson", phone: "555-8765", email: "alice.j@example.com", loyaltyPoints: 75 },
-  { id: "4", name: "Bob Brown", phone: "555-4321", email: "bob.b@example.com", address: "789 Pine Ln, Anytown" },
+  { id: "1", name: "Retail LK", phone: "077-1234567", address: "12 Galle Rd, Colombo", shopName: "Colombo Super" },
+  { id: "2", name: "Kandy Foods", phone: "071-7654321", address: "34 Temple St, Kandy", shopName: "Kandy Central Mart" },
+  { id: "3", name: "Nuwara Eliya Grocers", phone: "070-5558888", shopName: "Highland Grocers" },
+  { id: "4", name: "Jaffna Traders", phone: "076-9990000", address: "7 Market Sq, Jaffna" },
 ];
 
 export const placeholderSales: Sale[] = [
   { 
     id: "1", 
     customerId: "1", 
-    customerName: "John Doe",
+    customerName: "Retail LK",
     items: [
       { ...placeholderProducts[0], quantity: 2, appliedPrice: placeholderProducts[0].price, saleType: 'retail' },
       { ...placeholderProducts[1], quantity: 1, appliedPrice: placeholderProducts[1].price, saleType: 'retail' },
@@ -40,7 +40,7 @@ export const placeholderSales: Sale[] = [
   { 
     id: "2", 
     customerId: "2", 
-    customerName: "Jane Smith",
+    customerName: "Kandy Foods",
     items: [
       { ...placeholderProducts[7], quantity: 1, appliedPrice: placeholderProducts[7].price, saleType: 'retail' },
       { ...placeholderProducts[11], quantity: 1, appliedPrice: placeholderProducts[11].price, saleType: 'retail' },
@@ -53,10 +53,10 @@ export const placeholderSales: Sale[] = [
 ];
 
 export const placeholderStats: StatsData = {
-  totalSales: 12500.75, // This value can be recalculated if needed, or kept as a general placeholder
+  totalSales: 12500.75, 
   totalCustomers: placeholderCustomers.length,
   lowStockItems: placeholderProducts.filter(p => p.stock <= (p.reorderLevel || 10)).length,
-  revenueToday: 350.50, // This value can be recalculated or kept as a general placeholder
+  revenueToday: 350.50, 
 };
 
 export const placeholderSalesChartData: SalesChartData[] = [

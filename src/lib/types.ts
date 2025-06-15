@@ -15,10 +15,9 @@ export interface Product {
 export interface Customer {
   id: string;
   name: string;
-  phone?: string;
-  email?: string;
+  phone: string; // Made phone non-optional as per common requirement, can be adjusted
   address?: string;
-  loyaltyPoints?: number;
+  shopName?: string;
 }
 
 export interface CartItem extends Product {

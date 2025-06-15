@@ -44,7 +44,7 @@ const recentActivities: ActivityItem[] = [
     id: "cust-1",
     type: "new_customer",
     title: `New Customer Registered: ${placeholderCustomers[2].name}`,
-    description: `Email: ${placeholderCustomers[2].email || 'N/A'}`,
+    description: `Phone: ${placeholderCustomers[2].phone}${placeholderCustomers[2].shopName ? ', Shop: ' + placeholderCustomers[2].shopName : ''}`,
     timestamp: new Date(Date.now() - 86400000 * 1.5), // 1.5 days ago
     icon: UserPlus,
     avatarFallback: getInitials(placeholderCustomers[2].name),
