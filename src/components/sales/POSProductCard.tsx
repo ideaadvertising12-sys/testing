@@ -30,12 +30,18 @@ export function POSProductCard({ product, onAddToCart }: POSProductCardProps) {
         <p className="text-xs text-muted-foreground">{product.category}</p>
         <p className="text-sm text-muted-foreground">Stock: {product.stock}</p>
       </CardContent>
-      <CardFooter className="p-4 flex justify-between items-center border-t">
+      <CardFooter className="p-4 border-t flex flex-col items-start gap-2 sm:flex-row sm:justify-between sm:items-center">
         <p className="text-lg font-bold text-primary">Rs.{product.price.toFixed(2)}</p>
-        <Button size="sm" onClick={() => onAddToCart(product)} disabled={product.stock <= 0}>
+        <Button 
+          size="sm" 
+          onClick={() => onAddToCart(product)} 
+          disabled={product.stock <= 0}
+          className="w-full sm:w-auto"
+        >
           <PlusCircle className="mr-2 h-4 w-4" /> Add
         </Button>
       </CardFooter>
     </Card>
   );
 }
+
