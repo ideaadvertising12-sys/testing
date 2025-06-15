@@ -50,28 +50,28 @@ export default function DashboardPage() {
           value={`Rs.${placeholderStats.totalSales.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`}
           icon={DollarSign}
           description="+20.1% from last month"
-          iconColor="text-green-500"
+          iconColor="text-primary" 
         />
         <StatsCard 
           title="Total Customers" 
           value={placeholderStats.totalCustomers}
           icon={Users}
           description="+5 from last week"
-          iconColor="text-blue-500"
+          iconColor="text-accent" 
         />
         <StatsCard 
           title="Low Stock Items" 
           value={placeholderStats.lowStockItems}
           icon={TrendingDown}
           description="Needs reordering soon"
-          iconColor="text-orange-500"
+          iconColor="text-destructive" 
         />
          <StatsCard 
           title="Revenue Today" 
           value={`Rs.${placeholderStats.revenueToday.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`}
           icon={TrendingUp}
           description="Compared to yesterday"
-          iconColor="text-indigo-500"
+          iconColor="text-primary" 
         />
       </div>
 
