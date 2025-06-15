@@ -67,7 +67,7 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
              <div className="hidden group-data-[collapsible=icon]:block">
                 <AppLogoIconOnly />
              </div>
-            <SidebarTrigger className="group-data-[collapsible=icon]:hidden" />
+            <SidebarTrigger /> {/* Removed className="group-data-[collapsible=icon]:hidden" */}
           </div>
         </SidebarHeader>
         <Separator className="group-data-[collapsible=icon]:hidden" />
