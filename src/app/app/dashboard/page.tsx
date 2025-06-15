@@ -1,7 +1,7 @@
 
 "use client";
 
-import { DollarSign, Package, Users, TrendingDown, TrendingUp, Activity } from "lucide-react";
+import { IndianRupee, Package, Users, TrendingDown, TrendingUp, Activity } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { SalesChart } from "@/components/dashboard/SalesChart";
@@ -48,7 +48,7 @@ export default function DashboardPage() {
         <StatsCard 
           title="Total Revenue" 
           value={`Rs.${placeholderStats.totalSales.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`}
-          icon={DollarSign}
+          icon={IndianRupee}
           description="+20.1% from last month"
           iconColor="text-primary" 
         />
