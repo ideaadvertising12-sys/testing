@@ -157,7 +157,7 @@ export default function SalesPage() {
           </ScrollArea>
         </div>
 
-        <div className="lg:col-span-1 flex flex-col min-h-0">
+        <div className="lg:col-span-1 flex flex-col min-h-0 overflow-y-auto">
           <CartView 
             cartItems={cartItems}
             selectedCustomer={selectedCustomer}
