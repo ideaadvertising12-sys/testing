@@ -11,6 +11,10 @@ import {
   ChevronDown,
   View,
   PlusSquare,
+  FileText,
+  ClipboardList,
+  Warehouse,
+  UserCheck,
 } from "lucide-react";
 import {
   SidebarProvider,
@@ -71,6 +75,17 @@ const allNavItems: NavItemConfig[] = [
       { id: "manage-stock", href: "/app/inventory/manage-stock", label: "Manage Stock", icon: PlusSquare, allowedRoles: ["admin"] },
     ]
   },
+  {
+    id: "reports",
+    label: "Reports",
+    icon: FileText,
+    allowedRoles: ["admin"],
+    children: [
+      { id: "full-report", href: "/app/reports/full-report", label: "Full Report", icon: ClipboardList, allowedRoles: ["admin"] },
+      { id: "stock-report", href: "/app/reports/stock-report", label: "Stock Report", icon: Warehouse, allowedRoles: ["admin"] },
+      { id: "customer-report", href: "/app/reports/customer-report", label: "Customer Report", icon: UserCheck, allowedRoles: ["admin"] },
+    ]
+  }
 ];
 
 function AppLayoutContent({ children }: { children: React.ReactNode }) {
@@ -100,12 +115,20 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
     if (pathname.startsWith("/app/inventory/view-stock")) return "View Stock";
     if (pathname.startsWith("/app/inventory/manage-stock") && userRole === "admin") return "Manage Stock";
     if (pathname.startsWith("/app/inventory")) return "Inventory";
+    if (pathname.startsWith("/app/reports/full-report") && userRole === "admin") return "Full Report";
+    if (pathname.startsWith("/app/reports/stock-report") && userRole === "admin") return "Stock Report";
+    if (pathname.startsWith("/app/reports/customer-report") && userRole === "admin") return "Customer Report";
+    if (pathname.startsWith("/app/reports") && userRole === "admin") return "Reports";
     return "NGroup Products";
   }
   
   const isNavItemActive = (item: NavItemConfig) => {
     if (item.href) {
-      return pathname === item.href || (item.href !== "/app/dashboard" && pathname.startsWith(item.href));
+      // For top-level dashboard link, ensure it's an exact match or starts with /app/dashboard only.
+      if (item.href === "/app/dashboard") return pathname === item.href || pathname.startsWith("/app/dashboard/");
+      // For other top-level links, ensure they are not just a prefix of a deeper path within another section
+      return pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href) && (pathname.length === item.href.length || pathname[item.href.length] === '/'));
+
     }
     if (item.children) {
       return item.children.some(child => child.href && pathname.startsWith(child.href));
