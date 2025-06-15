@@ -1,3 +1,6 @@
+
+"use client";
+
 import { DollarSign, Package, Users, TrendingDown, TrendingUp, Activity } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { StatsCard } from "@/components/dashboard/StatsCard";
@@ -12,11 +15,27 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { placeholderProducts } from "@/lib/placeholder-data";
+import { useAuth } from "@/contexts/AuthContext";
+import { AccessDenied } from "@/components/AccessDenied";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 export default function DashboardPage() {
+  const { userRole } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (userRole === "cashier") {
+      router.replace("/app/sales"); // Redirect cashier to sales page
+    }
+  }, [userRole, router]);
+
+  if (userRole === "cashier") {
+    return <AccessDenied message="Dashboard is not available for your role. Redirecting..." />;
+  }
+  
   const topSellingProducts = [...placeholderProducts]
     .sort((a,b) => (b.price * (150 - b.stock)) - (a.price * (150 - a.stock)) ) // Mock sales volume
     .slice(0,5);

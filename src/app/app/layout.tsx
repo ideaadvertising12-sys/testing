@@ -1,11 +1,10 @@
+
 "use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Archive,
-  BarChart3,
-  Home,
   LayoutDashboard,
   Package,
   ShoppingCart,
@@ -25,20 +24,37 @@ import {
 } from "@/components/ui/sidebar";
 import { AppLogo } from "@/components/AppLogo";
 import { UserProfile } from "@/components/UserProfile";
-import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import type { NavItemConfig, UserRole } from "@/lib/types";
 
-const navItems = [
-  { href: "/app/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/app/products", label: "Products", icon: Package },
-  { href: "/app/customers", label: "Customers", icon: Users },
-  { href: "/app/sales", label: "Sales (POS)", icon: ShoppingCart },
-  { href: "/app/inventory", label: "Inventory", icon: Archive },
-  // { href: "/app/reports", label: "Reports", icon: BarChart3 }, // Can be part of dashboard
+const allNavItems: NavItemConfig[] = [
+  { href: "/app/dashboard", label: "Dashboard", icon: LayoutDashboard, allowedRoles: ["admin"] },
+  { href: "/app/products", label: "Products", icon: Package, allowedRoles: ["admin"] },
+  { href: "/app/customers", label: "Customers", icon: Users, allowedRoles: ["admin", "cashier"] },
+  { href: "/app/sales", label: "Sales (POS)", icon: ShoppingCart, allowedRoles: ["admin", "cashier"] },
+  { href: "/app/inventory", label: "Inventory", icon: Archive, allowedRoles: ["admin", "cashier"] },
 ];
 
-export default function AppLayout({ children }: { children: React.ReactNode }) {
+function AppLayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const { userRole } = useAuth();
+
+  const navItems = allNavItems.filter(item => item.allowedRoles.includes(userRole));
+
+  const getCurrentPageLabel = () => {
+    const currentNavItem = navItems.find(item => pathname === item.href || (item.href !== "/app/dashboard" && pathname.startsWith(item.href)));
+    if (currentNavItem) {
+      return currentNavItem.label;
+    }
+    // Fallback for pages not directly in nav, or if user lands on a restricted page title
+    if (pathname.startsWith("/app/dashboard") && userRole === "admin") return "Dashboard";
+    if (pathname.startsWith("/app/products") && userRole === "admin") return "Products";
+    if (pathname.startsWith("/app/customers")) return "Customers";
+    if (pathname.startsWith("/app/sales")) return "Sales (POS)";
+    if (pathname.startsWith("/app/inventory")) return "Inventory";
+    return "MilkPOS";
+  }
 
   return (
     <SidebarProvider defaultOpen>
@@ -79,12 +95,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
       <SidebarInset>
         <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-background/80 px-4 backdrop-blur-md sm:px-6">
-          <div className="md:hidden"> {/* Hamburger for mobile, shown if sidebar is collapsible */}
+          <div className="md:hidden">
              <SidebarTrigger />
           </div>
-          <div className="hidden md:block"> {/* Placeholder for breadcrumbs or page title */}
+          <div className="hidden md:block">
             <h1 className="text-xl font-semibold font-headline">
-                {navItems.find(item => pathname.startsWith(item.href))?.label || "MilkPOS"}
+                {getCurrentPageLabel()}
             </h1>
           </div>
           <UserProfile />
@@ -95,6 +111,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </SidebarInset>
     </SidebarProvider>
   );
+}
+
+export default function AppLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <AuthProvider>
+      <AppLayoutContent>{children}</AppLayoutContent>
+    </AuthProvider>
+  )
 }
 
 const AppLogoIconOnly = () => (
@@ -113,4 +137,3 @@ const AppLogoIconOnly = () => (
     <path d="M20.56 10.44 15.3 3.29A2.52 2.52 0 0 0 13.14 2H10.9A2.52 2.52 0 0 0 8.7 3.29L3.44 10.44A2.13 2.13 0 0 0 3 11.79V20a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-8.21a2.13 2.13 0 0 0-.44-1.35Z"/><path d="m3.5 10.5 17 0"/><path d="M12 22V10.5"/>
   </svg>
 );
-

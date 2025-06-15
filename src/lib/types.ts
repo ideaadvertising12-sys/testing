@@ -45,3 +45,12 @@ export interface SalesChartData {
   name: string; // e.g., 'Jan', 'Feb', 'Mon', 'Tue'
   sales: number;
 }
+
+export type UserRole = "admin" | "cashier";
+
+export interface NavItemConfig {
+  href: string;
+  label: string;
+  icon: React.ElementType;
+  allowedRoles: UserRole[];
+}
