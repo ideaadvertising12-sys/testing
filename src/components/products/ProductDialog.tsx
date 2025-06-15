@@ -27,8 +27,10 @@ import Image from "next/image";
 
 interface ProductDialogProps {
   product?: Product | null;
-  trigger: React.ReactNode;
-  onSave: (product: Product) => void; // Simplified for UI
+  trigger?: React.ReactNode; // Optional for controlled dialog
+  onSave: (product: Product) => void;
+  open?: boolean; // For controlled dialog
+  onOpenChange?: (isOpen: boolean) => void; // For controlled dialog
 }
 
 const defaultProduct: Product = {
@@ -44,15 +46,29 @@ const defaultProduct: Product = {
   imageUrl: "https://placehold.co/400x300.png"
 };
 
-export function ProductDialog({ product, trigger, onSave }: ProductDialogProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [formData, setFormData] = useState<Product>(product || defaultProduct);
+export function ProductDialog({ 
+  product, 
+  trigger, 
+  onSave, 
+  open: controlledOpen, 
+  onOpenChange: controlledOnOpenChange 
+}: ProductDialogProps) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isOpen = controlledOpen !== undefined ? controlledOpen : internalOpen;
+  const setIsOpen = controlledOnOpenChange !== undefined ? controlledOnOpenChange : setInternalOpen;
+
+  const [formData, setFormData] = useState<Product>(product && isOpen ? product : defaultProduct);
   const [previewImage, setPreviewImage] = useState(product?.imageUrl || defaultProduct.imageUrl);
 
   useEffect(() => {
     if (isOpen) {
-      setFormData(product || defaultProduct);
-      setPreviewImage(product?.imageUrl || defaultProduct.imageUrl);
+      const initialData = product || defaultProduct;
+      setFormData(initialData);
+      setPreviewImage(initialData.imageUrl || defaultProduct.imageUrl);
+    } else {
+      // Optionally reset form when dialog closes if not controlled externally
+      // setFormData(defaultProduct);
+      // setPreviewImage(defaultProduct.imageUrl);
     }
   }, [isOpen, product]);
 
@@ -72,29 +88,28 @@ export function ProductDialog({ product, trigger, onSave }: ProductDialogProps) 
       reader.onloadend = () => {
         const result = reader.result as string;
         setPreviewImage(result);
-        setFormData(prev => ({...prev, imageUrl: result})); // In real app, upload and set URL
+        setFormData(prev => ({...prev, imageUrl: result})); 
       };
       reader.readAsDataURL(file);
     } else {
-        // If no file is selected, or selection is cancelled, revert to original or default
-        setPreviewImage(product?.imageUrl || defaultProduct.imageUrl);
-        setFormData(prev => ({...prev, imageUrl: product?.imageUrl || defaultProduct.imageUrl}));
+        const currentImageUrl = product?.imageUrl || defaultProduct.imageUrl;
+        setPreviewImage(currentImageUrl);
+        setFormData(prev => ({...prev, imageUrl: currentImageUrl}));
     }
   };
 
   const handleSubmit = () => {
-    // Basic validation (can be expanded with Zod)
-    if (!formData.name || formData.price <= 0) {
-      alert("Name and a valid price are required."); // Replace with toast in real app
+    if (!formData.name || formData.price < 0 || (formData.wholesalePrice !== undefined && formData.wholesalePrice < 0)) {
+      alert("Name, a valid retail price, and a valid wholesale price (if set) are required."); // Replace with toast in real app
       return;
     }
-    onSave({ ...formData, id: product?.id || Date.now().toString() }); // Mock ID generation
+    onSave({ ...formData, id: product?.id || Date.now().toString() }); 
     setIsOpen(false);
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>{trigger}</DialogTrigger>
+      {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-headline">{product ? "Edit Product" : "Add New Product"}</DialogTitle>

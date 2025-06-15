@@ -45,7 +45,10 @@ export default function SalesPage() {
       tempProducts = tempProducts.filter(p => p.category === category);
     }
     if (term) {
-      tempProducts = tempProducts.filter(p => p.name.toLowerCase().includes(term.toLowerCase()));
+      tempProducts = tempProducts.filter(p => 
+        p.name.toLowerCase().includes(term.toLowerCase()) ||
+        (p.sku && p.sku.toLowerCase().includes(term.toLowerCase()))
+      );
     }
     setFilteredProducts(tempProducts);
   };
@@ -118,6 +121,22 @@ export default function SalesPage() {
     console.log("Order cancelled");
   };
 
+  const handleSuccessfulSale = () => {
+    // This function would typically involve:
+    // 1. Saving the sale to a database
+    // 2. Updating stock levels based on items sold
+    // For now, we'll just clear the cart and related states.
+    setCartItems([]);
+    setSelectedCustomer(null);
+    setDiscountPercentage(0);
+    setCurrentSaleType('retail');
+    // Consider if you want to keep the search term or selected category or reset them too.
+    // setSearchTerm("");
+    // setSelectedCategory("All");
+    // filterAndCategorizeProducts("", "All");
+  };
+
+
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)]"> 
       <PageHeader 
@@ -132,7 +151,7 @@ export default function SalesPage() {
               <div className="relative flex-grow">
                 <PackageSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                 <Input 
-                  placeholder="Search products by name..." 
+                  placeholder="Search products by name or SKU..." 
                   className="pl-10"
                   value={searchTerm}
                   onChange={(e) => handleSearch(e.target.value)}
@@ -160,15 +179,15 @@ export default function SalesPage() {
             </Tabs>
           </div>
 
-          <ScrollArea className="flex-grow p-1 w-full lg:max-w-md lg:mx-auto">
+          <ScrollArea className="flex-grow p-1"> {/* Removed lg:max-w-md lg:mx-auto for full width */}
             {filteredProducts.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                <div className="flex flex-col items-center justify-center h-full text-muted-foreground pt-10">
                     <PackageSearch className="w-16 h-16 mb-4" />
                     <p className="text-xl">No products found.</p>
                     <p>Try adjusting your search or category filters.</p>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-4"> {/* Adjusted grid for more items */}
                 {filteredProducts.map(product => (
                     <POSProductCard key={product.id} product={product} onAddToCart={handleAddToCart} />
                 ))}
@@ -196,13 +215,10 @@ export default function SalesPage() {
         onOpenChange={(isOpen) => {
           setIsBillOpen(isOpen);
           if (!isOpen) { 
-            // Logic for when bill dialog is closed
-            // This assumes closing the dialog means the sale was completed (or manually cancelled and reset)
-            // If a successful sale implies clearing the cart:
-            // setCartItems([]);
-            // setSelectedCustomer(null);
-            // setDiscountPercentage(0);
-            // setCurrentSaleType('retail');
+             // This logic is called when the dialog is closed, regardless of whether it was a successful sale or just closed.
+             // If you want to clear the cart ONLY on successful sale, that logic should be handled separately.
+             // For now, let's assume closing means the sale is 'done' (either completed or cancelled and reset from within the dialog/process)
+             handleSuccessfulSale(); 
           }
         }} 
         cartItems={cartItems} 

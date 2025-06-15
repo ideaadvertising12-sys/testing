@@ -2,7 +2,7 @@
 "use client";
 
 import Image from "next/image";
-import { MoreHorizontal, Edit, Trash2, PlusCircle } from "lucide-react";
+import { MoreHorizontal, Edit, Trash2, PlusCircle, PackageSearch } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,45 +27,69 @@ import { ProductDialog } from "./ProductDialog";
 import { useState } from "react";
 import { placeholderProducts } from "@/lib/placeholder-data";
 import { useAuth } from "@/contexts/AuthContext";
+import { Input } from "@/components/ui/input";
 
 export function ProductDataTable() {
   const [products, setProducts] = useState<Product[]>(placeholderProducts);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
   const { userRole } = useAuth();
   const isAdmin = userRole === 'admin';
 
   const handleSaveProduct = (productToSave: Product) => {
-    if (!isAdmin) return; // Should not be callable by cashier
+    if (!isAdmin) return; 
     if (editingProduct) {
       setProducts(products.map(p => p.id === productToSave.id ? productToSave : p));
     } else {
-      setProducts([...products, { ...productToSave, id: Date.now().toString() }]); // Mock ID
+      setProducts([...products, { ...productToSave, id: Date.now().toString() }]); 
     }
     setEditingProduct(null);
   };
 
   const handleDeleteProduct = (productId: string) => {
-    if (!isAdmin) return; // Should not be callable by cashier
+    if (!isAdmin) return; 
     setProducts(products.filter(p => p.id !== productId));
   };
 
+  const filteredDisplayProducts = products.filter(product =>
+    product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (product.sku && product.sku.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
+
   return (
     <Card className="shadow-lg">
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="font-headline">Product List</CardTitle>
-        {isAdmin && (
-          <ProductDialog
-            product={null}
-            onSave={handleSaveProduct}
-            trigger={
-              <Button size="sm">
-                <PlusCircle className="mr-2 h-4 w-4" /> Add Product
-              </Button>
-            }
-          />
-        )}
+      <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4">
+        <CardTitle className="font-headline shrink-0">Product List</CardTitle>
+        <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
+          <div className="relative w-full sm:w-64">
+            <PackageSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            <Input
+              placeholder="Search by name or SKU..."
+              className="pl-10 w-full"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          {isAdmin && (
+            <ProductDialog
+              product={null}
+              onSave={handleSaveProduct}
+              trigger={
+                <Button size="sm" className="w-full sm:w-auto shrink-0">
+                  <PlusCircle className="mr-2 h-4 w-4" /> Add Product
+                </Button>
+              }
+            />
+          )}
+        </div>
       </CardHeader>
       <CardContent>
+        {filteredDisplayProducts.length === 0 ? (
+           <div className="flex flex-col items-center justify-center h-[200px] text-muted-foreground">
+              <PackageSearch className="w-16 h-16 mb-4" />
+              <p className="text-xl">No products found matching your search.</p>
+          </div>
+        ) : (
         <Table>
           <TableHeader>
             <TableRow>
@@ -83,7 +107,7 @@ export function ProductDataTable() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {products.map((product) => (
+            {filteredDisplayProducts.map((product) => (
               <TableRow key={product.id}>
                 <TableCell className="hidden sm:table-cell">
                   <Image
@@ -129,11 +153,15 @@ export function ProductDataTable() {
             ))}
           </TableBody>
         </Table>
+        )}
         {isAdmin && editingProduct && (
           <ProductDialog
             product={editingProduct}
             onSave={handleSaveProduct}
             trigger={<></>} 
+            // Controlled dialog for editing
+            open={!!editingProduct}
+            onOpenChange={(isOpen) => { if (!isOpen) setEditingProduct(null); }}
           />
         )}
       </CardContent>
