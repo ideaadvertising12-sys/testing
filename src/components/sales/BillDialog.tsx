@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { CartItem, Customer } from "@/lib/types";
@@ -80,8 +81,8 @@ export function BillDialog({ isOpen, onOpenChange, cartItems, customer, saleId }
                   <tr key={item.id} className="border-b border-dashed">
                     <td className="py-1.5">{item.name}</td>
                     <td className="text-center py-1.5">{item.quantity}</td>
-                    <td className="text-right py-1.5">${item.price.toFixed(2)}</td>
-                    <td className="text-right py-1.5">${(item.price * item.quantity).toFixed(2)}</td>
+                    <td className="text-right py-1.5">Rs.{item.price.toFixed(2)}</td>
+                    <td className="text-right py-1.5">Rs.{(item.price * item.quantity).toFixed(2)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -93,16 +94,16 @@ export function BillDialog({ isOpen, onOpenChange, cartItems, customer, saleId }
           <div className="space-y-1 text-xs">
             <div className="flex justify-between">
               <span>Subtotal:</span>
-              <span>${subtotal.toFixed(2)}</span>
+              <span>Rs.{subtotal.toFixed(2)}</span>
             </div>
             <div className="flex justify-between">
               <span>Tax ({(taxRate * 100).toFixed(0)}%):</span>
-              <span>${taxAmount.toFixed(2)}</span>
+              <span>Rs.{taxAmount.toFixed(2)}</span>
             </div>
             <Separator className="my-1"/>
             <div className="flex justify-between font-bold text-sm">
               <span>Total:</span>
-              <span>${totalAmount.toFixed(2)}</span>
+              <span>Rs.{totalAmount.toFixed(2)}</span>
             </div>
           </div>
           

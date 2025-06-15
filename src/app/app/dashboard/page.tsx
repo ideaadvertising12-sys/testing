@@ -47,7 +47,7 @@ export default function DashboardPage() {
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-6">
         <StatsCard 
           title="Total Revenue" 
-          value={`$${placeholderStats.totalSales.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`}
+          value={`Rs.${placeholderStats.totalSales.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`}
           icon={DollarSign}
           description="+20.1% from last month"
           iconColor="text-green-500"
@@ -68,7 +68,7 @@ export default function DashboardPage() {
         />
          <StatsCard 
           title="Revenue Today" 
-          value={`$${placeholderStats.revenueToday.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`}
+          value={`Rs.${placeholderStats.revenueToday.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`}
           icon={TrendingUp}
           description="Compared to yesterday"
           iconColor="text-indigo-500"
@@ -101,7 +101,7 @@ export default function DashboardPage() {
                 {topSellingProducts.map((product) => (
                   <TableRow key={product.id}>
                     <TableCell className="font-medium">{product.name}</TableCell>
-                    <TableCell className="text-right">${product.price.toFixed(2)}</TableCell>
+                    <TableCell className="text-right">Rs.{product.price.toFixed(2)}</TableCell>
                     <TableCell className="text-right">{150 - product.stock}</TableCell> 
                   </TableRow>
                 ))}

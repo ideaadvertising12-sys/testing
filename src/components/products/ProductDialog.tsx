@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -125,7 +126,7 @@ export function ProductDialog({ product, trigger, onSave }: ProductDialogProps) 
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
-              <Label htmlFor="price">Price ($)</Label>
+              <Label htmlFor="price">Price (Rs.)</Label>
               <Input id="price" name="price" type="number" value={formData.price} onChange={handleChange} className="mt-1" min="0" step="0.01" />
             </div>
             <div>

@@ -99,7 +99,7 @@ export function ProductDataTable() {
                   <Badge variant="outline">{product.category}</Badge>
                 </TableCell>
                 <TableCell className="hidden md:table-cell">{product.stock}</TableCell>
-                <TableCell className="text-right">${product.price.toFixed(2)}</TableCell>
+                <TableCell className="text-right">Rs.{product.price.toFixed(2)}</TableCell>
                 {isAdmin && (
                   <TableCell>
                     <DropdownMenu>

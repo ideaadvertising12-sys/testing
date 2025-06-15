@@ -1,3 +1,4 @@
+
 "use client";
 
 import Image from "next/image";
@@ -30,7 +31,7 @@ export function POSProductCard({ product, onAddToCart }: POSProductCardProps) {
         <p className="text-sm text-muted-foreground">Stock: {product.stock}</p>
       </CardContent>
       <CardFooter className="p-4 flex justify-between items-center border-t">
-        <p className="text-lg font-bold text-primary">${product.price.toFixed(2)}</p>
+        <p className="text-lg font-bold text-primary">Rs.{product.price.toFixed(2)}</p>
         <Button size="sm" onClick={() => onAddToCart(product)} disabled={product.stock <= 0}>
           <PlusCircle className="mr-2 h-4 w-4" /> Add
         </Button>
