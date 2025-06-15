@@ -118,7 +118,7 @@ export default function SalesPage() {
         icon={ShoppingCart}
       />
       <div className="flex-grow grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-0">
-        <div className="lg:col-span-2 flex flex-col min-h-0">
+        <div className="min-h-[450px] lg:min-h-0 lg:col-span-2 flex flex-col">
           <div className="p-1 mb-4">
             <div className="flex gap-4 mb-4">
               <div className="relative flex-grow">
@@ -140,7 +140,7 @@ export default function SalesPage() {
             </Tabs>
           </div>
 
-          <ScrollArea className="flex-grow p-1">
+          <ScrollArea className="flex-grow p-1 w-full lg:max-w-md lg:mx-auto">
             {filteredProducts.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
                     <PackageSearch className="w-16 h-16 mb-4" />
@@ -148,7 +148,7 @@ export default function SalesPage() {
                     <p>Try adjusting your search or category filters.</p>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 gap-4"> {/* Adjusted lg/xl cols for constrained width */}
                 {filteredProducts.map(product => (
                     <POSProductCard key={product.id} product={product} onAddToCart={handleAddToCart} />
                 ))}

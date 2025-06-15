@@ -14,7 +14,7 @@ interface POSProductCardProps {
 
 export function POSProductCard({ product, onAddToCart }: POSProductCardProps) {
   return (
-    <Card className="overflow-hidden shadow-md hover:shadow-lg transition-shadow duration-200 flex flex-col h-full">
+    <Card className="overflow-hidden shadow-md hover:shadow-lg transition-shadow duration-200 flex flex-col h-full max-w-sm mx-auto w-full">
       <CardHeader className="p-0 relative aspect-[3/2]">
         <Image
           src={product.imageUrl || "https://placehold.co/300x200.png"}
