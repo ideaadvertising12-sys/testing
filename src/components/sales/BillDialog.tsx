@@ -20,13 +20,14 @@ interface BillDialogProps {
   onOpenChange: (isOpen: boolean) => void;
   cartItems: CartItem[];
   customer: Customer | null;
-  discountAmount: number;
+  discountPercentage: number;
   saleId?: string; 
 }
 
-export function BillDialog({ isOpen, onOpenChange, cartItems, customer, discountAmount, saleId }: BillDialogProps) {
+export function BillDialog({ isOpen, onOpenChange, cartItems, customer, discountPercentage, saleId }: BillDialogProps) {
   const subtotal = cartItems.reduce((sum, item) => sum + item.appliedPrice * item.quantity, 0);
-  const totalAmount = Math.max(0, subtotal - discountAmount);
+  const calculatedDiscountAmount = subtotal * (discountPercentage / 100);
+  const totalAmount = Math.max(0, subtotal - calculatedDiscountAmount);
   const transactionDate = new Date();
 
   const handlePrint = () => {
@@ -94,10 +95,10 @@ export function BillDialog({ isOpen, onOpenChange, cartItems, customer, discount
               <span>Subtotal:</span>
               <span>Rs. {subtotal.toFixed(2)}</span>
             </div>
-            {discountAmount > 0 && (
+            {discountPercentage > 0 && (
               <div className="flex justify-between">
-                <span>Discount:</span>
-                <span>- Rs. {discountAmount.toFixed(2)}</span>
+                <span>Discount ({discountPercentage}%):</span>
+                <span>- Rs. {calculatedDiscountAmount.toFixed(2)}</span>
               </div>
             )}
             <Separator className="my-1"/>

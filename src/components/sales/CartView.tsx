@@ -22,11 +22,11 @@ import { placeholderCustomers } from "@/lib/placeholder-data";
 interface CartViewProps {
   cartItems: CartItem[];
   selectedCustomer: Customer | null;
-  discountAmount: number;
+  discountPercentage: number;
   onUpdateQuantity: (productId: string, quantity: number, saleType: 'retail' | 'wholesale') => void;
   onRemoveItem: (productId: string, saleType: 'retail' | 'wholesale') => void;
   onSelectCustomer: (customerId: string | null) => void;
-  onUpdateDiscountAmount: (amount: number) => void;
+  onUpdateDiscountPercentage: (percentage: number) => void;
   onCheckout: () => void;
   onCancelOrder: () => void;
 }
@@ -34,23 +34,24 @@ interface CartViewProps {
 export function CartView({
   cartItems,
   selectedCustomer,
-  discountAmount,
+  discountPercentage,
   onUpdateQuantity,
   onRemoveItem,
   onSelectCustomer,
-  onUpdateDiscountAmount,
+  onUpdateDiscountPercentage,
   onCheckout,
   onCancelOrder
 }: CartViewProps) {
   const subtotal = cartItems.reduce((sum, item) => sum + item.appliedPrice * item.quantity, 0);
 
   const handleDiscountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let newDiscount = parseFloat(e.target.value) || 0;
-    newDiscount = Math.max(0, Math.min(newDiscount, subtotal)); // Discount cannot be more than subtotal
-    onUpdateDiscountAmount(newDiscount);
+    let newPercentage = parseFloat(e.target.value) || 0;
+    newPercentage = Math.max(0, Math.min(newPercentage, 100)); // Discount percentage between 0 and 100
+    onUpdateDiscountPercentage(newPercentage);
   };
 
-  const totalAmount = Math.max(0, subtotal - discountAmount);
+  const calculatedDiscountAmount = subtotal * (discountPercentage / 100);
+  const totalAmount = Math.max(0, subtotal - calculatedDiscountAmount);
 
   return (
     <Card className="rounded-lg border bg-card text-card-foreground shadow-xl flex flex-col h-full overflow-auto">
@@ -82,7 +83,7 @@ export function CartView({
             <p className="p-6 text-center text-muted-foreground">Your cart is empty.</p>
           ) : (
             <div className="divide-y divide-border">
-              {cartItems.map((item, index) => ( // Added index for unique key with saleType
+              {cartItems.map((item, index) => ( 
                 <div key={`${item.id}-${item.saleType}-${index}`} className="flex items-center p-4 space-x-3">
                   <Image
                     src={item.imageUrl || "https://placehold.co/48x48.png"}
@@ -146,18 +147,25 @@ export function CartView({
             <span>Rs. {subtotal.toFixed(2)}</span>
           </div>
           <div className="w-full flex items-center justify-between text-sm">
-            <Label htmlFor="discountAmount" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 shrink-0">Discount (Rs.):</Label>
+            <Label htmlFor="discountPercentage" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 shrink-0">Discount (%):</Label>
             <Input
-              id="discountAmount"
+              id="discountPercentage"
               type="number"
-              value={discountAmount.toString()}
+              value={discountPercentage.toString()}
               onChange={handleDiscountChange}
               className="flex h-8 w-24 rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm text-right ml-2"
-              placeholder="0.00"
+              placeholder="0"
               min="0"
+              max="100"
               step="0.01"
             />
           </div>
+          {discountPercentage > 0 && (
+            <div className="w-full flex justify-between text-sm text-muted-foreground">
+                <span>Discount Amount:</span>
+                <span>- Rs. {calculatedDiscountAmount.toFixed(2)}</span>
+            </div>
+          )}
           <Separator className="my-1" />
           <div className="w-full flex justify-between text-lg font-bold">
             <span>Total:</span>

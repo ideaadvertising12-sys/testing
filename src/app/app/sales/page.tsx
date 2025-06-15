@@ -23,7 +23,7 @@ export default function SalesPage() {
   const [selectedCategory, setSelectedCategory] = useState<Product["category"] | "All">("All");
   const [isBillOpen, setIsBillOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
-  const [discountAmount, setDiscountAmount] = useState(0);
+  const [discountPercentage, setDiscountPercentage] = useState(0);
   const [currentSaleType, setCurrentSaleType] = useState<'retail' | 'wholesale'>('retail');
 
 
@@ -106,20 +106,20 @@ export default function SalesPage() {
   };
 
   const handleCheckout = () => {
-    console.log("Checkout initiated:", cartItems, selectedCustomer, discountAmount);
+    console.log("Checkout initiated:", cartItems, selectedCustomer, discountPercentage);
     setIsBillOpen(true);
   };
 
   const handleCancelOrder = () => {
     setCartItems([]);
     setSelectedCustomer(null);
-    setDiscountAmount(0);
-    setCurrentSaleType('retail'); // Reset sale type
+    setDiscountPercentage(0);
+    setCurrentSaleType('retail'); 
     console.log("Order cancelled");
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)]"> {/* Full height minus header */}
+    <div className="flex flex-col h-[calc(100vh-4rem)]"> 
       <PageHeader 
         title="Point of Sale" 
         description="Create new sales transactions quickly."
@@ -181,11 +181,11 @@ export default function SalesPage() {
           <CartView 
             cartItems={cartItems}
             selectedCustomer={selectedCustomer}
-            discountAmount={discountAmount}
+            discountPercentage={discountPercentage}
             onUpdateQuantity={handleUpdateQuantity}
             onRemoveItem={handleRemoveItem}
             onSelectCustomer={handleSelectCustomer}
-            onUpdateDiscountAmount={setDiscountAmount}
+            onUpdateDiscountPercentage={setDiscountPercentage}
             onCheckout={handleCheckout}
             onCancelOrder={handleCancelOrder}
           />
@@ -196,19 +196,19 @@ export default function SalesPage() {
         onOpenChange={(isOpen) => {
           setIsBillOpen(isOpen);
           if (!isOpen) { 
-            // Logic for when bill dialog is closed, e.g., clear cart if sale was "successful"
-            // For now, relying on explicit clear via onCancelOrder or future post-checkout logic
-            // If successful, clear cart and reset:
+            // Logic for when bill dialog is closed
+            // This assumes closing the dialog means the sale was completed (or manually cancelled and reset)
+            // If a successful sale implies clearing the cart:
             // setCartItems([]);
             // setSelectedCustomer(null);
-            // setDiscountAmount(0);
+            // setDiscountPercentage(0);
             // setCurrentSaleType('retail');
           }
         }} 
         cartItems={cartItems} 
         customer={selectedCustomer}
-        discountAmount={discountAmount}
-        saleId={`SALE-${Date.now().toString().slice(-6)}`} // Mock sale ID
+        discountPercentage={discountPercentage}
+        saleId={`SALE-${Date.now().toString().slice(-6)}`} 
       />
     </div>
   );
