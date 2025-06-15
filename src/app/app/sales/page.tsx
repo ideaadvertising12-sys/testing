@@ -21,6 +21,7 @@ export default function SalesPage() {
   const [selectedCategory, setSelectedCategory] = useState<Product["category"] | "All">("All");
   const [isBillOpen, setIsBillOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [discountAmount, setDiscountAmount] = useState(0);
 
 
   const categories: (Product["category"] | "All")[] = ["All", ...new Set(allProducts.map(p => p.category))];
@@ -96,17 +97,18 @@ export default function SalesPage() {
 
   const handleCheckout = () => {
     // In a real app: process payment, update inventory, save sale
-    console.log("Checkout initiated:", cartItems, selectedCustomer);
+    console.log("Checkout initiated:", cartItems, selectedCustomer, discountAmount);
     setIsBillOpen(true);
     // Optionally clear cart after successful checkout:
     // setCartItems([]);
     // setSelectedCustomer(null);
+    // setDiscountAmount(0);
   };
 
   const handleCancelOrder = () => {
     setCartItems([]);
     setSelectedCustomer(null);
-    // Optionally add a confirmation dialog here
+    setDiscountAmount(0);
     console.log("Order cancelled");
   };
 
@@ -161,9 +163,11 @@ export default function SalesPage() {
           <CartView 
             cartItems={cartItems}
             selectedCustomer={selectedCustomer}
+            discountAmount={discountAmount}
             onUpdateQuantity={handleUpdateQuantity}
             onRemoveItem={handleRemoveItem}
             onSelectCustomer={handleSelectCustomer}
+            onUpdateDiscountAmount={setDiscountAmount}
             onCheckout={handleCheckout}
             onCancelOrder={handleCancelOrder}
           />
@@ -171,9 +175,16 @@ export default function SalesPage() {
       </div>
       <BillDialog 
         isOpen={isBillOpen} 
-        onOpenChange={setIsBillOpen} 
+        onOpenChange={(isOpen) => {
+          setIsBillOpen(isOpen);
+          if (!isOpen) { // If dialog is closed, consider sale complete or cancelled from dialog
+            // Potentially clear cart here if checkout was "successful" from dialog perspective
+            // For now, relies on SalesPage explicit clear via onCancelOrder or post-checkout logic
+          }
+        }} 
         cartItems={cartItems} 
         customer={selectedCustomer}
+        discountAmount={discountAmount}
         saleId={`SALE-${Date.now().toString().slice(-6)}`} // Mock sale ID
       />
     </div>

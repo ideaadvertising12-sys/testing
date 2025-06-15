@@ -20,14 +20,13 @@ interface BillDialogProps {
   onOpenChange: (isOpen: boolean) => void;
   cartItems: CartItem[];
   customer: Customer | null;
+  discountAmount: number;
   saleId?: string; // Optional, if available after sale processing
 }
 
-export function BillDialog({ isOpen, onOpenChange, cartItems, customer, saleId }: BillDialogProps) {
+export function BillDialog({ isOpen, onOpenChange, cartItems, customer, discountAmount, saleId }: BillDialogProps) {
   const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const taxRate = 0.05; // Example 5% tax
-  const taxAmount = subtotal * taxRate;
-  const totalAmount = subtotal + taxAmount;
+  const totalAmount = Math.max(0, subtotal - discountAmount);
   const transactionDate = new Date();
 
   const handlePrint = () => {
@@ -96,10 +95,12 @@ export function BillDialog({ isOpen, onOpenChange, cartItems, customer, saleId }
               <span>Subtotal:</span>
               <span>Rs. {subtotal.toFixed(2)}</span>
             </div>
-            <div className="flex justify-between">
-              <span>Tax ({(taxRate * 100).toFixed(0)}%):</span>
-              <span>Rs. {taxAmount.toFixed(2)}</span>
-            </div>
+            {discountAmount > 0 && (
+              <div className="flex justify-between">
+                <span>Discount:</span>
+                <span>- Rs. {discountAmount.toFixed(2)}</span>
+              </div>
+            )}
             <Separator className="my-1"/>
             <div className="flex justify-between font-bold text-sm">
               <span>Total:</span>

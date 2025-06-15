@@ -5,9 +5,10 @@ import type { CartItem, Customer } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { MinusCircle, PlusCircle, Trash2, UserPlus, Users, XCircle } from "lucide-react";
+import { MinusCircle, PlusCircle, Trash2, Users, XCircle } from "lucide-react";
 import Image from "next/image";
 import {
   Select,
@@ -21,9 +22,11 @@ import { placeholderCustomers } from "@/lib/placeholder-data";
 interface CartViewProps {
   cartItems: CartItem[];
   selectedCustomer: Customer | null;
+  discountAmount: number;
   onUpdateQuantity: (productId: string, quantity: number) => void;
   onRemoveItem: (productId: string) => void;
   onSelectCustomer: (customerId: string | null) => void;
+  onUpdateDiscountAmount: (amount: number) => void;
   onCheckout: () => void;
   onCancelOrder: () => void; 
 }
@@ -31,16 +34,23 @@ interface CartViewProps {
 export function CartView({ 
   cartItems, 
   selectedCustomer,
+  discountAmount,
   onUpdateQuantity, 
   onRemoveItem,
   onSelectCustomer,
+  onUpdateDiscountAmount,
   onCheckout,
   onCancelOrder
 }: CartViewProps) {
   const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const taxRate = 0.05; // Example 5% tax
-  const taxAmount = subtotal * taxRate;
-  const totalAmount = subtotal + taxAmount;
+  
+  const handleDiscountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let newDiscount = parseFloat(e.target.value) || 0;
+    newDiscount = Math.max(0, Math.min(newDiscount, subtotal)); // Prevent negative discount or discount > subtotal
+    onUpdateDiscountAmount(newDiscount);
+  };
+  
+  const totalAmount = Math.max(0, subtotal - discountAmount); // Ensure total is not negative
 
   return (
     <Card className="shadow-xl flex flex-col h-full">
@@ -64,12 +74,10 @@ export function CartView({
                 ))}
             </SelectContent>
             </Select>
-            {/* Add Customer Button could trigger a CustomerDialog */}
-            {/* <Button variant="outline" size="icon"><UserPlus className="h-4 w-4" /></Button> */}
         </div>
       </CardHeader>
       <CardContent className="flex-grow p-0">
-        <ScrollArea className="flex-grow min-h-[150px]"> {/* Adjust height as needed */}
+        <ScrollArea className="flex-grow min-h-[150px]">
           {cartItems.length === 0 ? (
             <p className="p-6 text-center text-muted-foreground">Your cart is empty.</p>
           ) : (
@@ -133,9 +141,18 @@ export function CartView({
             <span>Subtotal:</span>
             <span>Rs. {subtotal.toFixed(2)}</span>
           </div>
-          <div className="w-full flex justify-between text-sm">
-            <span>Tax ({(taxRate * 100).toFixed(0)}%):</span>
-            <span>Rs. {taxAmount.toFixed(2)}</span>
+          <div className="w-full flex items-center justify-between text-sm">
+            <Label htmlFor="discountAmount" className="shrink-0">Discount (Rs.):</Label>
+            <Input 
+              id="discountAmount"
+              type="number"
+              value={discountAmount.toString()} // Control the input value
+              onChange={handleDiscountChange}
+              className="h-8 w-24 text-right ml-2"
+              placeholder="0.00"
+              min="0"
+              step="0.01"
+            />
           </div>
           <Separator />
           <div className="w-full flex justify-between text-lg font-bold">
