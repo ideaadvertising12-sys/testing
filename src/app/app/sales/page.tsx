@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -102,6 +103,13 @@ export default function SalesPage() {
     // setSelectedCustomer(null);
   };
 
+  const handleCancelOrder = () => {
+    setCartItems([]);
+    setSelectedCustomer(null);
+    // Optionally add a confirmation dialog here
+    console.log("Order cancelled");
+  };
+
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)]"> {/* Full height minus header */}
       <PageHeader 
@@ -157,6 +165,7 @@ export default function SalesPage() {
             onRemoveItem={handleRemoveItem}
             onSelectCustomer={handleSelectCustomer}
             onCheckout={handleCheckout}
+            onCancelOrder={handleCancelOrder}
           />
         </div>
       </div>

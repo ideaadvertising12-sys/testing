@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { CartItem, Customer } from "@/lib/types";
@@ -6,7 +7,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { MinusCircle, PlusCircle, Trash2, UserPlus, Users } from "lucide-react";
+import { MinusCircle, PlusCircle, Trash2, UserPlus, Users, XCircle } from "lucide-react";
 import Image from "next/image";
 import {
   Select,
@@ -24,6 +25,7 @@ interface CartViewProps {
   onRemoveItem: (productId: string) => void;
   onSelectCustomer: (customerId: string | null) => void;
   onCheckout: () => void;
+  onCancelOrder: () => void; 
 }
 
 export function CartView({ 
@@ -32,7 +34,8 @@ export function CartView({
   onUpdateQuantity, 
   onRemoveItem,
   onSelectCustomer,
-  onCheckout 
+  onCheckout,
+  onCancelOrder
 }: CartViewProps) {
   const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const taxRate = 0.05; // Example 5% tax
@@ -139,9 +142,23 @@ export function CartView({
             <span>Total:</span>
             <span>${totalAmount.toFixed(2)}</span>
           </div>
-          <Button className="w-full text-base py-3 h-auto mt-2" onClick={onCheckout} disabled={cartItems.length === 0}>
-            Proceed to Checkout
-          </Button>
+          <div className="w-full grid grid-cols-2 gap-2 mt-2">
+            <Button 
+              variant="outline" 
+              className="text-base py-3 h-auto" 
+              onClick={onCancelOrder}
+            >
+              <XCircle className="mr-2 h-4 w-4" />
+              Cancel Order
+            </Button>
+            <Button 
+              className="text-base py-3 h-auto" 
+              onClick={onCheckout} 
+              disabled={cartItems.length === 0}
+            >
+              Proceed to Checkout
+            </Button>
+          </div>
         </CardFooter>
       )}
     </Card>
