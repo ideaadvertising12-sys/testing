@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -85,5 +86,61 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+@media print {
+  .app-layout-sidebar,
+  .app-layout-header,
+  .app-layout-main-footer,
+  .report-action-buttons,
+  .page-header-non-printable { /* Generic class for page headers not meant for printing */
+    display: none !important;
+  }
+
+  .printable-report-container, 
+  .printable-report-container * {
+    visibility: visible;
+  }
+  .printable-report-container {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+  
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  body, html {
+    background: white !important;
+    height: auto;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Ensure table takes full width and looks decent */
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+  th, td {
+    border: 1px solid #ccc !important; /* Basic border for table cells */
+    padding: 4px !important;
+    font-size: 9pt !important;
+  }
+  thead {
+    background-color: #f0f0f0 !important; /* Light grey for header */
+    -webkit-print-color-adjust: exact; /* Chrome, Safari */
+    color-adjust: exact; /* Firefox, Edge */
+  }
+  .print\:hidden { /* Utility class from Tailwind, explicitly reinforce for safety */
+    display: none !important;
   }
 }

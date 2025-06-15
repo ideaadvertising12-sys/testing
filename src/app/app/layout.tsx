@@ -141,7 +141,7 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
 
   return (
     <SidebarProvider defaultOpen>
-      <Sidebar variant="sidebar" collapsible="icon">
+      <Sidebar variant="sidebar" collapsible="icon" className="app-layout-sidebar">
         <SidebarHeader className="p-4">
           <div className="flex items-center justify-between group-data-[collapsible=icon]:justify-center">
              <div className="group-data-[collapsible=icon]:hidden">
@@ -216,7 +216,7 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
       </Sidebar>
 
       <SidebarInset>
-        <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-background/80 px-4 backdrop-blur-md sm:px-6">
+        <header className="app-layout-header sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-background/80 px-4 backdrop-blur-md sm:px-6">
           <div className="md:hidden">
              <SidebarTrigger />
           </div>
@@ -230,7 +230,7 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
         <main className="flex-1 p-4 sm:p-6 bg-background">
           {children}
         </main>
-        <footer className="p-4 text-center text-sm text-muted-foreground border-t bg-background">
+        <footer className="app-layout-main-footer p-4 text-center text-sm text-muted-foreground border-t bg-background">
           Powered by Limidora Ebusiness Solutions
         </footer>
       </SidebarInset>

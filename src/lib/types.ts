@@ -15,7 +15,7 @@ export interface Product {
 export interface Customer {
   id: string;
   name: string;
-  phone: string; // Made phone non-optional as per common requirement, can be adjusted
+  phone: string;
   address?: string;
   shopName?: string;
 }
@@ -76,4 +76,20 @@ export interface StockTransaction {
   transactionDate: Date;
   notes?: string;
   vehicleId?: string; // Optional, for vehicle loading/unloading
+}
+
+export interface FullReportEntry {
+  saleId: string;
+  saleDate: string; // Formatted date string
+  saleTime: string; // Formatted time string
+  customerName: string;
+  productSku: string;
+  productName: string;
+  productCategory: Product["category"];
+  quantity: number;
+  appliedPrice: number;
+  lineTotal: number;
+  saleType: 'retail' | 'wholesale';
+  paymentMethod: Sale["paymentMethod"];
+  staffId: string;
 }

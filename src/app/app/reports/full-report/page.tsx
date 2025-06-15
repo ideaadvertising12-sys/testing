@@ -1,21 +1,34 @@
 
 "use client";
 
-import { ClipboardList } from "lucide-react";
+import { ClipboardList, FileText, Printer, DownloadCloud } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { FullReportTable } from "@/components/reports/FullReportTable";
+import { placeholderFullReportData } from "@/lib/placeholder-data";
+import type { FullReportEntry } from "@/lib/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { AccessDenied } from "@/components/AccessDenied";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable'; // Import this for the autoTable plugin
+
+// Extend jsPDF instance with autoTable - this is a common way to use plugins with jsPDF
+interface jsPDFWithAutoTable extends jsPDF {
+  autoTable: (options: any) => jsPDF;
+}
 
 export default function FullReportPage() {
   const { userRole } = useAuth();
   const router = useRouter();
+  const reportData: FullReportEntry[] = placeholderFullReportData;
 
   useEffect(() => {
     if (userRole !== "admin") {
-      router.replace("/app/dashboard"); // Or a more suitable default page for non-admins
+      router.replace("/app/dashboard"); 
     }
   }, [userRole, router]);
 
@@ -23,33 +36,83 @@ export default function FullReportPage() {
     return <AccessDenied message="Full reports are not available for your role. Redirecting..." />;
   }
 
+  const handleExportExcel = () => {
+    const worksheet = XLSX.utils.json_to_sheet(reportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Full Report");
+    XLSX.writeFile(workbook, "Full_Report.xlsx");
+  };
+
+  const handleExportPDF = () => {
+    const doc = new jsPDF() as jsPDFWithAutoTable; // Cast to include autoTable
+    doc.text("Full Sales Report", 14, 16);
+    doc.autoTable({
+      startY: 20,
+      head: [['ID', 'Date', 'Time', 'Customer', 'SKU', 'Product', 'Category', 'Qty', 'Unit Price', 'Total', 'Type', 'Payment', 'Staff']],
+      body: reportData.map(entry => [
+        entry.saleId,
+        entry.saleDate,
+        entry.saleTime,
+        entry.customerName,
+        entry.productSku,
+        entry.productName,
+        entry.productCategory,
+        entry.quantity,
+        entry.appliedPrice.toFixed(2),
+        entry.lineTotal.toFixed(2),
+        entry.saleType,
+        entry.paymentMethod,
+        entry.staffId,
+      ]),
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [30, 18, 57] }, // Using HSL from primary theme color
+      columnStyles: {
+        0: {cellWidth: 15}, // Sale ID
+        1: {cellWidth: 18}, // Date
+        2: {cellWidth: 15}, // Time
+        3: {cellWidth: 'auto'}, // Customer
+        4: {cellWidth: 15}, // SKU
+        // Let others auto-fit
+      }
+    });
+    doc.save("Full_Report.pdf");
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const reportActions = (
+    <div className="report-action-buttons flex flex-col sm:flex-row gap-2">
+      <Button onClick={handleExportExcel} variant="outline" size="sm">
+        <DownloadCloud className="mr-2 h-4 w-4" /> Export Excel
+      </Button>
+      <Button onClick={handleExportPDF} variant="outline" size="sm">
+        <FileText className="mr-2 h-4 w-4" /> Export PDF
+      </Button>
+      <Button onClick={handlePrint} variant="outline" size="sm">
+        <Printer className="mr-2 h-4 w-4" /> Print Report
+      </Button>
+    </div>
+  );
+
   return (
     <>
       <PageHeader 
-        title="Full Report" 
-        description="Comprehensive overview of all sales, revenue, and transaction details."
+        title="Full Sales Report" 
+        description="Comprehensive overview of all sales transactions and item details."
         icon={ClipboardList}
+        action={reportActions}
       />
-      <Card className="shadow-lg">
-        <CardHeader>
-          <CardTitle className="font-headline">Full System Report</CardTitle>
+      <Card className="shadow-lg printable-report-container">
+        <CardHeader className="print:hidden">
+          <CardTitle className="font-headline">Detailed Transaction Log</CardTitle>
           <CardDescription>
-            This report will contain a detailed breakdown of all activities including sales transactions (date, price, total revenue), 
-            product movements, customer interactions, and potentially more, filterable by date ranges.
+            This report contains a detailed breakdown of all sales transactions, including individual items sold.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <p className="text-muted-foreground">
-            Full report generation is in progress. This section will display comprehensive data tables and visualizations.
-            Key metrics will include:
-          </p>
-          <ul className="list-disc list-inside mt-2 text-sm text-muted-foreground space-y-1">
-            <li>Overall sales figures and revenue.</li>
-            <li>Breakdown by product categories.</li>
-            <li>Payment method summaries.</li>
-            <li>Transaction logs with timestamps.</li>
-            <li>Date and time of all major operations.</li>
-          </ul>
+          <FullReportTable data={reportData} />
         </CardContent>
       </Card>
     </>

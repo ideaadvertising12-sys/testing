@@ -1,5 +1,6 @@
 
-import type { Product, Customer, Sale, StatsData, SalesChartData } from "./types";
+import type { Product, Customer, Sale, StatsData, SalesChartData, FullReportEntry } from "./types";
+import { format } from "date-fns";
 
 export const placeholderProducts: Product[] = [
   { id: "prod001", name: "Yoghurt", category: "Yogurt", price: 1.50, wholesalePrice: 1.30, stock: 100, imageUrl: "https://placehold.co/300x200.png", description: "Classic creamy yoghurt.", sku: "YOG001", reorderLevel: 20 },
@@ -25,20 +26,21 @@ export const placeholderCustomers: Customer[] = [
 
 export const placeholderSales: Sale[] = [
   { 
-    id: "1", 
+    id: "SALE-001", 
     customerId: "1", 
     customerName: "Retail LK",
     items: [
       { ...placeholderProducts[0], quantity: 2, appliedPrice: placeholderProducts[0].price, saleType: 'retail' },
       { ...placeholderProducts[1], quantity: 1, appliedPrice: placeholderProducts[1].price, saleType: 'retail' },
+      { ...placeholderProducts[4], quantity: 5, appliedPrice: placeholderProducts[4].wholesalePrice || placeholderProducts[4].price, saleType: 'wholesale' },
     ], 
-    totalAmount: (placeholderProducts[0].price * 2) + placeholderProducts[1].price, 
+    totalAmount: (placeholderProducts[0].price * 2) + placeholderProducts[1].price + ((placeholderProducts[4].wholesalePrice || placeholderProducts[4].price) * 5), 
     paymentMethod: "Card", 
-    saleDate: new Date(Date.now() - 86400000 * 2), // 2 days ago
+    saleDate: new Date(Date.now() - 86400000 * 2.5), // 2.5 days ago
     staffId: "staff001" 
   },
   { 
-    id: "2", 
+    id: "SALE-002", 
     customerId: "2", 
     customerName: "Kandy Foods",
     items: [
@@ -47,16 +49,27 @@ export const placeholderSales: Sale[] = [
     ], 
     totalAmount: placeholderProducts[7].price + placeholderProducts[11].price, 
     paymentMethod: "Cash", 
-    saleDate: new Date(Date.now() - 86400000 * 1), // 1 day ago
+    saleDate: new Date(Date.now() - 86400000 * 1.2), // 1.2 days ago
     staffId: "staff002"
+  },
+  { 
+    id: "SALE-003", 
+    customerName: "Walk-in Customer", // No customerId for walk-in
+    items: [
+      { ...placeholderProducts[5], quantity: 3, appliedPrice: placeholderProducts[5].price, saleType: 'retail' },
+    ], 
+    totalAmount: placeholderProducts[5].price * 3, 
+    paymentMethod: "Cash", 
+    saleDate: new Date(Date.now() - 3600000 * 5), // 5 hours ago
+    staffId: "staff001" 
   },
 ];
 
 export const placeholderStats: StatsData = {
-  totalSales: 12500.75, 
+  totalSales: placeholderSales.reduce((sum, sale) => sum + sale.totalAmount, 0), 
   totalCustomers: placeholderCustomers.length,
   lowStockItems: placeholderProducts.filter(p => p.stock <= (p.reorderLevel || 10)).length,
-  revenueToday: 350.50, 
+  revenueToday: placeholderSales.filter(s => s.saleDate >= new Date(new Date().setHours(0,0,0,0))).reduce((sum, sale) => sum + sale.totalAmount, 0), 
 };
 
 export const placeholderSalesChartData: SalesChartData[] = [
@@ -78,3 +91,30 @@ export const placeholderMonthlySalesData: SalesChartData[] = [
   { name: "Jun", sales: 3800 },
   { name: "Jul", sales: 4300 },
 ];
+
+
+export function generatePlaceholderFullReportData(): FullReportEntry[] {
+  const reportData: FullReportEntry[] = [];
+  placeholderSales.forEach(sale => {
+    sale.items.forEach(item => {
+      reportData.push({
+        saleId: sale.id,
+        saleDate: format(sale.saleDate, "yyyy-MM-dd"),
+        saleTime: format(sale.saleDate, "HH:mm:ss"),
+        customerName: sale.customerName || "N/A",
+        productSku: item.sku || "N/A",
+        productName: item.name,
+        productCategory: item.category,
+        quantity: item.quantity,
+        appliedPrice: item.appliedPrice,
+        lineTotal: item.quantity * item.appliedPrice,
+        saleType: item.saleType,
+        paymentMethod: sale.paymentMethod,
+        staffId: sale.staffId,
+      });
+    });
+  });
+  return reportData.sort((a,b) => new Date(b.saleDate + 'T' + b.saleTime).getTime() - new Date(a.saleDate + 'T' + a.saleTime).getTime());
+}
+
+export const placeholderFullReportData: FullReportEntry[] = generatePlaceholderFullReportData();
