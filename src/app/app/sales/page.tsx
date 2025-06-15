@@ -117,8 +117,8 @@ export default function SalesPage() {
         description="Create new sales transactions quickly."
         icon={ShoppingCart}
       />
-      <div className="flex-grow grid grid-cols-1 lg:grid-cols-3 gap-6 overflow-hidden">
-        <div className="lg:col-span-2 flex flex-col overflow-hidden">
+      <div className="flex-grow grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-0">
+        <div className="lg:col-span-2 flex flex-col min-h-0">
           <div className="p-1 mb-4">
             <div className="flex gap-4 mb-4">
               <div className="relative flex-grow">
@@ -157,7 +157,7 @@ export default function SalesPage() {
           </ScrollArea>
         </div>
 
-        <div className="lg:col-span-1">
+        <div className="lg:col-span-1 flex flex-col min-h-0">
           <CartView 
             cartItems={cartItems}
             selectedCustomer={selectedCustomer}

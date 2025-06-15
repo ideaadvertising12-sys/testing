@@ -69,7 +69,7 @@ export function CartView({
         </div>
       </CardHeader>
       <CardContent className="flex-grow p-0">
-        <ScrollArea className="h-[calc(100vh-450px)] min-h-[200px]"> {/* Adjust height as needed */}
+        <ScrollArea className="flex-grow min-h-[150px]"> {/* Adjust height as needed */}
           {cartItems.length === 0 ? (
             <p className="p-6 text-center text-muted-foreground">Your cart is empty.</p>
           ) : (
