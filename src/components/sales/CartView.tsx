@@ -86,7 +86,7 @@ export function CartView({
                   />
                   <div className="flex-grow">
                     <p className="text-sm font-medium truncate">{item.name}</p>
-                    <p className="text-xs text-muted-foreground">LKR {item.price.toFixed(2)}</p>
+                    <p className="text-xs text-muted-foreground">Rs. {item.price.toFixed(2)}</p>
                   </div>
                   <div className="flex items-center space-x-1.5">
                     <Button
@@ -116,7 +116,7 @@ export function CartView({
                     </Button>
                   </div>
                   <p className="text-sm font-semibold w-16 text-right">
-                    LKR {(item.price * item.quantity).toFixed(2)}
+                    Rs. {(item.price * item.quantity).toFixed(2)}
                   </p>
                   <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => onRemoveItem(item.id)}>
                     <Trash2 className="h-3.5 w-3.5" />
@@ -131,16 +131,16 @@ export function CartView({
         <CardFooter className="flex flex-col space-y-3 p-4 border-t">
           <div className="w-full flex justify-between text-sm">
             <span>Subtotal:</span>
-            <span>LKR {subtotal.toFixed(2)}</span>
+            <span>Rs. {subtotal.toFixed(2)}</span>
           </div>
           <div className="w-full flex justify-between text-sm">
             <span>Tax ({(taxRate * 100).toFixed(0)}%):</span>
-            <span>LKR {taxAmount.toFixed(2)}</span>
+            <span>Rs. {taxAmount.toFixed(2)}</span>
           </div>
           <Separator />
           <div className="w-full flex justify-between text-lg font-bold">
             <span>Total:</span>
-            <span>LKR {totalAmount.toFixed(2)}</span>
+            <span>Rs. {totalAmount.toFixed(2)}</span>
           </div>
           <div className="w-full grid grid-cols-2 gap-2 mt-2">
             <Button 

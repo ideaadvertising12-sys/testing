@@ -35,7 +35,7 @@ export function SalesChart({ data, title, description }: SalesChartProps) {
                 fontSize={12}
                 tickLine={false}
                 axisLine={false}
-                tickFormatter={(value) => `LKR ${value}`}
+                tickFormatter={(value) => `Rs. ${value}`}
               />
               <Tooltip
                 contentStyle={{ 

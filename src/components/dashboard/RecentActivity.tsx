@@ -25,7 +25,7 @@ const recentActivities: ActivityItem[] = [
     id: `sale-${sale.id}`,
     type: "sale",
     title: `Sale #${sale.id.slice(0,4)} to ${sale.customerName || 'Guest'}`,
-    description: `${sale.items.length} items, Total: LKR ${sale.totalAmount.toFixed(2)}`,
+    description: `${sale.items.length} items, Total: Rs. ${sale.totalAmount.toFixed(2)}`,
     timestamp: sale.saleDate,
     icon: ShoppingCart,
     avatarUrl: placeholderCustomers.find(c => c.id === sale.customerId)?.email ? `https://i.pravatar.cc/40?u=${placeholderCustomers.find(c => c.id === sale.customerId)?.email}` : undefined,
@@ -35,7 +35,7 @@ const recentActivities: ActivityItem[] = [
     id: "prod-1",
     type: "new_product",
     title: `New Product Added: ${placeholderProducts[4].name}`,
-    description: `Category: ${placeholderProducts[4].category}, Price: LKR ${placeholderProducts[4].price.toFixed(2)}`,
+    description: `Category: ${placeholderProducts[4].category}, Price: Rs. ${placeholderProducts[4].price.toFixed(2)}`,
     timestamp: new Date(Date.now() - 86400000 * 0.5), // Half day ago
     icon: Package,
     avatarUrl: placeholderProducts[4].imageUrl,
