@@ -3,7 +3,7 @@
 
 import type { CartItem, Customer } from "@/lib/types";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -23,8 +23,8 @@ interface CartViewProps {
   cartItems: CartItem[];
   selectedCustomer: Customer | null;
   discountAmount: number;
-  onUpdateQuantity: (productId: string, quantity: number) => void;
-  onRemoveItem: (productId: string) => void;
+  onUpdateQuantity: (productId: string, quantity: number, saleType: 'retail' | 'wholesale') => void;
+  onRemoveItem: (productId: string, saleType: 'retail' | 'wholesale') => void;
   onSelectCustomer: (customerId: string | null) => void;
   onUpdateDiscountAmount: (amount: number) => void;
   onCheckout: () => void;
@@ -42,11 +42,11 @@ export function CartView({
   onCheckout,
   onCancelOrder
 }: CartViewProps) {
-  const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const subtotal = cartItems.reduce((sum, item) => sum + item.appliedPrice * item.quantity, 0);
 
   const handleDiscountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let newDiscount = parseFloat(e.target.value) || 0;
-    newDiscount = Math.max(0, Math.min(newDiscount, subtotal));
+    newDiscount = Math.max(0, Math.min(newDiscount, subtotal)); // Discount cannot be more than subtotal
     onUpdateDiscountAmount(newDiscount);
   };
 
@@ -82,8 +82,8 @@ export function CartView({
             <p className="p-6 text-center text-muted-foreground">Your cart is empty.</p>
           ) : (
             <div className="divide-y divide-border">
-              {cartItems.map((item) => (
-                <div key={item.id} className="flex items-center p-4 space-x-3">
+              {cartItems.map((item, index) => ( // Added index for unique key with saleType
+                <div key={`${item.id}-${item.saleType}-${index}`} className="flex items-center p-4 space-x-3">
                   <Image
                     src={item.imageUrl || "https://placehold.co/48x48.png"}
                     alt={item.name}
@@ -94,14 +94,17 @@ export function CartView({
                   />
                   <div className="flex-grow">
                     <p className="text-sm font-medium truncate">{item.name}</p>
-                    <p className="text-xs text-muted-foreground">Rs. {item.price.toFixed(2)}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Rs. {item.appliedPrice.toFixed(2)}
+                      {item.saleType === 'wholesale' && <span className="text-blue-500 ml-1">(W)</span>}
+                    </p>
                   </div>
                   <div className="flex items-center space-x-1.5">
                     <Button
                       variant="outline"
                       size="icon"
                       className="h-7 w-7"
-                      onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}
+                      onClick={() => onUpdateQuantity(item.id, item.quantity - 1, item.saleType)}
                       disabled={item.quantity <= 1}
                     >
                       <MinusCircle className="h-3.5 w-3.5" />
@@ -109,24 +112,25 @@ export function CartView({
                     <Input
                       type="number"
                       value={item.quantity}
-                      onChange={(e) => onUpdateQuantity(item.id, parseInt(e.target.value) || 1)}
+                      onChange={(e) => onUpdateQuantity(item.id, parseInt(e.target.value) || 1, item.saleType)}
                       className="h-7 w-12 text-center px-1"
                       min="1"
+                      max={item.stock}
                     />
                     <Button
                       variant="outline"
                       size="icon"
                       className="h-7 w-7"
-                      onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
+                      onClick={() => onUpdateQuantity(item.id, item.quantity + 1, item.saleType)}
                       disabled={item.quantity >= item.stock}
                     >
                       <PlusCircle className="h-3.5 w-3.5" />
                     </Button>
                   </div>
                   <p className="text-sm font-semibold w-16 text-right">
-                    Rs. {(item.price * item.quantity).toFixed(2)}
+                    Rs. {(item.appliedPrice * item.quantity).toFixed(2)}
                   </p>
-                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => onRemoveItem(item.id)}>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => onRemoveItem(item.id, item.saleType)}>
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
                 </div>

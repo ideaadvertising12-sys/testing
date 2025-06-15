@@ -3,8 +3,8 @@ export interface Product {
   id: string;
   name: string;
   category: "Milk" | "Yogurt" | "Watallappan" | "Ghee" | "Other";
-  price: number;
-  wholesalePrice?: number; // Added wholesale price
+  price: number; // Retail price
+  wholesalePrice?: number;
   stock: number;
   imageUrl?: string;
   description?: string;
@@ -23,13 +23,15 @@ export interface Customer {
 
 export interface CartItem extends Product {
   quantity: number;
+  appliedPrice: number; // Price used for this item in the cart (retail or wholesale)
+  saleType: 'retail' | 'wholesale'; // How this item was added
 }
 
 export interface Sale {
   id: string;
   customerId?: string;
   customerName?: string; // Denormalized for quick display
-  items: CartItem[];
+  items: CartItem[]; // Should now contain CartItem with appliedPrice
   totalAmount: number;
   paymentMethod: "Cash" | "Card" | "Online";
   saleDate: Date;

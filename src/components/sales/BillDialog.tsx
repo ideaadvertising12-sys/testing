@@ -21,16 +21,15 @@ interface BillDialogProps {
   cartItems: CartItem[];
   customer: Customer | null;
   discountAmount: number;
-  saleId?: string; // Optional, if available after sale processing
+  saleId?: string; 
 }
 
 export function BillDialog({ isOpen, onOpenChange, cartItems, customer, discountAmount, saleId }: BillDialogProps) {
-  const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const subtotal = cartItems.reduce((sum, item) => sum + item.appliedPrice * item.quantity, 0);
   const totalAmount = Math.max(0, subtotal - discountAmount);
   const transactionDate = new Date();
 
   const handlePrint = () => {
-    // Basic browser print
     window.print();
   };
 
@@ -59,7 +58,7 @@ export function BillDialog({ isOpen, onOpenChange, cartItems, customer, discount
             <p>Date: {transactionDate.toLocaleDateString()} {transactionDate.toLocaleTimeString()}</p>
             {saleId && <p>Transaction ID: {saleId}</p>}
             {customer && <p>Customer: {customer.name}</p>}
-            <p>Served by: Staff Member</p> {/* Placeholder */}
+            <p>Served by: Staff Member</p> 
           </div>
 
           <Separator className="my-4"/>
@@ -77,11 +76,11 @@ export function BillDialog({ isOpen, onOpenChange, cartItems, customer, discount
               </thead>
               <tbody>
                 {cartItems.map(item => (
-                  <tr key={item.id} className="border-b border-dashed">
+                  <tr key={`${item.id}-${item.saleType}`} className="border-b border-dashed">
                     <td className="py-1.5">{item.name}</td>
                     <td className="text-center py-1.5">{item.quantity}</td>
-                    <td className="text-right py-1.5">Rs. {item.price.toFixed(2)}</td>
-                    <td className="text-right py-1.5">Rs. {(item.price * item.quantity).toFixed(2)}</td>
+                    <td className="text-right py-1.5">Rs. {item.appliedPrice.toFixed(2)}</td>
+                    <td className="text-right py-1.5">Rs. {(item.appliedPrice * item.quantity).toFixed(2)}</td>
                   </tr>
                 ))}
               </tbody>

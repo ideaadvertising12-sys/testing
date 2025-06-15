@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from "react";
-import { PackageSearch, ShoppingCart } from "lucide-react";
+import { PackageSearch, ShoppingCart, Tag } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { POSProductCard } from "@/components/sales/POSProductCard";
 import { CartView } from "@/components/sales/CartView";
@@ -10,6 +10,8 @@ import { BillDialog } from "@/components/sales/BillDialog";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import type { Product, CartItem, Customer } from "@/lib/types";
 import { placeholderProducts, placeholderCustomers } from "@/lib/placeholder-data";
 
@@ -22,6 +24,7 @@ export default function SalesPage() {
   const [isBillOpen, setIsBillOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [discountAmount, setDiscountAmount] = useState(0);
+  const [currentSaleType, setCurrentSaleType] = useState<'retail' | 'wholesale'>('retail');
 
 
   const categories: (Product["category"] | "All")[] = ["All", ...new Set(allProducts.map(p => p.category))];
@@ -49,41 +52,48 @@ export default function SalesPage() {
 
   const handleAddToCart = (product: Product) => {
     setCartItems(prevItems => {
-      const existingItem = prevItems.find(item => item.id === product.id);
+      const existingItem = prevItems.find(item => item.id === product.id && item.saleType === currentSaleType);
+      
+      const priceToUse = (currentSaleType === 'wholesale' && product.wholesalePrice && product.wholesalePrice > 0)
+        ? product.wholesalePrice
+        : product.price;
+
       if (existingItem) {
-        if (existingItem.quantity < product.stock) { // Check stock before incrementing
+        if (existingItem.quantity < product.stock) { 
           return prevItems.map(item =>
-            item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
+            item.id === product.id && item.saleType === currentSaleType 
+            ? { ...item, quantity: item.quantity + 1 } 
+            : item
           );
         }
-        return prevItems; // Do nothing if stock limit reached
+        return prevItems; 
       }
-      if (product.stock > 0) { // Check stock before adding new item
-         return [...prevItems, { ...product, quantity: 1 }];
+      if (product.stock > 0) { 
+         return [...prevItems, { ...product, quantity: 1, appliedPrice: priceToUse, saleType: currentSaleType }];
       }
-      return prevItems; // Do nothing if stock is 0
+      return prevItems; 
     });
   };
 
-  const handleUpdateQuantity = (productId: string, quantity: number) => {
+  const handleUpdateQuantity = (productId: string, quantity: number, saleType: 'retail' | 'wholesale') => {
     const productInStock = allProducts.find(p => p.id === productId);
     if (!productInStock) return;
 
-    const newQuantity = Math.max(0, Math.min(quantity, productInStock.stock)); // Ensure quantity is within 0 and stock limit
+    const newQuantity = Math.max(0, Math.min(quantity, productInStock.stock)); 
 
     if (newQuantity === 0) {
-      handleRemoveItem(productId);
+      handleRemoveItem(productId, saleType);
     } else {
       setCartItems(prevItems =>
         prevItems.map(item =>
-          item.id === productId ? { ...item, quantity: newQuantity } : item
+          item.id === productId && item.saleType === saleType ? { ...item, quantity: newQuantity } : item
         )
       );
     }
   };
 
-  const handleRemoveItem = (productId: string) => {
-    setCartItems(prevItems => prevItems.filter(item => item.id !== productId));
+  const handleRemoveItem = (productId: string, saleType: 'retail' | 'wholesale') => {
+    setCartItems(prevItems => prevItems.filter(item => !(item.id === productId && item.saleType === saleType)));
   };
   
   const handleSelectCustomer = (customerId: string | null) => {
@@ -96,19 +106,15 @@ export default function SalesPage() {
   };
 
   const handleCheckout = () => {
-    // In a real app: process payment, update inventory, save sale
     console.log("Checkout initiated:", cartItems, selectedCustomer, discountAmount);
     setIsBillOpen(true);
-    // Optionally clear cart after successful checkout:
-    // setCartItems([]);
-    // setSelectedCustomer(null);
-    // setDiscountAmount(0);
   };
 
   const handleCancelOrder = () => {
     setCartItems([]);
     setSelectedCustomer(null);
     setDiscountAmount(0);
+    setCurrentSaleType('retail'); // Reset sale type
     console.log("Order cancelled");
   };
 
@@ -122,7 +128,7 @@ export default function SalesPage() {
       <div className="flex-grow grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-0">
         <div className="min-h-[450px] lg:min-h-0 lg:col-span-2 flex flex-col">
           <div className="p-1 mb-4">
-            <div className="flex gap-4 mb-4">
+            <div className="flex flex-col sm:flex-row gap-4 mb-4">
               <div className="relative flex-grow">
                 <PackageSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                 <Input 
@@ -131,6 +137,18 @@ export default function SalesPage() {
                   value={searchTerm}
                   onChange={(e) => handleSearch(e.target.value)}
                 />
+              </div>
+              <div className="flex items-center space-x-2 bg-muted p-2 rounded-md shrink-0">
+                <Switch
+                  id="sale-type-toggle"
+                  checked={currentSaleType === 'wholesale'}
+                  onCheckedChange={(checked) => setCurrentSaleType(checked ? 'wholesale' : 'retail')}
+                  aria-label="Toggle sale type"
+                />
+                <Label htmlFor="sale-type-toggle" className="flex items-center gap-1 text-sm">
+                  <Tag className="h-4 w-4" />
+                  {currentSaleType === 'wholesale' ? 'Wholesale Pricing' : 'Retail Pricing'}
+                </Label>
               </div>
             </div>
             <Tabs value={selectedCategory} onValueChange={(value) => handleCategorySelect(value as Product["category"] | "All")}>
@@ -150,7 +168,7 @@ export default function SalesPage() {
                     <p>Try adjusting your search or category filters.</p>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 gap-4"> {/* Adjusted lg/xl cols for constrained width */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 gap-4">
                 {filteredProducts.map(product => (
                     <POSProductCard key={product.id} product={product} onAddToCart={handleAddToCart} />
                 ))}
@@ -177,9 +195,14 @@ export default function SalesPage() {
         isOpen={isBillOpen} 
         onOpenChange={(isOpen) => {
           setIsBillOpen(isOpen);
-          if (!isOpen) { // If dialog is closed, consider sale complete or cancelled from dialog
-            // Potentially clear cart here if checkout was "successful" from dialog perspective
-            // For now, relies on SalesPage explicit clear via onCancelOrder or post-checkout logic
+          if (!isOpen) { 
+            // Logic for when bill dialog is closed, e.g., clear cart if sale was "successful"
+            // For now, relying on explicit clear via onCancelOrder or future post-checkout logic
+            // If successful, clear cart and reset:
+            // setCartItems([]);
+            // setSelectedCustomer(null);
+            // setDiscountAmount(0);
+            // setCurrentSaleType('retail');
           }
         }} 
         cartItems={cartItems} 
