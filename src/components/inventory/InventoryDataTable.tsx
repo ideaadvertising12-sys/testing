@@ -1,3 +1,4 @@
+
 "use client";
 
 import Image from "next/image";
@@ -87,18 +88,3 @@ export function InventoryDataTable() {
     </Card>
   );
 }
-
-// Custom Progress component to allow indicator color change
-const CustomProgress = ({ value, className, indicatorClassName }: { value: number | null | undefined, className?: string, indicatorClassName?: string }) => (
-  <ProgressPrimitive.Root
-    className={cn("relative h-2 w-full overflow-hidden rounded-full bg-secondary", className)}
-  >
-    <ProgressPrimitive.Indicator
-      className={cn("h-full w-full flex-1 bg-primary transition-all", indicatorClassName)}
-      style={{ transform: `translateX(-${100 - (value || 0)}%)` }}
-    />
-  </ProgressPrimitive.Root>
-);
-
-// Need to re-import ProgressPrimitive if it's not exported from ui/progress
-import * as ProgressPrimitive from "@radix-ui/react-progress";
