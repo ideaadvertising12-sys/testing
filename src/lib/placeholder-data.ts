@@ -1,3 +1,4 @@
+
 import type { Product, Customer, Sale, StatsData, SalesChartData } from "./types";
 
 export const placeholderProducts: Product[] = [

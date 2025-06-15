@@ -31,7 +31,7 @@ export function POSProductCard({ product, onAddToCart }: POSProductCardProps) {
         <p className="text-sm text-muted-foreground">Stock: {product.stock}</p>
       </CardContent>
       <CardFooter className="p-4 border-t flex flex-col items-start gap-2 sm:flex-row sm:justify-between sm:items-center">
-        <p className="text-lg font-bold text-primary">Rs.{product.price.toFixed(2)}</p>
+        <p className="text-lg font-bold text-primary">LKR {product.price.toFixed(2)}</p>
         <Button 
           size="sm" 
           onClick={() => onAddToCart(product)} 
@@ -44,4 +44,3 @@ export function POSProductCard({ product, onAddToCart }: POSProductCardProps) {
     </Card>
   );
 }
-
