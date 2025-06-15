@@ -132,7 +132,7 @@ export function ProductDialog({ product, trigger, onSave }: ProductDialogProps) 
             </div>
             <div>
               <Label htmlFor="wholesalePrice">Wholesale Price (Rs.)</Label>
-              <Input id="wholesalePrice" name="wholesalePrice" type="number" value={formData.wholesalePrice || ''} onChange={handleChange} className="mt-1" min="0" step="0.01" placeholder="Optional"/>
+              <Input id="wholesalePrice" name="wholesalePrice" type="number" value={formData.wholesalePrice} onChange={handleChange} className="mt-1" min="0" step="0.01" />
             </div>
           </div>
           

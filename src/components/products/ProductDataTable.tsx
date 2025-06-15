@@ -73,7 +73,8 @@ export function ProductDataTable() {
               <TableHead>Name</TableHead>
               <TableHead>Category</TableHead>
               <TableHead className="hidden md:table-cell">Stock</TableHead>
-              <TableHead className="text-right">Price</TableHead>
+              <TableHead className="hidden lg:table-cell text-right">Wholesale Price</TableHead>
+              <TableHead className="text-right">Retail Price</TableHead>
               {isAdmin && (
                 <TableHead>
                   <span className="sr-only">Actions</span>
@@ -99,6 +100,9 @@ export function ProductDataTable() {
                   <Badge variant="outline">{product.category}</Badge>
                 </TableCell>
                 <TableCell className="hidden md:table-cell">{product.stock}</TableCell>
+                <TableCell className="hidden lg:table-cell text-right">
+                  {product.wholesalePrice !== undefined ? `Rs. ${product.wholesalePrice.toFixed(2)}` : "N/A"}
+                </TableCell>
                 <TableCell className="text-right">Rs. {product.price.toFixed(2)}</TableCell>
                 {isAdmin && (
                   <TableCell>
