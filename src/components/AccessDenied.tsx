@@ -15,7 +15,7 @@ export function AccessDenied({ message = "You do not have permission to view thi
       <Ban className="w-16 h-16 text-destructive mb-6" />
       <h2 className="text-3xl font-headline font-semibold mb-4">Access Denied</h2>
       <p className="text-muted-foreground mb-6 max-w-md">{message}</p>
-      <Link href={homePage} passHref>
+      <Link href={homePage} asChild>
         <Button className="text-lg px-6 py-3">
           Go to Your Home Page
         </Button>

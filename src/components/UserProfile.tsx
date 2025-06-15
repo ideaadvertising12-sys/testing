@@ -75,7 +75,7 @@ export function UserProfile() {
         </DropdownMenuRadioGroup>
         <DropdownMenuSeparator />
         {/* End Temporary Role Switcher */}
-        <Link href="/" legacyBehavior>
+        <Link href="/" asChild>
           <DropdownMenuItem>
             <LogOut className="mr-2 h-4 w-4" />
             <span>Log out</span>

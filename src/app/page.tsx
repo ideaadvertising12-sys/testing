@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -28,7 +29,7 @@ export default function LoginPage() {
               <Label htmlFor="password">Password</Label>
               <Input id="password" type="password" required placeholder="••••••••" />
             </div>
-            <Link href="/app/dashboard" legacyBehavior>
+            <Link href="/app/dashboard" asChild>
               <Button type="submit" className="w-full">
                 Login
               </Button>

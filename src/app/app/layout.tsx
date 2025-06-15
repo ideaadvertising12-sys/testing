@@ -67,7 +67,7 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
              <div className="hidden group-data-[collapsible=icon]:block">
                 <AppLogoIconOnly />
              </div>
-            <SidebarTrigger /> {/* Removed className="group-data-[collapsible=icon]:hidden" */}
+            <SidebarTrigger />
           </div>
         </SidebarHeader>
         <Separator className="group-data-[collapsible=icon]:hidden" />
@@ -75,7 +75,7 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
           <SidebarMenu className="p-2">
             {navItems.map((item) => (
               <SidebarMenuItem key={item.href}>
-                <Link href={item.href} legacyBehavior>
+                <Link href={item.href} asChild>
                   <SidebarMenuButton
                     isActive={pathname === item.href || (item.href !== "/app/dashboard" && pathname.startsWith(item.href))}
                     tooltip={item.label}
