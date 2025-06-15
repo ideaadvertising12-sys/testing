@@ -115,10 +115,11 @@ export function ProductDialog({ product, trigger, onSave }: ProductDialogProps) 
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Milk">Milk</SelectItem>
                   <SelectItem value="Yogurt">Yogurt</SelectItem>
-                  <SelectItem value="Watallappan">Watallappan</SelectItem>
-                  <SelectItem value="Ghee">Ghee</SelectItem>
+                  <SelectItem value="Drink">Drink</SelectItem>
+                  <SelectItem value="Ice Cream">Ice Cream</SelectItem>
+                  <SelectItem value="Dessert">Dessert</SelectItem>
+                  <SelectItem value="Curd">Curd</SelectItem>
                   <SelectItem value="Other">Other</SelectItem>
                 </SelectContent>
               </Select>
@@ -132,7 +133,7 @@ export function ProductDialog({ product, trigger, onSave }: ProductDialogProps) 
             </div>
             <div>
               <Label htmlFor="wholesalePrice">Wholesale Price (Rs.)</Label>
-              <Input id="wholesalePrice" name="wholesalePrice" type="number" value={formData.wholesalePrice} onChange={handleChange} className="mt-1" min="0" step="0.01" />
+              <Input id="wholesalePrice" name="wholesalePrice" type="number" value={formData.wholesalePrice === undefined ? '' : formData.wholesalePrice} onChange={handleChange} className="mt-1" min="0" step="0.01" />
             </div>
           </div>
           
@@ -149,12 +150,12 @@ export function ProductDialog({ product, trigger, onSave }: ProductDialogProps) 
           
           <div>
             <Label htmlFor="sku">SKU (Stock Keeping Unit)</Label>
-            <Input id="sku" name="sku" value={formData.sku} onChange={handleChange} className="mt-1" />
+            <Input id="sku" name="sku" value={formData.sku || ""} onChange={handleChange} className="mt-1" />
           </div>
 
           <div>
             <Label htmlFor="description">Description</Label>
-            <Textarea id="description" name="description" value={formData.description} onChange={handleChange} className="mt-1" rows={3} />
+            <Textarea id="description" name="description" value={formData.description || ""} onChange={handleChange} className="mt-1" rows={3} />
           </div>
 
           <div>

@@ -2,12 +2,18 @@
 import type { Product, Customer, Sale, StatsData, SalesChartData } from "./types";
 
 export const placeholderProducts: Product[] = [
-  { id: "1", name: "Fresh Milk (1L)", category: "Milk", price: 2.50, wholesalePrice: 2.30, stock: 120, imageUrl: "https://placehold.co/300x200.png", description: "Pasteurized full cream milk.", sku: "MILK001", reorderLevel: 20 },
-  { id: "2", name: "Natural Yogurt (500g)", category: "Yogurt", price: 3.00, wholesalePrice: 2.80, stock: 80, imageUrl: "https://placehold.co/300x200.png", description: "Creamy natural yogurt.", sku: "YOG001", reorderLevel: 15 },
-  { id: "3", name: "Watallappan Delight", category: "Watallappan", price: 4.50, wholesalePrice: 4.20, stock: 50, imageUrl: "https://placehold.co/300x200.png", description: "Traditional Sri Lankan coconut custard pudding.", sku: "WAT001", reorderLevel: 10 },
-  { id: "4", name: "Pure Ghee (250g)", category: "Ghee", price: 7.00, wholesalePrice: 6.50, stock: 60, imageUrl: "https://placehold.co/300x200.png", description: "Clarified butter made from cow's milk.", sku: "GHEE001", reorderLevel: 10 },
-  { id: "5", name: "Skimmed Milk (1L)", category: "Milk", price: 2.30, wholesalePrice: 2.10, stock: 75, imageUrl: "https://placehold.co/300x200.png", description: "Low-fat skimmed milk.", sku: "MILK002", reorderLevel: 20 },
-  { id: "6", name: "Fruit Yogurt (Pack of 4)", category: "Yogurt", price: 5.00, wholesalePrice: 4.70, stock: 40, imageUrl: "https://placehold.co/300x200.png", description: "Assorted fruit flavored yogurts.", sku: "YOG002", reorderLevel: 10 },
+  { id: "prod001", name: "Yoghurt", category: "Yogurt", price: 1.50, wholesalePrice: 1.30, stock: 100, imageUrl: "https://placehold.co/300x200.png", description: "Classic creamy yoghurt.", sku: "YOG001", reorderLevel: 20 },
+  { id: "prod002", name: "Jelly Yoghurt", category: "Yogurt", price: 1.80, wholesalePrice: 1.60, stock: 80, imageUrl: "https://placehold.co/300x200.png", description: "Yoghurt with fruit jelly.", sku: "YOG002", reorderLevel: 15 },
+  { id: "prod003", name: "Drinking Yoghurt", category: "Yogurt", price: 2.00, wholesalePrice: 1.80, stock: 90, imageUrl: "https://placehold.co/300x200.png", description: "Refreshing drinkable yoghurt.", sku: "YOG003", reorderLevel: 20 },
+  { id: "prod004", name: "Chocolate Drink", category: "Drink", price: 2.50, wholesalePrice: 2.20, stock: 70, imageUrl: "https://placehold.co/300x200.png", description: "Rich chocolate flavored milk drink.", sku: "DRK001", reorderLevel: 15 },
+  { id: "prod005", name: "Glue Cola", category: "Drink", price: 1.20, wholesalePrice: 1.00, stock: 120, imageUrl: "https://placehold.co/300x200.png", description: "A popular cola beverage.", sku: "DRK002", reorderLevel: 25 },
+  { id: "prod006", name: "Milk Ice Packet", category: "Ice Cream", price: 1.00, wholesalePrice: 0.80, stock: 150, imageUrl: "https://placehold.co/300x200.png", description: "Frozen milk ice treat.", sku: "ICE001", reorderLevel: 30 },
+  { id: "prod007", name: "Chocolate Ice Packet", category: "Ice Cream", price: 1.20, wholesalePrice: 1.00, stock: 140, imageUrl: "https://placehold.co/300x200.png", description: "Frozen chocolate ice treat.", sku: "ICE002", reorderLevel: 30 },
+  { id: "prod008", name: "Watalappan", category: "Dessert", price: 3.50, wholesalePrice: 3.20, stock: 50, imageUrl: "https://placehold.co/300x200.png", description: "Traditional coconut custard pudding.", sku: "DES001", reorderLevel: 10 },
+  { id: "prod009", name: "Jelly Pudding", category: "Dessert", price: 2.80, wholesalePrice: 2.50, stock: 60, imageUrl: "https://placehold.co/300x200.png", description: "Colorful fruit jelly pudding.", sku: "DES002", reorderLevel: 10 },
+  { id: "prod010", name: "Faluda", category: "Drink", price: 3.00, wholesalePrice: 2.70, stock: 40, imageUrl: "https://placehold.co/300x200.png", description: "Sweet rose-flavored milk drink with vermicelli and basil seeds.", sku: "DRK003", reorderLevel: 10 },
+  { id: "prod011", name: "Iced Coffee", category: "Drink", price: 2.20, wholesalePrice: 2.00, stock: 60, imageUrl: "https://placehold.co/300x200.png", description: "Chilled coffee beverage.", sku: "DRK004", reorderLevel: 15 },
+  { id: "prod012", name: "Curd", category: "Curd", price: 4.00, wholesalePrice: 3.70, stock: 70, imageUrl: "https://placehold.co/300x200.png", description: "Thick and creamy curd.", sku: "CRD001", reorderLevel: 15 },
 ];
 
 export const placeholderCustomers: Customer[] = [
@@ -23,8 +29,8 @@ export const placeholderSales: Sale[] = [
     customerId: "1", 
     customerName: "John Doe",
     items: [
-      { ...placeholderProducts[0], quantity: 2 },
-      { ...placeholderProducts[1], quantity: 1 },
+      { ...placeholderProducts[0], quantity: 2, appliedPrice: placeholderProducts[0].price, saleType: 'retail' },
+      { ...placeholderProducts[1], quantity: 1, appliedPrice: placeholderProducts[1].price, saleType: 'retail' },
     ], 
     totalAmount: (placeholderProducts[0].price * 2) + placeholderProducts[1].price, 
     paymentMethod: "Card", 
@@ -36,10 +42,10 @@ export const placeholderSales: Sale[] = [
     customerId: "2", 
     customerName: "Jane Smith",
     items: [
-      { ...placeholderProducts[2], quantity: 1 },
-      { ...placeholderProducts[3], quantity: 1 },
+      { ...placeholderProducts[7], quantity: 1, appliedPrice: placeholderProducts[7].price, saleType: 'retail' },
+      { ...placeholderProducts[11], quantity: 1, appliedPrice: placeholderProducts[11].price, saleType: 'retail' },
     ], 
-    totalAmount: placeholderProducts[2].price + placeholderProducts[3].price, 
+    totalAmount: placeholderProducts[7].price + placeholderProducts[11].price, 
     paymentMethod: "Cash", 
     saleDate: new Date(Date.now() - 86400000 * 1), // 1 day ago
     staffId: "staff002"
@@ -47,10 +53,10 @@ export const placeholderSales: Sale[] = [
 ];
 
 export const placeholderStats: StatsData = {
-  totalSales: 12500.75,
+  totalSales: 12500.75, // This value can be recalculated if needed, or kept as a general placeholder
   totalCustomers: placeholderCustomers.length,
-  lowStockItems: placeholderProducts.filter(p => p.stock < (p.reorderLevel || 15)).length,
-  revenueToday: 350.50,
+  lowStockItems: placeholderProducts.filter(p => p.stock <= (p.reorderLevel || 10)).length,
+  revenueToday: 350.50, // This value can be recalculated or kept as a general placeholder
 };
 
 export const placeholderSalesChartData: SalesChartData[] = [

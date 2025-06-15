@@ -2,7 +2,7 @@
 export interface Product {
   id: string;
   name: string;
-  category: "Milk" | "Yogurt" | "Watallappan" | "Ghee" | "Other";
+  category: "Yogurt" | "Drink" | "Ice Cream" | "Dessert" | "Curd" | "Other";
   price: number; // Retail price
   wholesalePrice?: number;
   stock: number;
