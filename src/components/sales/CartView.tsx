@@ -28,14 +28,14 @@ interface CartViewProps {
   onSelectCustomer: (customerId: string | null) => void;
   onUpdateDiscountAmount: (amount: number) => void;
   onCheckout: () => void;
-  onCancelOrder: () => void; 
+  onCancelOrder: () => void;
 }
 
-export function CartView({ 
-  cartItems, 
+export function CartView({
+  cartItems,
   selectedCustomer,
   discountAmount,
-  onUpdateQuantity, 
+  onUpdateQuantity,
   onRemoveItem,
   onSelectCustomer,
   onUpdateDiscountAmount,
@@ -43,37 +43,37 @@ export function CartView({
   onCancelOrder
 }: CartViewProps) {
   const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  
+
   const handleDiscountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let newDiscount = parseFloat(e.target.value) || 0;
-    newDiscount = Math.max(0, Math.min(newDiscount, subtotal)); // Prevent negative discount or discount > subtotal
+    newDiscount = Math.max(0, Math.min(newDiscount, subtotal));
     onUpdateDiscountAmount(newDiscount);
   };
-  
-  const totalAmount = Math.max(0, subtotal - discountAmount); // Ensure total is not negative
+
+  const totalAmount = Math.max(0, subtotal - discountAmount);
 
   return (
-    <Card className="shadow-xl flex flex-col h-full">
-      <CardHeader>
-        <CardTitle className="font-headline text-xl">Current Order</CardTitle>
+    <Card className="rounded-lg border bg-card text-card-foreground shadow-xl flex flex-col h-full overflow-auto">
+      <CardHeader className="flex flex-col space-y-1.5 p-6">
+        <CardTitle className="font-semibold tracking-tight font-headline text-xl">Current Order</CardTitle>
         <div className="flex items-center gap-2 pt-2">
-            <Users className="h-5 w-5 text-muted-foreground" />
-            <Select 
-              value={selectedCustomer?.id || ""} 
-              onValueChange={(value) => onSelectCustomer(value === "guest" ? null : value)}
-            >
-            <SelectTrigger className="flex-1">
-                <SelectValue placeholder="Select Customer (Optional)" />
+          <Users className="h-5 w-5 text-muted-foreground" />
+          <Select
+            value={selectedCustomer?.id || ""}
+            onValueChange={(value) => onSelectCustomer(value === "guest" ? null : value)}
+          >
+            <SelectTrigger className="flex-1" data-placeholder={!selectedCustomer ? "" : undefined}>
+              <SelectValue placeholder="Select Customer (Optional)" />
             </SelectTrigger>
             <SelectContent>
-                <SelectItem value="guest">Walk-in / Guest</SelectItem>
-                {placeholderCustomers.map(customer => (
+              <SelectItem value="guest">Walk-in / Guest</SelectItem>
+              {placeholderCustomers.map(customer => (
                 <SelectItem key={customer.id} value={customer.id}>
-                    {customer.name} ({customer.phone || customer.email})
+                  {customer.name} ({customer.phone || customer.email})
                 </SelectItem>
-                ))}
+              ))}
             </SelectContent>
-            </Select>
+          </Select>
         </div>
       </CardHeader>
       <CardContent className="flex-grow p-0">
@@ -85,7 +85,7 @@ export function CartView({
               {cartItems.map((item) => (
                 <div key={item.id} className="flex items-center p-4 space-x-3">
                   <Image
-                    src={item.imageUrl || "https://placehold.co/64x64.png"}
+                    src={item.imageUrl || "https://placehold.co/48x48.png"}
                     alt={item.name}
                     width={48}
                     height={48}
@@ -118,7 +118,7 @@ export function CartView({
                       size="icon"
                       className="h-7 w-7"
                       onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
-                       disabled={item.quantity >= item.stock}
+                      disabled={item.quantity >= item.stock}
                     >
                       <PlusCircle className="h-3.5 w-3.5" />
                     </Button>
@@ -136,41 +136,41 @@ export function CartView({
         </ScrollArea>
       </CardContent>
       {cartItems.length > 0 && (
-        <CardFooter className="flex flex-col space-y-3 p-4 border-t">
+        <CardFooter className="items-center flex flex-col space-y-3 p-6 border-t">
           <div className="w-full flex justify-between text-sm">
             <span>Subtotal:</span>
             <span>Rs. {subtotal.toFixed(2)}</span>
           </div>
           <div className="w-full flex items-center justify-between text-sm">
-            <Label htmlFor="discountAmount" className="shrink-0">Discount (Rs.):</Label>
-            <Input 
+            <Label htmlFor="discountAmount" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 shrink-0">Discount (Rs.):</Label>
+            <Input
               id="discountAmount"
               type="number"
-              value={discountAmount.toString()} // Control the input value
+              value={discountAmount.toString()}
               onChange={handleDiscountChange}
-              className="h-8 w-24 text-right ml-2"
+              className="flex h-8 w-24 rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm text-right ml-2"
               placeholder="0.00"
               min="0"
               step="0.01"
             />
           </div>
-          <Separator />
+          <Separator className="my-1" />
           <div className="w-full flex justify-between text-lg font-bold">
             <span>Total:</span>
             <span>Rs. {totalAmount.toFixed(2)}</span>
           </div>
           <div className="w-full grid grid-cols-2 gap-2 mt-2">
-            <Button 
-              variant="outline" 
-              className="text-base py-3 h-auto" 
+            <Button
+              variant="outline"
+              className="text-base py-3 h-auto"
               onClick={onCancelOrder}
             >
               <XCircle className="mr-2 h-4 w-4" />
               Cancel Order
             </Button>
-            <Button 
-              className="text-base py-3 h-auto" 
-              onClick={onCheckout} 
+            <Button
+              className="text-base py-3 h-auto"
+              onClick={onCheckout}
               disabled={cartItems.length === 0}
             >
               Proceed to Checkout
