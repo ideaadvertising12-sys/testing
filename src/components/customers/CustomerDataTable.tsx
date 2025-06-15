@@ -96,7 +96,7 @@ export function CustomerDataTable() {
                 <TableCell>
                   <div className="flex items-center gap-3">
                     <Avatar className="h-9 w-9 hidden sm:flex">
-                      <AvatarImage src={`https://i.pravatar.cc/40?u=${customer.email || customer.id}`} alt={customer.name} data-ai-hint="customer avatar" />
+                      {/* <AvatarImage src={`https://i.pravatar.cc/40?u=${customer.email || customer.id}`} alt={customer.name} data-ai-hint="customer avatar" /> */}
                       <AvatarFallback>{getInitials(customer.name)}</AvatarFallback>
                     </Avatar>
                     <span className="font-medium">{customer.name}</span>

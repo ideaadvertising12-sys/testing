@@ -21,7 +21,7 @@ import type { UserRole } from "@/lib/types";
 export function UserProfile() {
   const { userRole, setUserRole, availableRoles } = useAuth();
   // In a real app, user data would come from auth context or props
-  const user = { name: userRole === "admin" ? "Admin User" : "Cashier User", email: userRole === "admin" ? "admin@milkpos.com" : "cashier@milkpos.com", avatarUrl: "https://placehold.co/100x100.png" };
+  const user = { name: userRole === "admin" ? "Admin User" : "Cashier User", email: userRole === "admin" ? "admin@milkpos.com" : "cashier@milkpos.com" };
   
   const getInitials = (name: string) => {
     return name
@@ -36,7 +36,7 @@ export function UserProfile() {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-10 w-10 rounded-full">
           <Avatar className="h-9 w-9">
-            <AvatarImage src={user.avatarUrl} alt={user.name} data-ai-hint="user avatar" />
+            {/* <AvatarImage src={user.avatarUrl} alt={user.name} data-ai-hint="user avatar" /> */}
             <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
           </Avatar>
         </Button>

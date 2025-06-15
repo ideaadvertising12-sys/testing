@@ -14,7 +14,7 @@ interface ActivityItem {
   description: string;
   timestamp: Date;
   icon: React.ElementType;
-  avatarUrl?: string;
+  avatarUrl?: string; // Kept for product images
   avatarFallback?: string;
 }
 
@@ -28,7 +28,7 @@ const recentActivities: ActivityItem[] = [
     description: `${sale.items.length} items, Total: Rs. ${sale.totalAmount.toFixed(2)}`,
     timestamp: sale.saleDate,
     icon: ShoppingCart,
-    avatarUrl: placeholderCustomers.find(c => c.id === sale.customerId)?.email ? `https://i.pravatar.cc/40?u=${placeholderCustomers.find(c => c.id === sale.customerId)?.email}` : undefined,
+    // avatarUrl: placeholderCustomers.find(c => c.id === sale.customerId)?.email ? `https://i.pravatar.cc/40?u=${placeholderCustomers.find(c => c.id === sale.customerId)?.email}` : undefined,
     avatarFallback: sale.customerName ? getInitials(sale.customerName) : 'G',
   })),
   {
@@ -38,7 +38,7 @@ const recentActivities: ActivityItem[] = [
     description: `Category: ${placeholderProducts[4].category}, Price: Rs. ${placeholderProducts[4].price.toFixed(2)}`,
     timestamp: new Date(Date.now() - 86400000 * 0.5), // Half day ago
     icon: Package,
-    avatarUrl: placeholderProducts[4].imageUrl,
+    avatarUrl: placeholderProducts[4].imageUrl, // Product image retained
     avatarFallback: placeholderProducts[4].category[0],
   },
   {
@@ -48,7 +48,7 @@ const recentActivities: ActivityItem[] = [
     description: `Email: ${placeholderCustomers[2].email || 'N/A'}`,
     timestamp: new Date(Date.now() - 86400000 * 1.5), // 1.5 days ago
     icon: UserPlus,
-    avatarUrl: placeholderCustomers[2].email ? `https://i.pravatar.cc/40?u=${placeholderCustomers[2].email}` : undefined,
+    // avatarUrl: placeholderCustomers[2].email ? `https://i.pravatar.cc/40?u=${placeholderCustomers[2].email}` : undefined,
     avatarFallback: getInitials(placeholderCustomers[2].name),
   },
 ].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
@@ -67,7 +67,7 @@ export function RecentActivity() {
             {recentActivities.map((activity) => (
               <div key={activity.id} className="flex items-start space-x-4">
                 <Avatar className="h-10 w-10 border">
-                  {activity.avatarUrl && <AvatarImage src={activity.avatarUrl} alt={activity.title} data-ai-hint="activity avatar" />}
+                  {activity.type === 'new_product' && activity.avatarUrl && <AvatarImage src={activity.avatarUrl} alt={activity.title} data-ai-hint="product new" />}
                   <AvatarFallback className="bg-muted">
                     {activity.avatarFallback ? activity.avatarFallback : <activity.icon className="h-5 w-5 text-muted-foreground" />}
                   </AvatarFallback>
