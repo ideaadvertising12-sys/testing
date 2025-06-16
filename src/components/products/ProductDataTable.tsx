@@ -111,7 +111,7 @@ export function ProductDataTable() {
             )}
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-4"> {/* Reduced padding for the main content area */}
           {filteredDisplayProducts.length === 0 ? (
              <div className="flex flex-col items-center justify-center h-[200px] text-muted-foreground">
                 <PackageSearch className="w-16 h-16 mb-4" />
@@ -121,31 +121,31 @@ export function ProductDataTable() {
           ) : (
             <>
               {/* Mobile Card View - hidden on md and larger screens */}
-              <div className="md:hidden space-y-4">
+              <div className="md:hidden space-y-3"> {/* Reduced space-y for tighter packing */}
                 {filteredDisplayProducts.map((product) => (
                   <Card key={product.id} className="w-full overflow-hidden">
-                    <CardContent className="p-4">
-                        <div className="flex items-start gap-4">
+                    <CardContent className="p-3"> {/* Reduced padding for individual mobile cards */}
+                        <div className="flex items-start gap-3"> {/* Reduced gap */}
                             <Image
                                 alt={product.name}
-                                className="object-cover rounded-full h-16 w-16 flex-shrink-0"
-                                src={product.imageUrl || "https://placehold.co/64x64.png"}
-                                width={64}
-                                height={64}
+                                className="object-cover rounded-md h-12 w-12 flex-shrink-0" // Reduced image size, changed to rounded-md
+                                src={product.imageUrl || "https://placehold.co/48x48.png"} // Adjusted placeholder
+                                width={48} // Adjusted width
+                                height={48} // Adjusted height
                                 data-ai-hint={product.aiHint || `${product.category.toLowerCase()} product`}
                             />
-                            <div className="flex-grow min-w-0"> {/* Added min-w-0 for proper truncation */}
+                            <div className="flex-grow min-w-0">
                                 <div className="flex justify-between items-start">
-                                    <div className="flex-grow min-w-0 pr-2"> {/* Added min-w-0 and pr-2 for title truncation */}
-                                        <CardTitle className="text-base font-semibold leading-tight truncate" title={product.name}>
+                                    <div className="flex-grow min-w-0 pr-2">
+                                        <CardTitle className="text-sm font-semibold leading-tight truncate" title={product.name}> {/* Reduced font size */}
                                           {product.name}
                                         </CardTitle>
-                                        <Badge variant="secondary" className="mt-1 text-xs">{product.category}</Badge>
+                                        <Badge variant="secondary" className="mt-0.5 text-xs">{product.category}</Badge> {/* Adjusted margin */}
                                     </div>
                                     {isAdmin && (
                                         <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
-                                            <Button aria-haspopup="true" size="icon" variant="ghost" className="h-8 w-8 flex-shrink-0">
+                                            <Button aria-haspopup="true" size="icon" variant="ghost" className="h-7 w-7 flex-shrink-0 -mt-1 -mr-1"> {/* Slightly smaller button */}
                                             <MoreHorizontal className="h-4 w-4" />
                                             <span className="sr-only">Toggle menu</span>
                                             </Button>
@@ -163,18 +163,18 @@ export function ProductDataTable() {
                                     )}
                                 </div>
 
-                                <div className="mt-2 space-y-1 text-sm text-muted-foreground">
+                                <div className="mt-1.5 space-y-0.5 text-xs text-muted-foreground"> {/* Reduced margin and space */}
                                     <div className="flex items-center">
-                                        <Package className="mr-2 h-4 w-4 text-primary flex-shrink-0" />
+                                        <Package className="mr-1.5 h-3.5 w-3.5 text-primary flex-shrink-0" /> {/* Smaller icon, reduced margin */}
                                         <span className="truncate">Stock: <span className="font-medium text-foreground ml-1">{product.stock} units</span></span>
                                     </div>
                                     <div className="flex items-center">
-                                        <FileDigit className="mr-2 h-4 w-4 text-primary flex-shrink-0" />
+                                        <FileDigit className="mr-1.5 h-3.5 w-3.5 text-primary flex-shrink-0" /> {/* Smaller icon, reduced margin */}
                                         <span className="truncate">SKU: <span className="font-medium text-foreground ml-1">{product.sku || "N/A"}</span></span>
                                     </div>
-                                    <p className="text-lg font-bold text-primary pt-1">Rs. {product.price.toFixed(2)} <span className="text-xs text-muted-foreground">(Retail)</span></p>
+                                    <p className="text-md font-bold text-primary pt-0.5">Rs. {product.price.toFixed(2)} <span className="text-xs text-muted-foreground">(Retail)</span></p> {/* Reduced font size, adjusted padding */}
                                     {product.wholesalePrice !== undefined && (
-                                        <p className="text-md font-semibold text-accent-foreground">
+                                        <p className="text-sm font-semibold text-accent-foreground"> {/* Reduced font size */}
                                         Rs. {product.wholesalePrice.toFixed(2)} <span className="text-xs text-muted-foreground">(Wholesale)</span>
                                         </p>
                                     )}
@@ -286,3 +286,4 @@ export function ProductDataTable() {
     </>
   );
 }
+
