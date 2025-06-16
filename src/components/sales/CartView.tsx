@@ -89,11 +89,22 @@ export function CartView({
             <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
               <Command
                 filter={(value, search) => {
-                  const option = customerOptions.find(opt => opt.value.toLowerCase() === value.toLowerCase());
+                  // `value` is item.value (e.g., "guest" or customer.id)
+                  // `search` is what the user typed
+                  const option = customerOptions.find(opt => opt.value === value);
                   if (!option) return 0;
-                  const labelContent = `${option.label} ${option.name || ''} ${option.shopName || ''}`.toLowerCase();
-                  if (labelContent.includes(search.toLowerCase())) return 1;
-                  return 0;
+
+                  let searchableString = option.label.toLowerCase();
+
+                  // Safely add name and shopName to the searchable string if they exist
+                  if ('name' in option && option.name) {
+                    searchableString += ` ${option.name.toLowerCase()}`;
+                  }
+                  if ('shopName' in option && option.shopName) {
+                    searchableString += ` ${option.shopName.toLowerCase()}`;
+                  }
+                  
+                  return searchableString.includes(search.toLowerCase()) ? 1 : 0;
                 }}
               >
                 <CommandInput placeholder="Search customer..." />
