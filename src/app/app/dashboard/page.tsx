@@ -1,12 +1,13 @@
 
 "use client";
 
-import { Banknote, Package, Users, TrendingDown, TrendingUp, Activity, AlertTriangle } from "lucide-react";
+import { Banknote, Package, Users, TrendingDown, TrendingUp, Activity, AlertTriangle, Loader2 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { SalesChart } from "@/components/dashboard/SalesChart";
 import { AlertQuantityTable } from "@/components/dashboard/AlertQuantityTable";
-import { placeholderStats, placeholderMonthlySalesData } from "@/lib/placeholder-data";
+import { generatePlaceholderStats, placeholderMonthlySalesData } from "@/lib/placeholder-data";
+import type { StatsData } from "@/lib/types";
 import {
   Table,
   TableBody,
@@ -19,22 +20,25 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { placeholderProducts } from "@/lib/placeholder-data";
 import { useAuth } from "@/contexts/AuthContext";
 import { AccessDenied } from "@/components/AccessDenied";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { GlobalPreloaderScreen } from "@/components/GlobalPreloaderScreen";
 
 export default function DashboardPage() {
   const { currentUser } = useAuth();
   const router = useRouter();
+  const [dashboardStats, setDashboardStats] = useState<StatsData | null>(null);
 
   useEffect(() => {
     if (!currentUser) {
-      // This should be handled by AppLayout, but as a safeguard
       router.replace("/");
       return;
     }
     if (currentUser.role === "cashier") {
       router.replace("/app/sales"); 
+    } else {
+      // Calculate stats on client-side after hydration
+      setDashboardStats(generatePlaceholderStats());
     }
   }, [currentUser, router]);
 
@@ -49,37 +53,64 @@ export default function DashboardPage() {
   const topSellingProducts = [...placeholderProducts]
     .sort((a,b) => (b.price * (150 - b.stock)) - (a.price * (150 - a.stock)) ) 
     .slice(0,5);
+  
+  const renderStatsCard = (title: string, value: string | number | undefined, icon: React.ElementType, iconColor: string, description?: string) => {
+    if (dashboardStats === null && (title === "Total Revenue" || title === "Total Customers" || title === "Low Stock Items" || title === "Revenue Today")) {
+      return (
+        <Card className="shadow-lg">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
+            <Loader2 className={iconColor + " h-5 w-5 animate-spin"} />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold font-headline text-foreground">Loading...</div>
+            {description && <p className="text-xs text-muted-foreground pt-1">{description}</p>}
+          </CardContent>
+        </Card>
+      );
+    }
+    return (
+      <StatsCard
+        title={title}
+        value={value ?? 'N/A'}
+        icon={icon}
+        iconColor={iconColor}
+        description={description}
+      />
+    );
+  };
+
 
   return (
     <>
       <PageHeader title="Dashboard Overview" description="Welcome back! Here's what's happening with NGroup Products." icon={Activity} />
       
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-6">
-        <StatsCard 
-          title="Total Revenue" 
-          value={`Rs. ${placeholderStats.totalSales.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`}
-          icon={Banknote}
-          iconColor="text-green-600" 
-        />
-        <StatsCard 
-          title="Total Customers" 
-          value={placeholderStats.totalCustomers}
-          icon={Users}
-          iconColor="text-blue-600" 
-        />
-        <StatsCard 
-          title="Low Stock Items" 
-          value={placeholderStats.lowStockItems}
-          icon={AlertTriangle} 
-          description="Needs reordering soon"
-          iconColor="text-red-600" 
-        />
-         <StatsCard 
-          title="Revenue Today" 
-          value={`Rs. ${placeholderStats.revenueToday.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`}
-          icon={TrendingUp}
-          iconColor="text-emerald-600" 
-        />
+        {renderStatsCard(
+          "Total Revenue",
+          dashboardStats ? `Rs. ${dashboardStats.totalSales.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : undefined,
+          Banknote,
+          "text-green-600"
+        )}
+        {renderStatsCard(
+          "Total Customers",
+          dashboardStats?.totalCustomers,
+          Users,
+          "text-blue-600"
+        )}
+        {renderStatsCard(
+          "Low Stock Items",
+          dashboardStats?.lowStockItems,
+          AlertTriangle,
+          "text-red-600",
+          "Needs reordering soon"
+        )}
+        {renderStatsCard(
+          "Revenue Today",
+          dashboardStats ? `Rs. ${dashboardStats.revenueToday.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : undefined,
+          TrendingUp,
+          "text-emerald-600"
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">

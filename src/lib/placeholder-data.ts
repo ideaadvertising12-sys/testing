@@ -65,12 +65,20 @@ export const placeholderSales: Sale[] = [
   },
 ];
 
-export const placeholderStats: StatsData = {
-  totalSales: placeholderSales.reduce((sum, sale) => sum + sale.totalAmount, 0), 
-  totalCustomers: placeholderCustomers.length,
-  lowStockItems: placeholderProducts.filter(p => p.stock <= (p.reorderLevel || 10)).length,
-  revenueToday: placeholderSales.filter(s => s.saleDate >= new Date(new Date().setHours(0,0,0,0))).reduce((sum, sale) => sum + sale.totalAmount, 0), 
-};
+export function generatePlaceholderStats(): StatsData {
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
+  return {
+    totalSales: placeholderSales.reduce((sum, sale) => sum + sale.totalAmount, 0),
+    totalCustomers: placeholderCustomers.length,
+    lowStockItems: placeholderProducts.filter(p => p.stock <= (p.reorderLevel || 10)).length,
+    revenueToday: placeholderSales
+      .filter(s => s.saleDate >= todayStart)
+      .reduce((sum, sale) => sum + sale.totalAmount, 0),
+  };
+}
+
 
 export const placeholderSalesChartData: SalesChartData[] = [
   { name: "Mon", sales: 400 },
