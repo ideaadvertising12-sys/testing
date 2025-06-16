@@ -78,8 +78,6 @@ export function SidebarProvider({
   const toggleCollapse = () => {
     if (!isMobile) { 
       setIsCollapsed(!isCollapsed);
-    } else {
-      // Mobile toggle is handled by setOpenMobile directly in AppShell's SheetTrigger
     }
   };
   
@@ -108,10 +106,7 @@ export function SidebarProvider({
   );
 }
 
-// Sidebar component is simplified to be a container for its children.
-// AppShell will handle its positioning (fixed for desktop) and whether it's in a SheetContent (mobile).
 export function Sidebar({ children, className }: { children: React.ReactNode, className?: string }) {
-  // isCollapsed and isMobile are still needed by child components like SidebarHeader, SidebarNavItem via context.
   return (
     <div className={cn(
       "flex flex-col h-full bg-sidebar text-sidebar-foreground",
@@ -155,7 +150,7 @@ interface SidebarNavItemProps {
 }
 
 function SidebarNavItem({ item }: SidebarNavItemProps) {
-  const { isCollapsed, activePath, userRole, defaultOpenAccordion, isMobile, setOpenMobile } = useSidebarContext();
+  const { isCollapsed, activePath, userRole, defaultOpenAccordion, isMobile, setOpenMobile, toggleCollapse } = useSidebarContext();
   const Icon = item.icon;
 
   const checkIsActive = (path: string, navHref?: string) => {
@@ -174,6 +169,13 @@ function SidebarNavItem({ item }: SidebarNavItemProps) {
     }
   };
 
+  const handleAccordionTriggerClick = () => {
+    if (isCollapsed && !isMobile) {
+      toggleCollapse(); // Expand the sidebar
+    }
+    // Accordion will open/close due to its own default behavior
+  };
+
   if (item.children && item.children.length > 0) {
     const filteredChildren = userRole ? item.children.filter(child => child.allowedRoles.includes(userRole)) : [];
     if (filteredChildren.length === 0) return null;
@@ -187,10 +189,11 @@ function SidebarNavItem({ item }: SidebarNavItemProps) {
           <Tooltip disableHoverableContent={!isCollapsed || isMobile}>
             <TooltipTrigger asChild>
               <RadixAccordionTrigger
+                onClick={handleAccordionTriggerClick}
                 className={cn(
                   "flex items-center w-full rounded-md text-sm font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-sidebar-ring",
                   "transition-colors duration-150 group",
-                  isCollapsed ? "justify-center h-12" : "justify-between h-11 px-3 py-2", // justify-between allows RadixChevron to go right
+                  isCollapsed ? "justify-center h-12" : "justify-between h-11 px-3 py-2",
                   isActive && !isCollapsed && "bg-sidebar-primary/20 text-sidebar-primary",
                   isActive && isCollapsed && "bg-sidebar-primary text-sidebar-primary-foreground"
                 )}
@@ -199,7 +202,6 @@ function SidebarNavItem({ item }: SidebarNavItemProps) {
                   <Icon className={cn("h-5 w-5 shrink-0", isActive && isCollapsed ? "text-sidebar-primary-foreground" : isActive ? "text-sidebar-primary" : "text-sidebar-foreground/70 group-hover:text-sidebar-accent-foreground")} />
                   {!isCollapsed && <span className="truncate text-sidebar-foreground group-hover:text-sidebar-accent-foreground">{item.label}</span>}
                 </div>
-                {/* Removed explicit ChevronDown from here */}
               </RadixAccordionTrigger>
             </TooltipTrigger>
             {isCollapsed && !isMobile && <TooltipContent side="right">{item.label}</TooltipContent>}
@@ -266,4 +268,3 @@ export function SidebarFooter({ children, className }: { children: React.ReactNo
     </div>
   );
 }
-

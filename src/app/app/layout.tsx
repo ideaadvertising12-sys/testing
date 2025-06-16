@@ -200,39 +200,25 @@ function AppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Desktop Layout with STATIC sidebar
   return (
-    // Base container for desktop. Flex helps manage height if necessary.
     <div className="flex h-screen bg-background"> 
-      {/* Desktop Sidebar: Static position, part of document flow. */}
       <AppNewSidebar 
         className={cn(
-          // Removed: "fixed top-0 left-0 z-40"
-          "h-full border-r border-sidebar-border", // Basic styling for a static sidebar
-          "transition-all duration-300 ease-in-out", // For smooth collapse/expand animation of width
-          // Dynamically set the width of the sidebar
+          "h-full border-r border-sidebar-border", 
+          "transition-all duration-300 ease-in-out", 
           isCollapsed ? `w-[${sidebarVars.collapsed}]` : `w-[${sidebarVars.expanded}]`
         )}
       >
         {sidebarActualContent}
       </AppNewSidebar>
       
-      {/* Main Content Area for Desktop: 
-          - flex-1: Takes up remaining horizontal space.
-          - flex flex-col: Allows header and main to stack vertically.
-          - overflow-x-hidden: Prevents horizontal scrollbars on this container.
-          - No margin-left needed as sidebar is static.
-      */}
       <div
         className={cn(
           "flex-1 flex flex-col transition-all duration-300 ease-in-out overflow-x-hidden"
-          // Removed: dynamic margin-left classes as sidebar is no longer fixed
         )}
       >
-        {/* Header within the main content area */}
         <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-card/95 px-4 backdrop-blur-sm sm:px-6">
           <div className="flex items-center gap-2">
-            {/* Desktop sidebar toggle button */}
             <Button variant="ghost" size="icon" className="h-9 w-9" onClick={toggleCollapse}>
               {isCollapsed ? <PanelLeft className="h-5 w-5" /> : <X className="h-5 w-5" />}
               <span className="sr-only">{isCollapsed ? "Expand sidebar" : "Collapse sidebar"}</span>
@@ -243,7 +229,6 @@ function AppShell({ children }: { children: React.ReactNode }) {
           </div>
           <UserProfile />
         </header>
-        {/* Main page content with its own scrolling */}
         <main className="flex-1 p-4 sm:p-6 overflow-y-auto bg-muted/30">
           {children}
         </main>
@@ -292,4 +277,3 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     </NewSidebarProvider>
   );
 }
-
