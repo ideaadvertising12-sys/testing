@@ -132,8 +132,8 @@ export function CustomerDataTable() {
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Phone</TableHead>
-                  <TableHead className="hidden md:table-cell">Address</TableHead>
-                  <TableHead className="hidden md:table-cell">Shop Name</TableHead>
+                  <TableHead>Address</TableHead>
+                  <TableHead>Shop Name</TableHead>
                   {canManageCustomers && (
                     <TableHead>
                       <span className="sr-only">Actions</span>
@@ -153,8 +153,8 @@ export function CustomerDataTable() {
                       </div>
                     </TableCell>
                     <TableCell>{customer.phone}</TableCell>
-                    <TableCell className="hidden md:table-cell">{customer.address || "N/A"}</TableCell>
-                    <TableCell className="hidden md:table-cell">{customer.shopName || "N/A"}</TableCell>
+                    <TableCell>{customer.address || "N/A"}</TableCell>
+                    <TableCell>{customer.shopName || "N/A"}</TableCell>
                     {canManageCustomers && (
                       <TableCell>
                         <DropdownMenu>
