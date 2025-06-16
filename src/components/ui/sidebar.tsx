@@ -2,11 +2,10 @@
 "use client";
 
 import * as React from "react";
-import { PanelLeft, X, ChevronDown, type LucideIcon } from "lucide-react";
+import { ChevronDown, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-// Sheet and SheetTrigger are removed from here as AppShell will handle it.
-// SheetContent will also be handled by AppShell for mobile.
+
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -21,6 +20,7 @@ import {
   AccordionItem,
   AccordionTrigger as RadixAccordionTrigger,
 } from "@/components/ui/accordion";
+import { SheetTitle } from "@/components/ui/sheet"; // Import SheetTitle
 import { cn } from "@/lib/utils";
 import type { NavItemConfig, UserRole } from "@/lib/types";
 
@@ -126,7 +126,7 @@ export function SidebarHeader({ children, className }: { children: React.ReactNo
         className
       )}
     >
-      {children}
+      <SheetTitle asChild>{children}</SheetTitle>
     </div>
   );
 }
@@ -202,6 +202,7 @@ function SidebarNavItem({ item }: SidebarNavItemProps) {
                   <Icon className={cn("h-5 w-5 shrink-0", isActive && isCollapsed ? "text-sidebar-primary-foreground" : isActive ? "text-sidebar-primary" : "text-sidebar-foreground/70 group-hover:text-sidebar-accent-foreground")} />
                   {!isCollapsed && <span className="truncate text-sidebar-foreground group-hover:text-sidebar-accent-foreground">{item.label}</span>}
                 </div>
+                {/* Chevron is now only from AccordionTrigger itself, removed explicit one from here */}
               </RadixAccordionTrigger>
             </TooltipTrigger>
             {isCollapsed && !isMobile && <TooltipContent side="right">{item.label}</TooltipContent>}
