@@ -16,7 +16,7 @@ import {
   ClipboardList,
   Warehouse,
   UserCheck,
-  X,
+  X, // Ensure X is imported
 } from "lucide-react";
 import {
   SidebarProvider,
@@ -138,7 +138,7 @@ function calculateCurrentPageLabel(pathname: string, userRole: UserRole | undefi
 function AppMainStructure({ children, currentNavItems }: { children: React.ReactNode; currentNavItems: NavItemConfig[] }) {
   const { openMobile, toggleSidebar } = useSidebar();
   const pathname = usePathname();
-  const { currentUser } = useAuth(); // Assuming useAuth is available
+  const { currentUser } = useAuth(); 
   const userRole = currentUser?.role;
 
   const currentPageLabel = useMemo(() => calculateCurrentPageLabel(pathname, userRole, currentNavItems), [pathname, userRole, currentNavItems]);
@@ -153,7 +153,10 @@ function AppMainStructure({ children, currentNavItems }: { children: React.React
               <span className="sr-only">Close sidebar</span>
             </Button>
           ) : (
-            <SidebarTrigger />
+            <Button data-sidebar="trigger" variant="ghost" size="icon" onClick={toggleSidebar} className="h-7 w-7">
+              <X className="h-5 w-5" />
+              <span className="sr-only">Open sidebar</span>
+            </Button>
           )}
         </div>
         <div className="hidden md:block">
@@ -299,3 +302,4 @@ const AppLogoIconOnly = () => (
     <path d="M20.56 10.44 15.3 3.29A2.52 2.52 0 0 0 13.14 2H10.9A2.52 2.52 0 0 0 8.7 3.29L3.44 10.44A2.13 2.13 0 0 0 3 11.79V20a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-8.21a2.13 2.13 0 0 0-.44-1.35Z" /><path d="m3.5 10.5 17 0" /><path d="M12 22V10.5" />
   </svg>
 );
+
