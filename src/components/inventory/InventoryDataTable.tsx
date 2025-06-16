@@ -12,7 +12,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import type { Product } from "@/lib/types";
 import { placeholderProducts } from "@/lib/placeholder-data";
 import { cn } from "@/lib/utils";
@@ -67,18 +66,12 @@ export function InventoryDataTable() {
               <TableHead className="text-center">Current Stock</TableHead>
               <TableHead className="hidden md:table-cell text-center">Reorder Level</TableHead>
               <TableHead className="text-center">Status</TableHead>
-              <TableHead className="hidden lg:table-cell w-[200px] text-center">Stock Progress</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredProducts.map((product) => {
               const status = getStockStatus(product.stock, product.reorderLevel);
-              const progressValue = product.stock > 0 ? Math.min((product.stock / ( (product.reorderLevel || 10) * 2)) * 100, 100) : 0;
-              let progressColorClass = "bg-primary";
-              if (status.text === "Out of Stock") progressColorClass = "bg-red-500";
-              else if (status.text === "Low Stock") progressColorClass = "bg-orange-500";
-
-
+              
               return (
                 <TableRow key={product.id}>
                   <TableCell className="hidden sm:table-cell">
@@ -100,9 +93,6 @@ export function InventoryDataTable() {
                   <TableCell className="text-center">
                     <Badge className={cn(status.color, "text-xs")}>{status.text}</Badge>
                   </TableCell>
-                  <TableCell className="hidden lg:table-cell">
-                     <Progress value={progressValue} indicatorClassName={progressColorClass} aria-label={`${product.stock} in stock`} />
-                  </TableCell>
                 </TableRow>
               );
             })}
@@ -113,3 +103,4 @@ export function InventoryDataTable() {
     </Card>
   );
 }
+
