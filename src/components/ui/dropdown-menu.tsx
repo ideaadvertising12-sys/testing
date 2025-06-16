@@ -76,7 +76,7 @@ const DropdownMenuContent = React.forwardRef<
 DropdownMenuContent.displayName = DropdownMenuPrimitive.Content.displayName
 
 const DropdownMenuItem = React.forwardRef<
-  HTMLElement, // Changed from React.ElementRef<typeof DropdownMenuPrimitive.Item>
+  React.ElementRef<typeof DropdownMenuPrimitive.Item>, 
   React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Item> & {
     inset?: boolean;
     asChild?: boolean; 
