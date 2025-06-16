@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -14,13 +14,15 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
 } from "@/components/ui/dropdown-menu";
-import { LogOut, Settings, User, ShieldCheck } from "lucide-react";
+import { LogOut, Settings, User, ShieldCheck, Sun, Moon, Laptop } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import type { UserRole } from "@/lib/types";
+import { useTheme } from "next-themes";
 
 export function UserProfile() {
   const { userRole, setUserRole, availableRoles } = useAuth();
-  // In a real app, user data would come from auth context or props
+  const { theme, setTheme } = useTheme();
+  
   const user = { name: userRole === "admin" ? "Admin User" : "Cashier User", email: userRole === "admin" ? "admin@milkpos.com" : "cashier@milkpos.com" };
   
   const getInitials = (name: string) => {
@@ -61,6 +63,26 @@ export function UserProfile() {
           <span>Settings</span>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
+        
+        {/* Theme Switcher */}
+        <DropdownMenuLabel>Theme</DropdownMenuLabel>
+        <DropdownMenuRadioGroup value={theme} onValueChange={setTheme}>
+          <DropdownMenuRadioItem value="light">
+            <Sun className="mr-2 h-4 w-4" />
+            <span>Light</span>
+          </DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value="dark">
+            <Moon className="mr-2 h-4 w-4" />
+            <span>Dark</span>
+          </DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value="system">
+            <Laptop className="mr-2 h-4 w-4" />
+            <span>System</span>
+          </DropdownMenuRadioItem>
+        </DropdownMenuRadioGroup>
+        <DropdownMenuSeparator />
+        {/* End Theme Switcher */}
+
         {/* Temporary Role Switcher for Dev */}
         <DropdownMenuRadioGroup value={userRole} onValueChange={(value) => setUserRole(value as UserRole)}>
             <DropdownMenuLabel className="flex items-center">
