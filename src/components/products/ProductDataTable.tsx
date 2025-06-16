@@ -111,7 +111,7 @@ export function ProductDataTable() {
             )}
           </div>
         </CardHeader>
-        <CardContent className="p-4"> {/* Reduced padding for the main content area */}
+        <CardContent className="p-4">
           {filteredDisplayProducts.length === 0 ? (
              <div className="flex flex-col items-center justify-center h-[200px] text-muted-foreground">
                 <PackageSearch className="w-16 h-16 mb-4" />
@@ -121,31 +121,31 @@ export function ProductDataTable() {
           ) : (
             <>
               {/* Mobile Card View - hidden on md and larger screens */}
-              <div className="md:hidden space-y-3"> {/* Reduced space-y for tighter packing */}
+              <div className="md:hidden space-y-3">
                 {filteredDisplayProducts.map((product) => (
                   <Card key={product.id} className="w-full overflow-hidden">
-                    <CardContent className="p-3"> {/* Reduced padding for individual mobile cards */}
-                        <div className="flex items-start gap-3"> {/* Reduced gap */}
+                    <CardContent className="p-3">
+                        <div className="flex items-start gap-3">
                             <Image
                                 alt={product.name}
-                                className="object-cover rounded-md h-12 w-12 flex-shrink-0" // Reduced image size, changed to rounded-md
-                                src={product.imageUrl || "https://placehold.co/48x48.png"} // Adjusted placeholder
-                                width={48} // Adjusted width
-                                height={48} // Adjusted height
+                                className="object-cover rounded-md h-12 w-12 flex-shrink-0"
+                                src={product.imageUrl || "https://placehold.co/48x48.png"}
+                                width={48}
+                                height={48}
                                 data-ai-hint={product.aiHint || `${product.category.toLowerCase()} product`}
                             />
                             <div className="flex-grow min-w-0">
                                 <div className="flex justify-between items-start">
                                     <div className="flex-grow min-w-0 pr-2">
-                                        <CardTitle className="text-sm font-semibold leading-tight truncate" title={product.name}> {/* Reduced font size */}
+                                        <div className="text-sm font-semibold leading-tight truncate" title={product.name}>
                                           {product.name}
-                                        </CardTitle>
-                                        <Badge variant="secondary" className="mt-0.5 text-xs">{product.category}</Badge> {/* Adjusted margin */}
+                                        </div>
+                                        <Badge variant="secondary" className="mt-0.5 text-xs px-1.5 py-0.5">{product.category}</Badge>
                                     </div>
                                     {isAdmin && (
                                         <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
-                                            <Button aria-haspopup="true" size="icon" variant="ghost" className="h-7 w-7 flex-shrink-0 -mt-1 -mr-1"> {/* Slightly smaller button */}
+                                            <Button aria-haspopup="true" size="icon" variant="ghost" className="h-7 w-7 flex-shrink-0 -mt-1 -mr-1">
                                             <MoreHorizontal className="h-4 w-4" />
                                             <span className="sr-only">Toggle menu</span>
                                             </Button>
@@ -163,19 +163,21 @@ export function ProductDataTable() {
                                     )}
                                 </div>
 
-                                <div className="mt-1.5 space-y-0.5 text-xs text-muted-foreground"> {/* Reduced margin and space */}
+                                <div className="mt-1.5 space-y-0.5 text-xs text-muted-foreground">
                                     <div className="flex items-center">
-                                        <Package className="mr-1.5 h-3.5 w-3.5 text-primary flex-shrink-0" /> {/* Smaller icon, reduced margin */}
-                                        <span className="truncate">Stock: <span className="font-medium text-foreground ml-1">{product.stock} units</span></span>
+                                        <Package className="mr-1.5 h-3.5 w-3.5 text-primary/80 flex-shrink-0" />
+                                        <span>Stock: <span className="font-medium text-foreground/90 ml-1">{product.stock} units</span></span>
                                     </div>
                                     <div className="flex items-center">
-                                        <FileDigit className="mr-1.5 h-3.5 w-3.5 text-primary flex-shrink-0" /> {/* Smaller icon, reduced margin */}
-                                        <span className="truncate">SKU: <span className="font-medium text-foreground ml-1">{product.sku || "N/A"}</span></span>
+                                        <FileDigit className="mr-1.5 h-3.5 w-3.5 text-primary/80 flex-shrink-0" />
+                                        <span>SKU: <span className="font-medium text-foreground/90 ml-1">{product.sku || "N/A"}</span></span>
                                     </div>
-                                    <p className="text-md font-bold text-primary pt-0.5">Rs. {product.price.toFixed(2)} <span className="text-xs text-muted-foreground">(Retail)</span></p> {/* Reduced font size, adjusted padding */}
+                                    <p className="text-md font-bold text-primary pt-1">
+                                        Rs. {product.price.toFixed(2)} <span className="text-xs font-normal text-muted-foreground">(Retail)</span>
+                                    </p>
                                     {product.wholesalePrice !== undefined && (
-                                        <p className="text-sm font-semibold text-accent-foreground"> {/* Reduced font size */}
-                                        Rs. {product.wholesalePrice.toFixed(2)} <span className="text-xs text-muted-foreground">(Wholesale)</span>
+                                        <p className="text-sm font-semibold text-accent-foreground/90">
+                                           Rs. {product.wholesalePrice.toFixed(2)} <span className="text-xs font-normal text-muted-foreground">(Wholesale)</span>
                                         </p>
                                     )}
                                 </div>
@@ -198,7 +200,7 @@ export function ProductDataTable() {
                       <TableHead className="text-right">Wholesale Price</TableHead>
                       <TableHead className="text-right">Retail Price</TableHead>
                       {isAdmin && (
-                        <TableHead>
+                        <TableHead className="text-right">
                           <span className="sr-only">Actions</span>
                         </TableHead>
                       )}
@@ -227,7 +229,7 @@ export function ProductDataTable() {
                         </TableCell>
                         <TableCell className="text-right">Rs. {product.price.toFixed(2)}</TableCell>
                         {isAdmin && (
-                          <TableCell>
+                          <TableCell className="text-right">
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button aria-haspopup="true" size="icon" variant="ghost">
@@ -286,4 +288,3 @@ export function ProductDataTable() {
     </>
   );
 }
-
