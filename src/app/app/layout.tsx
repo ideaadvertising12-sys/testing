@@ -155,7 +155,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
       </AppNewSidebarHeader>
       <AppNewSidebarContent />
       <AppNewSidebarFooter>
-      {(!isCollapsed || isMobile) && ( // Show copyright in mobile expanded sidebar too
+      {(!isCollapsed || isMobile) && (
           <p className="text-xs text-sidebar-foreground/70">&copy; {new Date().getFullYear()} NGroup</p>
       )}
       </AppNewSidebarFooter>
@@ -170,8 +170,8 @@ function AppShell({ children }: { children: React.ReactNode }) {
             side="left" 
             className="p-0 w-[280px] flex flex-col data-[state=closed]:duration-200 data-[state=open]:duration-300 bg-sidebar text-sidebar-foreground border-r-0"
           >
-            {/* SheetContent provides its own close button, no extra header needed here */}
-            <AppNewSidebar className="flex-1 overflow-y-auto"> {/* AppNewSidebar is the Sidebar component */}
+            {/* SheetContent manages its own close button by default */}
+            <AppNewSidebar className="flex-1 overflow-y-auto">
               {sidebarActualContent}
             </AppNewSidebar>
           </SheetContent>
@@ -202,24 +202,30 @@ function AppShell({ children }: { children: React.ReactNode }) {
 
   // Desktop Layout
   return (
-    <div className="flex h-screen bg-background"> {/* Base container for desktop */}
-      {/* Desktop Sidebar: Fixed position, dynamic width */}
+    // Base container for desktop. Flex helps manage height if necessary.
+    <div className="flex h-screen bg-background"> 
+      {/* Desktop Sidebar: Fixed position, dynamic width, and z-index to ensure it's above default content flow */}
       <AppNewSidebar 
         className={cn(
-          "fixed top-0 left-0 z-40 h-full border-r border-sidebar-border", // Ensures sidebar is full height and fixed
-          "transition-all duration-300 ease-in-out",
-          // These classes set the width of the sidebar itself
+          "fixed top-0 left-0 z-40 h-full border-r border-sidebar-border", 
+          "transition-all duration-300 ease-in-out", // For smooth collapse/expand
+          // Dynamically set the width of the sidebar
           isCollapsed ? `w-[${sidebarVars.collapsed}]` : `w-[${sidebarVars.expanded}]`
         )}
       >
         {sidebarActualContent}
       </AppNewSidebar>
       
-      {/* Main Content Area for Desktop: Flex-1 to take remaining space, dynamic margin-left */}
+      {/* Main Content Area for Desktop: 
+          - flex-1: Takes up remaining horizontal space.
+          - flex flex-col: Allows header and main to stack vertically.
+          - overflow-x-hidden: Prevents horizontal scrollbars on this container.
+          - dynamic margin-left: Crucial to prevent overlap with the fixed sidebar.
+      */}
       <div
         className={cn(
           "flex-1 flex flex-col transition-all duration-300 ease-in-out overflow-x-hidden",
-          // This margin-left is crucial to prevent overlap with the fixed sidebar
+          // This margin-left must match the sidebar's width
           isCollapsed ? `ml-[${sidebarVars.collapsed}]` : `ml-[${sidebarVars.expanded}]`
         )}
       >
@@ -237,7 +243,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
           </div>
           <UserProfile />
         </header>
-        {/* Main page content */}
+        {/* Main page content with its own scrolling */}
         <main className="flex-1 p-4 sm:p-6 overflow-y-auto bg-muted/30">
           {children}
         </main>
