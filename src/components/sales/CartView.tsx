@@ -68,7 +68,7 @@ export function CartView({
 
   return (
     <Card className="rounded-lg border bg-card text-card-foreground shadow-xl flex flex-col h-full">
-      <CardHeader className="flex flex-col space-y-1.5 p-6">
+      <CardHeader className="flex flex-col space-y-1.5 p-4"> {/* Reduced padding */}
         <CardTitle className="font-semibold tracking-tight font-headline text-xl">Current Order</CardTitle>
         <div className="flex items-center gap-2 pt-2">
           <Users className="h-5 w-5 text-muted-foreground" />
@@ -89,21 +89,15 @@ export function CartView({
             <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
               <Command
                 filter={(value, search) => {
-                  // `value` is item.value (e.g., "guest" or customer.id)
-                  // `search` is what the user typed
                   const option = customerOptions.find(opt => opt.value === value);
                   if (!option) return 0;
-
                   let searchableString = option.label.toLowerCase();
-
-                  // Safely add name and shopName to the searchable string if they exist
                   if ('name' in option && option.name) {
                     searchableString += ` ${option.name.toLowerCase()}`;
                   }
                   if ('shopName' in option && option.shopName) {
                     searchableString += ` ${option.shopName.toLowerCase()}`;
                   }
-                  
                   return searchableString.includes(search.toLowerCase()) ? 1 : 0;
                 }}
               >
@@ -138,8 +132,8 @@ export function CartView({
           </Popover>
         </div>
       </CardHeader>
-      <CardContent className="flex-grow p-0 flex flex-col">
-        <ScrollArea className="h-full min-h-[100px]">
+      <CardContent className="flex-1 p-0 flex flex-col min-h-0"> {/* flex-1 and min-h-0 */}
+        <ScrollArea className="h-full"> {/* Ensure ScrollArea takes full height of CardContent */}
           {cartItems.length === 0 ? (
             <p className="p-6 text-center text-muted-foreground">Your cart is empty.</p>
           ) : (
@@ -154,7 +148,7 @@ export function CartView({
                     className="rounded-md aspect-square object-cover"
                     data-ai-hint={`${item.category.toLowerCase()} product`}
                   />
-                  <div className="flex-grow">
+                  <div className="flex-grow min-w-0"> {/* Added min-w-0 for truncation */}
                     <p className="text-sm font-medium truncate">{item.name}</p>
                     <p className="text-xs text-muted-foreground">
                       Rs. {item.appliedPrice.toFixed(2)}
@@ -189,10 +183,10 @@ export function CartView({
                       <PlusCircle className="h-3.5 w-3.5" />
                     </Button>
                   </div>
-                  <p className="text-sm font-semibold w-16 text-right">
+                  <p className="text-sm font-semibold w-16 text-right shrink-0"> {/* Added shrink-0 */}
                     Rs. {(item.appliedPrice * item.quantity).toFixed(2)}
                   </p>
-                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => onRemoveItem(item.id, item.saleType)}>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive shrink-0" onClick={() => onRemoveItem(item.id, item.saleType)}>
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
                 </div>
@@ -202,7 +196,7 @@ export function CartView({
         </ScrollArea>
       </CardContent>
       {cartItems.length > 0 && (
-        <CardFooter className="items-center flex flex-col space-y-3 p-6 border-t">
+        <CardFooter className="items-center flex flex-col space-y-3 p-4 border-t"> {/* Reduced padding */}
           <div className="w-full flex justify-between text-sm">
             <span>Subtotal:</span>
             <span>Rs. {subtotal.toFixed(2)}</span>
