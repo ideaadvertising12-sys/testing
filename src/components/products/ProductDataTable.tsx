@@ -2,7 +2,7 @@
 "use client";
 
 import Image from "next/image";
-import { MoreHorizontal, Edit, Trash2, PlusCircle, PackageSearch } from "lucide-react";
+import { MoreHorizontal, Edit, Trash2, PlusCircle, PackageSearch, Package, FileDigit } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,7 +10,6 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -21,7 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import type { Product } from "@/lib/types";
 import { ProductDialog } from "./ProductDialog";
 import { useState } from "react";
@@ -38,6 +37,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { cn } from "@/lib/utils";
 
 export function ProductDataTable() {
   const [products, setProducts] = useState<Product[]>(placeholderProducts);
@@ -45,7 +45,7 @@ export function ProductDataTable() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
   const [productToDeleteId, setProductToDeleteId] = useState<string | null>(null);
-  const { currentUser } = useAuth(); // Use currentUser
+  const { currentUser } = useAuth();
   const userRole = currentUser?.role;
   const isAdmin = userRole === 'admin';
 
@@ -72,6 +72,11 @@ export function ProductDataTable() {
     setIsDeleteAlertOpen(false);
     setProductToDeleteId(null);
   };
+
+  const handleEditProduct = (product: Product) => {
+    if (!isAdmin) return;
+    setEditingProduct(product);
+  }
 
   const filteredDisplayProducts = products.filter(product =>
     product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -110,72 +115,140 @@ export function ProductDataTable() {
           {filteredDisplayProducts.length === 0 ? (
              <div className="flex flex-col items-center justify-center h-[200px] text-muted-foreground">
                 <PackageSearch className="w-16 h-16 mb-4" />
-                <p className="text-xl">No products found matching your search.</p>
+                <p className="text-xl">No products found.</p>
+                {searchTerm && <p>Try adjusting your search term.</p>}
             </div>
           ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="hidden w-[100px] sm:table-cell">Image</TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead className="hidden md:table-cell">Stock</TableHead>
-                <TableHead className="hidden lg:table-cell text-right">Wholesale Price</TableHead>
-                <TableHead className="text-right">Retail Price</TableHead>
-                {isAdmin && (
-                  <TableHead>
-                    <span className="sr-only">Actions</span>
-                  </TableHead>
-                )}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredDisplayProducts.map((product) => (
-                <TableRow key={product.id}>
-                  <TableCell className="hidden sm:table-cell">
-                    <Image
-                      alt={product.name}
-                      className="aspect-square rounded-md object-cover"
-                      height="64"
-                      src={product.imageUrl || "https://placehold.co/64x64.png"}
-                      width="64"
-                      data-ai-hint={`${product.category.toLowerCase()} product`}
-                    />
-                  </TableCell>
-                  <TableCell className="font-medium">{product.name}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{product.category}</Badge>
-                  </TableCell>
-                  <TableCell className="hidden md:table-cell">{product.stock}</TableCell>
-                  <TableCell className="hidden lg:table-cell text-right">
-                    {product.wholesalePrice !== undefined ? `Rs. ${product.wholesalePrice.toFixed(2)}` : "N/A"}
-                  </TableCell>
-                  <TableCell className="text-right">Rs. {product.price.toFixed(2)}</TableCell>
-                  {isAdmin && (
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button aria-haspopup="true" size="icon" variant="ghost">
-                            <MoreHorizontal className="h-4 w-4" />
-                            <span className="sr-only">Toggle menu</span>
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuItem onClick={() => setEditingProduct(product)}>
-                            <Edit className="mr-2 h-4 w-4" /> Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive focus:text-destructive focus:bg-destructive/10" onClick={() => openDeleteConfirmation(product.id)}>
-                             <Trash2 className="mr-2 h-4 w-4" /> Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  )}
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+            <>
+              {/* Mobile Card View - hidden on md and larger screens */}
+              <div className="md:hidden space-y-4">
+                {filteredDisplayProducts.map((product) => (
+                  <Card key={product.id} className="w-full overflow-hidden">
+                    <CardHeader className="p-0 relative aspect-[4/3] sm:aspect-[16/9]">
+                        <Image
+                            alt={product.name}
+                            className="object-cover w-full h-full"
+                            src={product.imageUrl || "https://placehold.co/400x300.png"}
+                            width={400}
+                            height={300}
+                            data-ai-hint={`${product.category.toLowerCase()} product`}
+                        />
+                    </CardHeader>
+                    <CardContent className="p-4">
+                        <div className="flex justify-between items-start mb-2">
+                            <div>
+                                <CardTitle className="text-lg font-semibold" title={product.name}>{product.name}</CardTitle>
+                                <Badge variant="secondary" className="mt-1">{product.category}</Badge>
+                            </div>
+                            {isAdmin && (
+                                <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button aria-haspopup="true" size="icon" variant="ghost" className="h-8 w-8 -mt-1 -mr-1">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                    <span className="sr-only">Toggle menu</span>
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                    <DropdownMenuItem onClick={() => handleEditProduct(product)}>
+                                    <Edit className="mr-2 h-4 w-4" /> Edit
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem className="text-destructive focus:text-destructive focus:bg-destructive/10" onClick={() => openDeleteConfirmation(product.id)}>
+                                    <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                                </DropdownMenu>
+                            )}
+                        </div>
+                        
+                        <div className="space-y-1 text-sm text-muted-foreground">
+                            <div className="flex items-center">
+                                <Package className="mr-2 h-4 w-4 text-primary" />
+                                Stock: <span className="font-medium text-foreground ml-1">{product.stock} units</span>
+                            </div>
+                            <div className="flex items-center">
+                                <FileDigit className="mr-2 h-4 w-4 text-primary" />
+                                SKU: <span className="font-medium text-foreground ml-1">{product.sku || "N/A"}</span>
+                            </div>
+                            <p className="text-lg font-bold text-primary mt-2">Rs. {product.price.toFixed(2)} <span className="text-xs text-muted-foreground">(Retail)</span></p>
+                            {product.wholesalePrice !== undefined && (
+                                <p className="text-md font-semibold text-accent-foreground">
+                                Rs. {product.wholesalePrice.toFixed(2)} <span className="text-xs text-muted-foreground">(Wholesale)</span>
+                                </p>
+                            )}
+                        </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              {/* Desktop Table View - hidden on screens smaller than md */}
+              <div className="hidden md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[80px] xl:w-[100px]">Image</TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead>Stock</TableHead>
+                      <TableHead className="text-right">Wholesale Price</TableHead>
+                      <TableHead className="text-right">Retail Price</TableHead>
+                      {isAdmin && (
+                        <TableHead>
+                          <span className="sr-only">Actions</span>
+                        </TableHead>
+                      )}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredDisplayProducts.map((product) => (
+                      <TableRow key={product.id}>
+                        <TableCell>
+                          <Image
+                            alt={product.name}
+                            className="aspect-square rounded-md object-cover"
+                            height="64"
+                            src={product.imageUrl || "https://placehold.co/64x64.png"}
+                            width="64"
+                            data-ai-hint={`${product.category.toLowerCase()} product`}
+                          />
+                        </TableCell>
+                        <TableCell className="font-medium">{product.name}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{product.category}</Badge>
+                        </TableCell>
+                        <TableCell>{product.stock}</TableCell>
+                        <TableCell className="text-right">
+                          {product.wholesalePrice !== undefined ? `Rs. ${product.wholesalePrice.toFixed(2)}` : "N/A"}
+                        </TableCell>
+                        <TableCell className="text-right">Rs. {product.price.toFixed(2)}</TableCell>
+                        {isAdmin && (
+                          <TableCell>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button aria-haspopup="true" size="icon" variant="ghost">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                  <span className="sr-only">Toggle menu</span>
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                <DropdownMenuItem onClick={() => handleEditProduct(product)}>
+                                  <Edit className="mr-2 h-4 w-4" /> Edit
+                                </DropdownMenuItem>
+                                <DropdownMenuItem className="text-destructive focus:text-destructive focus:bg-destructive/10" onClick={() => openDeleteConfirmation(product.id)}>
+                                  <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           )}
           {isAdmin && editingProduct && (
             <ProductDialog
@@ -209,4 +282,3 @@ export function ProductDataTable() {
     </>
   );
 }
-
