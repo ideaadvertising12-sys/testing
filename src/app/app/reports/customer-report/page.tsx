@@ -8,18 +8,32 @@ import { useAuth } from "@/contexts/AuthContext";
 import { AccessDenied } from "@/components/AccessDenied";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { AppLogo } from "@/components/AppLogo";
 
 export default function CustomerReportPage() {
-  const { userRole } = useAuth();
+  const { currentUser } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (userRole !== "admin") {
-      router.replace("/app/dashboard");
+    if (!currentUser) {
+      router.replace("/");
+      return;
     }
-  }, [userRole, router]);
+    if (currentUser.role !== "admin") {
+      router.replace(currentUser.role === "cashier" ? "/app/sales" : "/app/dashboard");
+    }
+  }, [currentUser, router]);
 
-  if (userRole !== "admin") {
+  if (!currentUser) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
+        <AppLogo size="lg" />
+        <p className="mt-4 text-lg text-muted-foreground">Loading report...</p>
+      </div>
+    );
+  }
+
+  if (currentUser.role !== "admin") {
     return <AccessDenied message="Customer reports are not available for your role. Redirecting..." />;
   }
 
@@ -56,3 +70,4 @@ export default function CustomerReportPage() {
     </>
   );
 }
+

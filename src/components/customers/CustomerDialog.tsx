@@ -49,7 +49,8 @@ export function CustomerDialog({
   const [formData, setFormData] = useState<Omit<Customer, 'id'>>(
     customer && isEditMode ? { name: customer.name, phone: customer.phone, address: customer.address, shopName: customer.shopName } : defaultCustomer
   );
-  const { userRole } = useAuth();
+  const { currentUser } = useAuth(); // Use currentUser
+  const userRole = currentUser?.role;
   const canEditDetails = userRole === 'admin';
 
   useEffect(() => {
@@ -115,3 +116,4 @@ export function CustomerDialog({
     </Dialog>
   );
 }
+

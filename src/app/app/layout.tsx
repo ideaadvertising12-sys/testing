@@ -2,7 +2,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect } from "react";
 import {
   LayoutDashboard,
   Package,
@@ -37,8 +38,8 @@ import {
 import { AppLogo } from "@/components/AppLogo";
 import { UserProfile } from "@/components/UserProfile";
 import { Separator } from "@/components/ui/separator";
-import { AuthProvider, useAuth } from "@/contexts/AuthContext";
-import type { NavItemConfig } from "@/lib/types";
+import { useAuth } from "@/contexts/AuthContext"; // AuthProvider removed, useAuth remains
+import type { NavItemConfig, UserRole } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const CustomInventoryIcon = ({ className: propClassName }: { className?: string }) => (
@@ -90,11 +91,30 @@ const allNavItems: NavItemConfig[] = [
 
 function AppLayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { userRole } = useAuth();
+  const { currentUser } = useAuth();
+  const router = useRouter();
 
-  const navItems = allNavItems.filter(item => item.allowedRoles.includes(userRole));
+  useEffect(() => {
+    if (!currentUser) {
+      router.replace("/"); 
+    }
+  }, [currentUser, router, pathname]);
+
+  const userRole = currentUser?.role;
+
+  if (!currentUser && pathname !== "/") {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
+        <AppLogo size="lg" />
+        <p className="mt-4 text-lg text-muted-foreground">Loading application...</p>
+      </div>
+    );
+  }
+  
+  const navItems = userRole ? allNavItems.filter(item => item.allowedRoles.includes(userRole)) : [];
 
   const getCurrentPageLabel = () => {
+    if (!userRole) return "NGroup Products";
     for (const item of navItems) {
       if (item.href && (pathname === item.href || (item.href !== "/app/dashboard" && pathname.startsWith(item.href)))) {
         return item.label;
@@ -107,7 +127,6 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
         }
       }
     }
-    // Fallback titles
     if (pathname.startsWith("/app/dashboard") && userRole === "admin") return "Dashboard";
     if (pathname.startsWith("/app/products") && userRole === "admin") return "Products";
     if (pathname.startsWith("/app/customers")) return "Customers";
@@ -124,20 +143,16 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
   
   const isNavItemActive = (item: NavItemConfig) => {
     if (item.href) {
-      // For top-level dashboard link, ensure it's an exact match or starts with /app/dashboard only.
       if (item.href === "/app/dashboard") return pathname === item.href || pathname.startsWith("/app/dashboard/");
-      // For other top-level links, ensure they are not just a prefix of a deeper path within another section
       return pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href) && (pathname.length === item.href.length || pathname[item.href.length] === '/'));
-
     }
-    if (item.children) {
-      return item.children.some(child => child.href && pathname.startsWith(child.href));
+    if (item.children && userRole) {
+      return item.children.filter(child => child.allowedRoles.includes(userRole)).some(child => child.href && pathname.startsWith(child.href));
     }
     return false;
   };
   
-  const defaultOpenAccordion = navItems.find(item => item.children && item.children.some(child => child.href && pathname.startsWith(child.href)))?.id;
-
+  const defaultOpenAccordion = userRole ? navItems.find(item => item.children && item.children.filter(child => child.allowedRoles.includes(userRole)).some(child => child.href && pathname.startsWith(child.href)))?.id : undefined;
 
   return (
     <SidebarProvider defaultOpen>
@@ -170,12 +185,11 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
                         >
                           <item.icon className="group-data-[collapsible=icon]:mx-auto" />
                           <span className="group-data-[collapsible=icon]:hidden truncate">{item.label}</span>
-                          {/* Chevron is part of AccordionTrigger */}
                         </AccordionTrigger>
                       </SidebarMenuItem>
                     <AccordionContent className="pb-0 group-data-[collapsible=icon]:hidden">
                       <SidebarMenu className="pl-6 pr-0 py-1">
-                        {item.children.filter(child => child.allowedRoles.includes(userRole)).map((child) => (
+                        {userRole && item.children.filter(child => child.allowedRoles.includes(userRole)).map((child) => (
                           <SidebarMenuItem key={child.id}>
                             <Link href={child.href!} asChild>
                               <SidebarMenuButton
@@ -239,10 +253,9 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
 }
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
+  // AuthProvider is removed from here and placed in the root layout
   return (
-    <AuthProvider>
-      <AppLayoutContent>{children}</AppLayoutContent>
-    </AuthProvider>
+    <AppLayoutContent>{children}</AppLayoutContent>
   )
 }
 
@@ -262,4 +275,3 @@ const AppLogoIconOnly = () => (
     <path d="M20.56 10.44 15.3 3.29A2.52 2.52 0 0 0 13.14 2H10.9A2.52 2.52 0 0 0 8.7 3.29L3.44 10.44A2.13 2.13 0 0 0 3 11.79V20a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-8.21a2.13 2.13 0 0 0-.44-1.35Z"/><path d="m3.5 10.5 17 0"/><path d="M12 22V10.5"/>
   </svg>
 );
-

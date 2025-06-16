@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { SalesChart } from "@/components/dashboard/SalesChart";
 import { AlertQuantityTable } from "@/components/dashboard/AlertQuantityTable";
-import { placeholderStats, placeholderSalesChartData, placeholderMonthlySalesData } from "@/lib/placeholder-data";
+import { placeholderStats, placeholderMonthlySalesData } from "@/lib/placeholder-data";
 import {
   Table,
   TableBody,
@@ -21,23 +21,38 @@ import { useAuth } from "@/contexts/AuthContext";
 import { AccessDenied } from "@/components/AccessDenied";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { AppLogo } from "@/components/AppLogo";
 
 export default function DashboardPage() {
-  const { userRole } = useAuth();
+  const { currentUser } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (userRole === "cashier") {
-      router.replace("/app/sales"); // Redirect cashier to sales page
+    if (!currentUser) {
+      // This should be handled by AppLayout, but as a safeguard
+      router.replace("/");
+      return;
     }
-  }, [userRole, router]);
+    if (currentUser.role === "cashier") {
+      router.replace("/app/sales"); 
+    }
+  }, [currentUser, router]);
 
-  if (userRole === "cashier") {
+  if (!currentUser) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
+        <AppLogo size="lg" />
+        <p className="mt-4 text-lg text-muted-foreground">Loading dashboard...</p>
+      </div>
+    );
+  }
+
+  if (currentUser.role === "cashier") {
     return <AccessDenied message="Dashboard is not available for your role. Redirecting..." />;
   }
   
   const topSellingProducts = [...placeholderProducts]
-    .sort((a,b) => (b.price * (150 - b.stock)) - (a.price * (150 - a.stock)) ) // Mock sales volume
+    .sort((a,b) => (b.price * (150 - b.stock)) - (a.price * (150 - a.stock)) ) 
     .slice(0,5);
 
   return (
@@ -60,7 +75,7 @@ export default function DashboardPage() {
         <StatsCard 
           title="Low Stock Items" 
           value={placeholderStats.lowStockItems}
-          icon={AlertTriangle} // Changed from TrendingDown to AlertTriangle for consistency
+          icon={AlertTriangle} 
           description="Needs reordering soon"
           iconColor="text-red-600" 
         />
@@ -112,3 +127,4 @@ export default function DashboardPage() {
     </>
   );
 }
+

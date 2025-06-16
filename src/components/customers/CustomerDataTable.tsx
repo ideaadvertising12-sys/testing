@@ -44,7 +44,9 @@ export function CustomerDataTable() {
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
   const [customerToDeleteId, setCustomerToDeleteId] = useState<string | null>(null);
-  const { userRole } = useAuth();
+  const { currentUser } = useAuth(); // Use currentUser
+  const userRole = currentUser?.role;
+  
   const canManageCustomers = userRole === 'admin'; 
   const canAddCustomers = userRole === 'admin' || userRole === 'cashier';
 
@@ -182,3 +184,4 @@ export function CustomerDataTable() {
     </>
   );
 }
+

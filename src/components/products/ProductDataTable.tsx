@@ -45,7 +45,8 @@ export function ProductDataTable() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
   const [productToDeleteId, setProductToDeleteId] = useState<string | null>(null);
-  const { userRole } = useAuth();
+  const { currentUser } = useAuth(); // Use currentUser
+  const userRole = currentUser?.role;
   const isAdmin = userRole === 'admin';
 
   const handleSaveProduct = (productToSave: Product) => {
@@ -53,7 +54,6 @@ export function ProductDataTable() {
     if (editingProduct) {
       setProducts(products.map(p => p.id === productToSave.id ? productToSave : p));
     } else {
-      // For new products, assign a unique ID if not already present (e.g. from dialog)
       const newProduct = { ...productToSave, id: productToSave.id || Date.now().toString() };
       setProducts([...products, newProduct]); 
     }
@@ -209,3 +209,4 @@ export function ProductDataTable() {
     </>
   );
 }
+

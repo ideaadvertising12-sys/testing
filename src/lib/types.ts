@@ -51,6 +51,12 @@ export interface SalesChartData {
 
 export type UserRole = "admin" | "cashier";
 
+export interface User {
+  username: string;
+  role: UserRole;
+  name: string; // Display name, e.g., "Admin User"
+}
+
 export interface NavItemConfig {
   href?: string; // Optional: if not provided, it's a parent/header for children
   label: string;
@@ -93,3 +99,4 @@ export interface FullReportEntry {
   paymentMethod: Sale["paymentMethod"];
   staffId: string;
 }
+

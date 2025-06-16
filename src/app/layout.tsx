@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { AppThemeProvider } from '@/components/providers/AppThemeProvider';
+import { AuthProvider } from '@/contexts/AuthContext'; // Added
 
 export const metadata: Metadata = {
   title: 'NGroup Products',
@@ -28,8 +29,10 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {children}
-          <Toaster />
+          <AuthProvider> {/* Moved AuthProvider here */}
+            {children}
+            <Toaster />
+          </AuthProvider>
         </AppThemeProvider>
       </body>
     </html>

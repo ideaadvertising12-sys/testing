@@ -14,25 +14,39 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable'; // Import this for the autoTable plugin
+import 'jspdf-autotable'; 
+import { AppLogo } from "@/components/AppLogo";
 
-// Extend jsPDF instance with autoTable - this is a common way to use plugins with jsPDF
+
 interface jsPDFWithAutoTable extends jsPDF {
   autoTable: (options: any) => jsPDF;
 }
 
 export default function FullReportPage() {
-  const { userRole } = useAuth();
+  const { currentUser } = useAuth();
   const router = useRouter();
   const reportData: FullReportEntry[] = placeholderFullReportData;
 
   useEffect(() => {
-    if (userRole !== "admin") {
-      router.replace("/app/dashboard"); 
+    if (!currentUser) {
+      router.replace("/");
+      return;
     }
-  }, [userRole, router]);
+    if (currentUser.role !== "admin") {
+       router.replace(currentUser.role === "cashier" ? "/app/sales" : "/app/dashboard");
+    }
+  }, [currentUser, router]);
 
-  if (userRole !== "admin") {
+  if (!currentUser) {
+     return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
+        <AppLogo size="lg" />
+        <p className="mt-4 text-lg text-muted-foreground">Loading report...</p>
+      </div>
+    );
+  }
+
+  if (currentUser.role !== "admin") {
     return <AccessDenied message="Full reports are not available for your role. Redirecting..." />;
   }
 
@@ -44,7 +58,7 @@ export default function FullReportPage() {
   };
 
   const handleExportPDF = () => {
-    const doc = new jsPDF() as jsPDFWithAutoTable; // Cast to include autoTable
+    const doc = new jsPDF() as jsPDFWithAutoTable; 
     doc.text("Full Sales Report", 14, 16);
     doc.autoTable({
       startY: 20,
@@ -65,14 +79,13 @@ export default function FullReportPage() {
         entry.staffId,
       ]),
       styles: { fontSize: 8 },
-      headStyles: { fillColor: [30, 18, 57] }, // Using HSL from primary theme color
+      headStyles: { fillColor: [30, 18, 57] }, 
       columnStyles: {
-        0: {cellWidth: 15}, // Sale ID
-        1: {cellWidth: 18}, // Date
-        2: {cellWidth: 15}, // Time
-        3: {cellWidth: 'auto'}, // Customer
-        4: {cellWidth: 15}, // SKU
-        // Let others auto-fit
+        0: {cellWidth: 15}, 
+        1: {cellWidth: 18}, 
+        2: {cellWidth: 15}, 
+        3: {cellWidth: 'auto'}, 
+        4: {cellWidth: 15}, 
       }
     });
     doc.save("Full_Report.pdf");
@@ -118,3 +131,4 @@ export default function FullReportPage() {
     </>
   );
 }
+
