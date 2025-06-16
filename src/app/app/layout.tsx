@@ -153,11 +153,11 @@ function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       )}
 
-      {/* Mobile Sidebar: Handled by Sheet within AppHeaderSidebarTrigger's context provider */}
+      {/* Mobile Sidebar: Handled by Sheet component. The <AppHeaderSidebarTrigger /> inside will become the <SheetTrigger> */}
       {isMobile && (
-        <Sheet> {/* This Sheet provider is for the mobile sidebar */}
-          <AppHeaderSidebarTrigger /> {/* This now contains SheetTrigger for mobile */}
-          <AppNewSidebar> {/* This contains SheetContent for mobile */}
+        <Sheet> 
+          <AppHeaderSidebarTrigger /> {/* This will render the <SheetTrigger> for mobile */}
+          <AppNewSidebar> {/* This will render as <SheetContent> */}
             <AppNewSidebarHeader>
                 <AppLogo size={"sm"} />
             </AppNewSidebarHeader>
@@ -178,9 +178,10 @@ function AppShell({ children }: { children: React.ReactNode }) {
       >
         <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-card/95 px-4 backdrop-blur-sm sm:px-6">
           <div className="flex items-center gap-2">
-            {/* Desktop trigger is part of AppHeaderSidebarTrigger, mobile trigger is also there (wrapped in SheetTrigger) */}
-            {!isMobile && <AppHeaderSidebarTrigger />} 
-            {/* On mobile, the trigger is handled by the Sheet component wrapping above */}
+            {/* 
+              The mobile trigger is now part of the Sheet component instance above.
+              The desktop trigger is removed from the header as per the request to hide it on larger screens.
+            */}
             <h1 className="text-xl font-semibold font-headline hidden sm:block">
               {currentPageLabel}
             </h1>
