@@ -111,7 +111,7 @@ export function ProductDataTable() {
             )}
           </div>
         </CardHeader>
-        <CardContent className="p-4">
+        <CardContent className="p-4 overflow-auto max-h-[calc(100vh-18rem)] md:max-h-[calc(100vh-16rem)]"> {/* Adjusted max-h */}
           {filteredDisplayProducts.length === 0 ? (
              <div className="flex flex-col items-center justify-center h-[200px] text-muted-foreground">
                 <PackageSearch className="w-16 h-16 mb-4" />
@@ -137,9 +137,9 @@ export function ProductDataTable() {
                             <div className="flex-grow min-w-0">
                                 <div className="flex justify-between items-start">
                                     <div className="flex-grow min-w-0 pr-2">
-                                        <div className="text-sm font-semibold leading-tight truncate" title={product.name}>
+                                        <CardTitle className="text-sm font-semibold leading-tight truncate" title={product.name}>
                                           {product.name}
-                                        </div>
+                                        </CardTitle>
                                         <Badge variant="secondary" className="mt-0.5 text-xs px-1.5 py-0.5">{product.category}</Badge>
                                     </div>
                                     {isAdmin && (
@@ -175,8 +175,8 @@ export function ProductDataTable() {
                                     <p className="text-md font-bold text-primary pt-1">
                                         Rs. {product.price.toFixed(2)} <span className="text-xs font-normal text-muted-foreground">(Retail)</span>
                                     </p>
-                                    {product.wholesalePrice !== undefined && (
-                                        <p className="text-sm font-semibold text-accent-foreground/90">
+                                    {product.wholesalePrice !== undefined && product.wholesalePrice > 0 && (
+                                        <p className="text-sm font-semibold text-black dark:text-white">
                                            Rs. {product.wholesalePrice.toFixed(2)} <span className="text-xs font-normal text-muted-foreground">(Wholesale)</span>
                                         </p>
                                     )}
@@ -191,8 +191,8 @@ export function ProductDataTable() {
               {/* Desktop Table View - hidden on screens smaller than md */}
               <div className="hidden md:block">
                 <Table>
-                  <TableHeader>
-                    <TableRow>
+                  <TableHeader className="md:sticky md:top-0 md:z-10">
+                    <TableRow className="md:bg-card">
                       <TableHead className="w-[80px] xl:w-[100px]">Image</TableHead>
                       <TableHead>Name</TableHead>
                       <TableHead>Category</TableHead>
@@ -225,7 +225,7 @@ export function ProductDataTable() {
                         </TableCell>
                         <TableCell>{product.stock}</TableCell>
                         <TableCell className="text-right">
-                          {product.wholesalePrice !== undefined ? `Rs. ${product.wholesalePrice.toFixed(2)}` : "N/A"}
+                          {product.wholesalePrice !== undefined && product.wholesalePrice > 0 ? `Rs. ${product.wholesalePrice.toFixed(2)}` : "N/A"}
                         </TableCell>
                         <TableCell className="text-right">Rs. {product.price.toFixed(2)}</TableCell>
                         {isAdmin && (
@@ -288,3 +288,4 @@ export function ProductDataTable() {
     </>
   );
 }
+

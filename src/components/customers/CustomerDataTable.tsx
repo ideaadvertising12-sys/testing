@@ -129,7 +129,7 @@ export function CustomerDataTable() {
           ) : (
             <>
               {/* Mobile Card View - hidden on md and larger screens */}
-              <div className="md:hidden space-y-4">
+              <div className="md:hidden space-y-4 overflow-auto h-[500px]">
                 {filteredCustomers.map((customer) => (
                   <Card key={customer.id} className="w-full">
                     <CardHeader className="p-4 flex flex-row justify-between items-start">
