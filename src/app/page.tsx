@@ -30,7 +30,7 @@ export default function LoginPage() {
               <Input id="password" type="password" required placeholder="••••••••" />
             </div>
             <Link href="/app/dashboard" asChild>
-              <Button type="submit" className="w-full mt-6"> {/* Login button with mt-6 */}
+              <Button className="w-full mt-6"> {/* Login button with mt-6 */}
                 Login
               </Button>
             </Link>
@@ -43,4 +43,3 @@ export default function LoginPage() {
     </div>
   );
 }
-
