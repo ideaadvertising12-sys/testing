@@ -1,6 +1,7 @@
 
 "use client";
 
+import * as React from "react";
 import type { CartItem, Customer } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,16 +9,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { MinusCircle, PlusCircle, Trash2, Users, XCircle } from "lucide-react";
+import { MinusCircle, PlusCircle, Trash2, Users, XCircle, Check, ChevronsUpDown } from "lucide-react";
 import Image from "next/image";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { placeholderCustomers } from "@/lib/placeholder-data";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { cn } from "@/lib/utils";
+
 
 interface CartViewProps {
   cartItems: CartItem[];
@@ -43,6 +41,7 @@ export function CartView({
   onCancelOrder
 }: CartViewProps) {
   const subtotal = cartItems.reduce((sum, item) => sum + item.appliedPrice * item.quantity, 0);
+  const [openCustomerPopover, setOpenCustomerPopover] = React.useState(false);
 
   const handleDiscountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let newPercentage = parseFloat(e.target.value) || 0;
@@ -53,29 +52,79 @@ export function CartView({
   const calculatedDiscountAmount = subtotal * (discountPercentage / 100);
   const totalAmount = Math.max(0, subtotal - calculatedDiscountAmount);
 
+  const customerOptions = [
+    { value: "guest", label: "Walk-in / Guest" },
+    ...placeholderCustomers.map(customer => ({
+      value: customer.id,
+      label: `${customer.name} (${customer.phone || 'N/A'})${customer.shopName ? ` - ${customer.shopName}` : ''}`,
+      name: customer.name,
+      shopName: customer.shopName
+    }))
+  ];
+
+  const currentCustomerLabel = selectedCustomer
+    ? customerOptions.find(opt => opt.value === selectedCustomer.id)?.label
+    : "Walk-in / Guest";
+
   return (
     <Card className="rounded-lg border bg-card text-card-foreground shadow-xl flex flex-col h-full overflow-auto">
       <CardHeader className="flex flex-col space-y-1.5 p-6">
         <CardTitle className="font-semibold tracking-tight font-headline text-xl">Current Order</CardTitle>
         <div className="flex items-center gap-2 pt-2">
           <Users className="h-5 w-5 text-muted-foreground" />
-          <Select
-            value={selectedCustomer?.id || ""}
-            onValueChange={(value) => onSelectCustomer(value === "guest" ? null : value)}
-          >
-            <SelectTrigger className="flex-1" data-placeholder={!selectedCustomer ? "" : undefined}>
-              <SelectValue placeholder="Select Customer (Optional)" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="guest">Walk-in / Guest</SelectItem>
-              {placeholderCustomers.map(customer => (
-                <SelectItem key={customer.id} value={customer.id}>
-                  {customer.name} ({customer.phone})
-                  {customer.shopName && ` - ${customer.shopName}`}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Popover open={openCustomerPopover} onOpenChange={setOpenCustomerPopover}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                aria-expanded={openCustomerPopover}
+                className="w-full justify-between flex-1"
+              >
+                <span className="truncate">
+                  {currentCustomerLabel || "Select Customer..."}
+                </span>
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+              <Command
+                filter={(value, search) => {
+                  const option = customerOptions.find(opt => opt.value.toLowerCase() === value.toLowerCase());
+                  if (!option) return 0;
+                  const labelContent = `${option.label} ${option.name || ''} ${option.shopName || ''}`.toLowerCase();
+                  if (labelContent.includes(search.toLowerCase())) return 1;
+                  return 0;
+                }}
+              >
+                <CommandInput placeholder="Search customer..." />
+                <CommandEmpty>No customer found.</CommandEmpty>
+                <CommandList>
+                  <CommandGroup>
+                    {customerOptions.map((option) => (
+                      <CommandItem
+                        key={option.value}
+                        value={option.value}
+                        onSelect={(currentValue) => {
+                          onSelectCustomer(currentValue === "guest" ? null : currentValue);
+                          setOpenCustomerPopover(false);
+                        }}
+                      >
+                        <Check
+                          className={cn(
+                            "mr-2 h-4 w-4",
+                            (selectedCustomer?.id === option.value || (!selectedCustomer && option.value === "guest"))
+                              ? "opacity-100"
+                              : "opacity-0"
+                          )}
+                        />
+                        {option.label}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
         </div>
       </CardHeader>
       <CardContent className="flex-grow p-0">
@@ -194,3 +243,4 @@ export function CartView({
     </Card>
   );
 }
+
