@@ -68,23 +68,28 @@ export function CartView({
     : "Walk-in / Guest";
 
   return (
-    <Card className={cn("flex flex-col h-full w-full rounded-none border-0 shadow-none lg:rounded-lg lg:border lg:shadow-md", className)}>
-      <CardHeader className="flex flex-col space-y-1.5 p-3 lg:p-4 shrink-0 border-b">
-        <CardTitle className="font-semibold tracking-tight font-headline text-lg lg:text-xl">Current Order</CardTitle>
+    <Card className={cn(
+      "flex flex-col h-full w-full",
+      "lg:rounded-lg lg:border lg:shadow-md", // Desktop card styles
+      "rounded-none border-0 shadow-none",    // Mobile panel styles (overridden by lg:)
+      className
+    )}>
+      <CardHeader className="p-3 lg:p-4 shrink-0 border-b">
+        <CardTitle className="font-semibold tracking-tight font-headline text-base lg:text-lg">Current Order</CardTitle>
         <div className="flex items-center gap-2 pt-1">
-          <Users className="h-5 w-5 text-muted-foreground" />
+          <Users className="h-4 w-4 lg:h-5 lg:w-5 text-muted-foreground" />
           <Popover open={openCustomerPopover} onOpenChange={setOpenCustomerPopover}>
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
                 role="combobox"
                 aria-expanded={openCustomerPopover}
-                className="w-full justify-between flex-1 h-9 text-xs sm:text-sm"
+                className="w-full justify-between flex-1 h-8 lg:h-9 text-xs sm:text-sm"
               >
                 <span className="truncate">
                   {currentCustomerLabel || "Select Customer..."}
                 </span>
-                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                <ChevronsUpDown className="ml-2 h-3 w-3 lg:h-4 lg:w-4 shrink-0 opacity-50" />
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
@@ -133,20 +138,21 @@ export function CartView({
           </Popover>
         </div>
       </CardHeader>
+      
       <CardContent className="flex-1 p-0 min-h-0">
         <ScrollArea className="h-full">
           {cartItems.length === 0 ? (
-            <p className="p-6 text-center text-muted-foreground">Your cart is empty.</p>
+            <p className="p-4 text-center text-sm text-muted-foreground">Your cart is empty.</p>
           ) : (
             <div className="divide-y divide-border">
               {cartItems.map((item, index) => ( 
-                <div key={`${item.id}-${item.saleType}-${index}`} className="flex items-center p-3 space-x-2">
+                <div key={`${item.id}-${item.saleType}-${index}`} className="flex items-center p-2 sm:p-3 space-x-2">
                   <Image
                     src={item.imageUrl || "https://placehold.co/40x40.png"}
                     alt={item.name}
-                    width={40}
-                    height={40}
-                    className="rounded-md aspect-square object-cover flex-shrink-0"
+                    width={32} // smaller for mobile
+                    height={32}
+                    className="rounded-md aspect-square object-cover flex-shrink-0 hidden sm:block" // Hidden on xs, block on sm+
                     data-ai-hint={`${item.category.toLowerCase()} product`}
                   />
                   <div className="flex-grow min-w-0">
@@ -164,13 +170,13 @@ export function CartView({
                       onClick={() => onUpdateQuantity(item.id, item.quantity - 1, item.saleType)}
                       disabled={item.quantity <= 1}
                     >
-                      <MinusCircle className="h-3 sm:h-3.5 w-3 sm:w-3.5" />
+                      <MinusCircle className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                     </Button>
                     <Input
                       type="number"
                       value={item.quantity}
                       onChange={(e) => onUpdateQuantity(item.id, parseInt(e.target.value) || 1, item.saleType)}
-                      className="h-6 w-10 sm:h-7 sm:w-12 text-center px-1 text-xs sm:text-sm"
+                      className="h-6 w-8 sm:h-7 sm:w-10 text-center px-1 text-xs"
                       min="1"
                       max={item.stock}
                     />
@@ -181,14 +187,14 @@ export function CartView({
                       onClick={() => onUpdateQuantity(item.id, item.quantity + 1, item.saleType)}
                       disabled={item.quantity >= item.stock}
                     >
-                      <PlusCircle className="h-3 sm:h-3.5 w-3 sm:w-3.5" />
+                      <PlusCircle className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                     </Button>
                   </div>
-                  <p className="text-xs sm:text-sm font-semibold w-14 sm:w-16 text-right shrink-0">
+                  <p className="text-xs sm:text-sm font-semibold w-12 sm:w-16 text-right shrink-0">
                     Rs. {(item.appliedPrice * item.quantity).toFixed(2)}
                   </p>
                   <Button variant="ghost" size="icon" className="h-6 w-6 sm:h-7 sm:w-7 text-destructive shrink-0" onClick={() => onRemoveItem(item.id, item.saleType)}>
-                    <Trash2 className="h-3 sm:h-3.5 w-3 sm:w-3.5" />
+                    <Trash2 className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                   </Button>
                 </div>
               ))}
@@ -196,6 +202,7 @@ export function CartView({
           )}
         </ScrollArea>
       </CardContent>
+
       {cartItems.length > 0 && (
         <CardFooter className="flex flex-col space-y-2 p-3 lg:p-4 border-t shrink-0">
           <div className="w-full flex justify-between text-xs sm:text-sm">
@@ -209,7 +216,7 @@ export function CartView({
               type="number"
               value={discountPercentage.toString()}
               onChange={handleDiscountChange}
-              className="flex h-8 w-20 sm:w-24 rounded-md border border-input bg-background px-2 sm:px-3 py-1 sm:py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 text-right ml-2"
+              className="flex h-8 w-20 sm:w-24 rounded-md border border-input bg-background px-2 sm:px-3 py-1 sm:py-2 text-xs sm:text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 text-right ml-2"
               placeholder="0"
               min="0"
               max="100"
@@ -230,14 +237,14 @@ export function CartView({
           <div className="w-full grid grid-cols-2 gap-2 mt-1">
             <Button
               variant="outline"
-              className="text-xs sm:text-sm py-2 sm:py-3 h-auto"
+              className="text-xs sm:text-sm py-2 h-auto"
               onClick={onCancelOrder}
             >
-              <XCircle className="mr-1 sm:mr-2 h-3.5 sm:h-4 w-3.5 sm:w-4" />
+              <XCircle className="mr-1 sm:mr-2 h-3.5 w-3.5" />
               Cancel
             </Button>
             <Button
-              className="text-xs sm:text-sm py-2 sm:py-3 h-auto"
+              className="text-xs sm:text-sm py-2 h-auto"
               onClick={onCheckout}
               disabled={cartItems.length === 0}
             >
@@ -249,5 +256,3 @@ export function CartView({
     </Card>
   );
 }
-
-    
