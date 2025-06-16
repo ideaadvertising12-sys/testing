@@ -127,10 +127,10 @@ export default function SalesPage() {
         icon={ShoppingCart}
       />
       {/* Main content area: Product Selection and Cart */}
-      <div className="flex-1 flex flex-col lg:flex-row lg:gap-4 min-h-0">
+      <div className="flex-1 flex flex-col lg:flex-row lg:gap-4 min-h-0" >
         
         {/* Product Selection Section (Mobile: Top, LG: Left Column) */}
-        <div className="flex-1 lg:w-2/3 flex flex-col min-h-0">
+        <div className="flex-1 lg:w-2/3 flex flex-col ">
           {/* Controls: Search, Sale Type, Tabs */}
           <div className="p-3 sm:p-4 border-b lg:border-b-0 lg:border-r">
             <div className="relative mb-3 sm:mb-4">
@@ -166,15 +166,15 @@ export default function SalesPage() {
           </div>
 
           {/* Product Grid Area */}
-          <ScrollArea className="flex-1 p-3 sm:p-4 bg-background lg:bg-muted/30">
+          <ScrollArea className="flex-1 p-3 sm:p-4 h-[500px] overflow-auto">
             {filteredProducts.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-muted-foreground pt-10">
+                <div className="flex flex-col items-center justify-center text-muted-foreground pt-10 h-[400px] overflow-auto">
                     <PackageSearch className="w-16 h-16 mb-4" />
                     <p className="text-xl">No products found.</p>
                     <p>Try adjusting your search or category filters.</p>
                 </div>
             ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4  ">
                 {filteredProducts.map(product => (
                     <POSProductCard 
                       key={product.id} 

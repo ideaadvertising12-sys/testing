@@ -16,6 +16,7 @@ import {
   ClipboardList,
   Warehouse,
   UserCheck,
+  X, // Added X icon
 } from "lucide-react";
 import {
   SidebarProvider,
@@ -28,6 +29,7 @@ import {
   SidebarMenuButton,
   SidebarTrigger,
   SidebarInset,
+  useSidebar, // Added useSidebar hook
 } from "@/components/ui/sidebar";
 import {
   Accordion,
@@ -42,6 +44,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import type { NavItemConfig, UserRole } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { GlobalPreloaderScreen } from "@/components/GlobalPreloaderScreen";
+import { Button } from "@/components/ui/button"; // Added Button for X icon
 
 const CustomInventoryIcon = ({ className: propClassName }: { className?: string }) => (
   <svg
@@ -94,6 +97,7 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { currentUser } = useAuth();
   const router = useRouter();
+  const { openMobile, toggleSidebar } = useSidebar(); // Get sidebar state and toggle function
 
   useEffect(() => {
     if (!currentUser) {
@@ -228,7 +232,14 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
       <SidebarInset>
         <header className="app-layout-header sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-background/80 px-4 backdrop-blur-md sm:px-6">
           <div className="md:hidden">
-             <SidebarTrigger />
+            {openMobile ? (
+              <Button variant="ghost" size="icon" onClick={toggleSidebar} className="h-7 w-7">
+                <X className="h-5 w-5" /> 
+                <span className="sr-only">Close sidebar</span>
+              </Button>
+            ) : (
+              <SidebarTrigger />
+            )}
           </div>
           <div className="hidden md:block">
             <h1 className="text-xl font-semibold font-headline">
@@ -270,3 +281,4 @@ const AppLogoIconOnly = () => (
     <path d="M20.56 10.44 15.3 3.29A2.52 2.52 0 0 0 13.14 2H10.9A2.52 2.52 0 0 0 8.7 3.29L3.44 10.44A2.13 2.13 0 0 0 3 11.79V20a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-8.21a2.13 2.13 0 0 0-.44-1.35Z"/><path d="m3.5 10.5 17 0"/><path d="M12 22V10.5"/>
   </svg>
 );
+

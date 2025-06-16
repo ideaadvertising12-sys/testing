@@ -19,7 +19,7 @@ export function POSProductCard({ product, onAddToCart, currentSaleType }: POSPro
     : product.price;
 
   return (
-    <Card className="overflow-hidden shadow-md hover:shadow-lg transition-shadow duration-200 flex flex-col h-full max-w-sm mx-auto w-full">
+    <Card className="overflow-auto shadow-md hover:shadow-lg transition-shadow duration-200 flex flex-col h-full max-w-sm mx-auto w-full">
       <CardHeader className="p-0 relative aspect-[4/3] hidden sm:block"> {/* Image shown on sm screens and up */}
         <Image
           src={product.imageUrl || "https://placehold.co/300x225.png"}
