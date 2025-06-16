@@ -26,7 +26,6 @@ export default function SalesPage() {
   const [discountPercentage, setDiscountPercentage] = useState(0);
   const [currentSaleType, setCurrentSaleType] = useState<'retail' | 'wholesale'>('retail');
 
-
   const categories: (Product["category"] | "All")[] = ["All", ...new Set(allProducts.map(p => p.category))];
 
   const handleSearch = (term: string) => {
@@ -128,7 +127,6 @@ export default function SalesPage() {
     setCurrentSaleType('retail');
   };
 
-
   return (
     <div className="flex flex-col h-full"> 
       <PageHeader 
@@ -136,21 +134,24 @@ export default function SalesPage() {
         description="Create new sales transactions quickly."
         icon={ShoppingCart}
       />
-      <div className="flex-grow flex flex-col lg:grid lg:grid-cols-3 lg:gap-6 min-h-0">
-        {/* Product Selection Area */}
-        <div className="flex-1 min-h-0 lg:col-span-2 flex flex-col">
-          <div className="px-4 pt-4 pb-2 sm:px-4 sm:pt-4 sm:pb-2 mb-4"> {/* Adjusted padding for consistency */}
-            <div className="flex flex-col sm:flex-row gap-4 mb-4">
-              <div className="relative flex-grow">
-                <PackageSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                <Input 
-                  placeholder="Search products by name or SKU..." 
-                  className="pl-10"
-                  value={searchTerm}
-                  onChange={(e) => handleSearch(e.target.value)}
-                />
-              </div>
-              <div className="flex items-center space-x-2 bg-muted p-2 rounded-md shrink-0">
+      {/* Main content area: takes remaining height and handles layout switching */}
+      <div className="flex-1 flex flex-col lg:flex-row lg:gap-4 min-h-0">
+
+        {/* Product Selection Section: takes most space on mobile, 2/3 on lg */}
+        <div className="flex-1 lg:w-2/3 flex flex-col min-h-0">
+          {/* Controls: Search, Type Toggle, Category Tabs */}
+          <div className="p-3 sm:p-4 border-b lg:border-b-0 lg:border-r">
+            <div className="relative mb-3 sm:mb-4">
+              <PackageSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+              <Input 
+                placeholder="Search products by name or SKU..." 
+                className="pl-10"
+                value={searchTerm}
+                onChange={(e) => handleSearch(e.target.value)}
+              />
+            </div>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+              <div className="flex items-center space-x-2 bg-muted p-2 rounded-md shrink-0 self-start sm:self-center">
                 <Switch
                   id="sale-type-toggle"
                   checked={currentSaleType === 'wholesale'}
@@ -162,17 +163,18 @@ export default function SalesPage() {
                   {currentSaleType === 'wholesale' ? 'Wholesale Pricing' : 'Retail Pricing'}
                 </Label>
               </div>
+              <Tabs value={selectedCategory} onValueChange={(value) => handleCategorySelect(value as Product["category"] | "All")} className="w-full sm:w-auto">
+                <TabsList className="whitespace-nowrap overflow-x-auto h-auto py-1 px-1">
+                  {categories.map(cat => (
+                    <TabsTrigger key={cat} value={cat} className="text-xs sm:text-sm px-2 py-1 sm:px-3 sm:py-1.5">{cat}</TabsTrigger>
+                  ))}
+                </TabsList>
+              </Tabs>
             </div>
-            <Tabs value={selectedCategory} onValueChange={(value) => handleCategorySelect(value as Product["category"] | "All")}>
-              <TabsList className="whitespace-nowrap overflow-x-auto">
-                {categories.map(cat => (
-                  <TabsTrigger key={cat} value={cat}>{cat}</TabsTrigger>
-                ))}
-              </TabsList>
-            </Tabs>
           </div>
 
-          <ScrollArea className="flex-grow p-4"> {/* Adjusted padding */}
+          {/* Product Grid Area: scrollable */}
+          <ScrollArea className="flex-1 p-3 sm:p-4 bg-background lg:bg-muted/30">
             {filteredProducts.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-muted-foreground pt-10">
                     <PackageSearch className="w-16 h-16 mb-4" />
@@ -180,7 +182,7 @@ export default function SalesPage() {
                     <p>Try adjusting your search or category filters.</p>
                 </div>
             ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
                 {filteredProducts.map(product => (
                     <POSProductCard 
                       key={product.id} 
@@ -194,8 +196,8 @@ export default function SalesPage() {
           </ScrollArea>
         </div>
 
-        {/* Cart View Area */}
-        <div className="flex flex-col min-h-0 lg:col-span-1 h-[40vh] lg:h-full">
+        {/* Cart Section: fixed height on mobile, 1/3 on lg */}
+        <div className="h-[45vh] lg:h-auto lg:w-1/3 flex flex-col min-h-0 border-t lg:border-t-0 bg-card">
           <CartView 
             cartItems={cartItems}
             selectedCustomer={selectedCustomer}
@@ -206,6 +208,7 @@ export default function SalesPage() {
             onUpdateDiscountPercentage={setDiscountPercentage}
             onCheckout={handleCheckout}
             onCancelOrder={handleCancelOrder}
+            className="flex-1 min-h-0" 
           />
         </div>
       </div>
@@ -225,3 +228,5 @@ export default function SalesPage() {
     </div>
   );
 }
+
+    
