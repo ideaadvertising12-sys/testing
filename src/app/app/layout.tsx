@@ -105,33 +105,24 @@ function calculateCurrentPageLabel(pathname: string, userRole: UserRole | undefi
     let label = findLabel(currentNavItems, pathname);
     if (label) return label;
     
-    // Fallback for nested routes if direct match fails and for active parent of a child
     for (const item of currentNavItems) {
         if (item.children) {
             for (const child of item.children) {
                 if (child.href && pathname.startsWith(child.href)) {
-                     label = findLabel(item.children, pathname); // try to find exact match first
+                     label = findLabel(item.children, pathname); 
                      if (label) return label;
-                     return child.label; // otherwise return matched child label
+                     return child.label; 
                 }
             }
         }
-        // Check if a top-level item matches the base of the pathname
         if (item.href && pathname.startsWith(item.href) && pathname !== item.href) {
              const segments = pathname.split('/');
              const itemSegments = item.href.split('/');
-             // Ensure it's a child page of a top-level item not explicitly in children and not a different top-level item
              if (segments.length > itemSegments.length && segments[2] === itemSegments[2]) {
-                // This case is tricky if the exact child is not defined,
-                // For now, if a direct child label was not found above, but it's a sub-route of a top-level item,
-                // prefer the top-level item's label.
-                // Or, could try to derive from path, e.g. /app/products/edit -> "Edit Product" if "products" is "Products"
              }
         }
     }
 
-
-    // Fallback to primary segment if still no specific label
     const primarySegment = pathname.split('/')[2]; 
     const fallbackItem = currentNavItems.find(item => item.id === primarySegment);
     if (fallbackItem) return fallbackItem.label;
@@ -179,15 +170,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
             side="left" 
             className="p-0 w-[280px] flex flex-col data-[state=closed]:duration-200 data-[state=open]:duration-300 bg-sidebar text-sidebar-foreground border-r-0"
           >
-             <div className="sticky top-0 z-10 flex h-16 items-center justify-end border-b border-sidebar-border px-4">
-                 {/* AppLogo removed from here to avoid duplication with AppNewSidebarHeader */}
-                 <SheetTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setOpenMobile(false)}>
-                        <X className="h-5 w-5" />
-                        <span className="sr-only">Close sidebar</span>
-                    </Button>
-                 </SheetTrigger>
-            </div>
+            {/* The default SheetClose button from ShadCN will be used. No need for an extra header or close button here. */}
             <AppNewSidebar className="flex-1 overflow-y-auto">
               {sidebarActualContent}
             </AppNewSidebar>
@@ -257,7 +240,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
 }
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const { currentUser, login, logout } = useAuth(); 
+  const { currentUser } = useAuth(); 
   const router = useRouter();
   const pathname = usePathname();
   const isMobileView = useIsMobile(); 
