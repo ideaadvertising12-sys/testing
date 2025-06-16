@@ -20,7 +20,7 @@ import {
   AccordionItem,
   AccordionTrigger as RadixAccordionTrigger,
 } from "@/components/ui/accordion";
-import { SheetTitle } from "@/components/ui/sheet"; // Import SheetTitle
+import { SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import type { NavItemConfig, UserRole } from "@/lib/types";
 
@@ -118,15 +118,20 @@ export function Sidebar({ children, className }: { children: React.ReactNode, cl
 }
 
 export function SidebarHeader({ children, className }: { children: React.ReactNode, className?: string }) {
-  const { isCollapsed } = useSidebarContext();
+  const { isCollapsed, isMobile } = useSidebarContext();
+
+  // Conditionally wrap children with SheetTitle if on mobile, otherwise render directly.
+  // This ensures SheetTitle is only used when SidebarHeader is within a Sheet component.
+  const HeaderContent = isMobile ? <SheetTitle asChild>{children}</SheetTitle> : children;
+
   return (
     <div className={cn(
         "h-16 flex items-center border-b border-sidebar-border",
-        isCollapsed ? "justify-center px-2" : "px-4 justify-start", 
+        isCollapsed && !isMobile ? "justify-center px-2" : "px-4 justify-start", 
         className
       )}
     >
-      <SheetTitle asChild>{children}</SheetTitle>
+      {HeaderContent}
     </div>
   );
 }
@@ -171,7 +176,7 @@ function SidebarNavItem({ item }: SidebarNavItemProps) {
 
   const handleAccordionTriggerClick = () => {
     if (isCollapsed && !isMobile) {
-      toggleCollapse(); // Expand the sidebar
+      toggleCollapse(); // Expand the sidebar if it's collapsed on desktop
     }
     // Accordion will open/close due to its own default behavior
   };
@@ -193,21 +198,21 @@ function SidebarNavItem({ item }: SidebarNavItemProps) {
                 className={cn(
                   "flex items-center w-full rounded-md text-sm font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-sidebar-ring",
                   "transition-colors duration-150 group",
-                  isCollapsed ? "justify-center h-12" : "justify-between h-11 px-3 py-2",
+                  isCollapsed && !isMobile ? "justify-center h-12" : "justify-between h-11 px-3 py-2",
                   isActive && !isCollapsed && "bg-sidebar-primary/20 text-sidebar-primary",
-                  isActive && isCollapsed && "bg-sidebar-primary text-sidebar-primary-foreground"
+                  isActive && isCollapsed && !isMobile && "bg-sidebar-primary text-sidebar-primary-foreground"
                 )}
               >
                 <div className="flex items-center gap-3">
-                  <Icon className={cn("h-5 w-5 shrink-0", isActive && isCollapsed ? "text-sidebar-primary-foreground" : isActive ? "text-sidebar-primary" : "text-sidebar-foreground/70 group-hover:text-sidebar-accent-foreground")} />
-                  {!isCollapsed && <span className="truncate text-sidebar-foreground group-hover:text-sidebar-accent-foreground">{item.label}</span>}
+                  <Icon className={cn("h-5 w-5 shrink-0", isActive && isCollapsed && !isMobile ? "text-sidebar-primary-foreground" : isActive ? "text-sidebar-primary" : "text-sidebar-foreground/70 group-hover:text-sidebar-accent-foreground")} />
+                  {(!isCollapsed || isMobile) && <span className="truncate text-sidebar-foreground group-hover:text-sidebar-accent-foreground">{item.label}</span>}
                 </div>
-                {/* Chevron is now only from AccordionTrigger itself, removed explicit one from here */}
+                {/* AccordionTrigger itself provides the chevron, so no explicit one here */}
               </RadixAccordionTrigger>
             </TooltipTrigger>
             {isCollapsed && !isMobile && <TooltipContent side="right">{item.label}</TooltipContent>}
           </Tooltip>
-          {!isCollapsed && (
+          {(!isCollapsed || isMobile) && (
             <AccordionContent className="pl-6 pt-1 pb-0"> 
               <ul className="space-y-0.5 border-l border-sidebar-border ml-3 pl-3"> 
                 {filteredChildren.map(child => (
@@ -242,13 +247,13 @@ function SidebarNavItem({ item }: SidebarNavItemProps) {
           className={cn(
             "flex items-center gap-3 rounded-md text-sm font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-sidebar-ring group",
             "transition-colors duration-150",
-            isCollapsed ? "justify-center h-12" : "px-3 py-2 h-11",
+            isCollapsed && !isMobile ? "justify-center h-12" : "px-3 py-2 h-11",
             isActive && !isCollapsed && "bg-sidebar-primary/20 text-sidebar-primary",
-            isActive && isCollapsed && "bg-sidebar-primary text-sidebar-primary-foreground"
+            isActive && isCollapsed && !isMobile && "bg-sidebar-primary text-sidebar-primary-foreground"
           )}
         >
-          <Icon className={cn("h-5 w-5 shrink-0", isActive && isCollapsed ? "text-sidebar-primary-foreground" : isActive ? "text-sidebar-primary" : "text-sidebar-foreground/70 group-hover:text-sidebar-accent-foreground")} />
-          {!isCollapsed && <span className="truncate text-sidebar-foreground group-hover:text-sidebar-accent-foreground">{item.label}</span>}
+          <Icon className={cn("h-5 w-5 shrink-0", isActive && isCollapsed && !isMobile ? "text-sidebar-primary-foreground" : isActive ? "text-sidebar-primary" : "text-sidebar-foreground/70 group-hover:text-sidebar-accent-foreground")} />
+          {(!isCollapsed || isMobile) && <span className="truncate text-sidebar-foreground group-hover:text-sidebar-accent-foreground">{item.label}</span>}
         </Link>
       </TooltipTrigger>
       {isCollapsed && !isMobile && <TooltipContent side="right">{item.label}</TooltipContent>}
@@ -257,11 +262,11 @@ function SidebarNavItem({ item }: SidebarNavItemProps) {
 }
 
 export function SidebarFooter({ children, className }: { children: React.ReactNode, className?: string }) {
-   const { isCollapsed } = useSidebarContext(); 
+   const { isCollapsed, isMobile } = useSidebarContext(); 
   return (
     <div className={cn(
         "p-4 border-t border-sidebar-border mt-auto", 
-        isCollapsed ? "flex justify-center" : "px-4",
+        isCollapsed && !isMobile ? "text-center" : "px-4", // Adjusted for better centering of text if children is simple text
         className
       )}
     >
