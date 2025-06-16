@@ -165,7 +165,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
   if (isMobile) {
     return (
       <Sheet open={openMobile} onOpenChange={setOpenMobile}>
-        <div className="flex h-screen bg-background">
+        <div className="flex h-screen bg-background"> {/* Root container for mobile view */}
           <SheetContent
             side="left"
             className="p-0 w-[280px] flex flex-col data-[state=closed]:duration-200 data-[state=open]:duration-300 bg-sidebar text-sidebar-foreground border-r-0"
@@ -176,6 +176,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
             </AppNewSidebar>
           </SheetContent>
 
+          {/* Main panel that is always visible */}
           <div className="flex-1 flex flex-col overflow-x-hidden">
             <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-card/95 px-4 backdrop-blur-sm sm:px-6">
               <div className="flex items-center gap-2">
@@ -191,7 +192,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
               </div>
               <UserProfile />
             </header>
-            <main className="flex-1 p-4 sm:p-6 overflow-y-auto bg-muted/30">
+            <main className="flex-1 p-4 sm:p-6 overflow-y-auto bg-muted/30 min-h-0"> {/* Added min-h-0 */}
               {children}
             </main>
           </div>
@@ -207,7 +208,6 @@ function AppShell({ children }: { children: React.ReactNode }) {
       <AppNewSidebar
         className={cn(
           "h-full border-r border-sidebar-border",
-          // These classes ensure the sidebar has a width and animates its width change.
           "transition-all duration-300 ease-in-out",
           isCollapsed ? `w-[${sidebarVars.collapsed}]` : `w-[${sidebarVars.expanded}]`
         )}
@@ -219,10 +219,6 @@ function AppShell({ children }: { children: React.ReactNode }) {
       <div
         className={cn(
           "flex-1 flex flex-col overflow-x-hidden",
-          // This div is a flex item, its size will adjust as the sidebar's width changes.
-          // The transition here helps if there were direct layout properties changing on this element,
-          // but for flex item resizing due to sibling change, it's often handled by the sibling's transition.
-          // Keeping it doesn't hurt and can cover other potential animated properties.
           "transition-all duration-300 ease-in-out"
         )}
       >
@@ -240,7 +236,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
           <UserProfile />
         </header>
         {/* Page Content */}
-        <main className="flex-1 p-4 sm:p-6 overflow-y-auto bg-muted/30">
+        <main className="flex-1 p-4 sm:p-6 overflow-y-auto bg-muted/30 min-h-0"> {/* Added min-h-0 */}
           {children}
         </main>
       </div>
