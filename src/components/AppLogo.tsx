@@ -20,10 +20,10 @@ const AppIconSvg = () => (
 
 export function AppLogo({ size = "md" }: { size?: "sm" | "md" | "lg" | "iconOnly" }) {
   const sizeClasses = {
-    sm: "h-6 w-6", // For expanded sidebar header text combo
-    md: "h-8 w-8", // Default for login page etc.
+    sm: "h-6 w-6", 
+    md: "h-8 w-8", 
     lg: "h-10 w-10",
-    iconOnly: "h-7 w-7" // For collapsed sidebar header
+    iconOnly: "h-7 w-7" 
   };
 
   if (size === "iconOnly") {
@@ -41,7 +41,7 @@ export function AppLogo({ size = "md" }: { size?: "sm" | "md" | "lg" | "iconOnly
       </div>
       <span 
         className={cn(
-            `font-headline font-bold text-primary`,
+            `font-headline font-bold text-primary`, // text-primary for default text color from theme
             size === 'sm' && 'text-xl',
             size === 'md' && 'text-2xl',
             size === 'lg' && 'text-3xl'

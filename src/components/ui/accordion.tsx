@@ -29,12 +29,14 @@ const AccordionTrigger = React.forwardRef<
     <AccordionPrimitive.Trigger
       ref={ref}
       className={cn(
-        "flex flex-1 items-center justify-between py-2 font-medium transition-all hover:underline [&[data-state=open]>svg.accordion-chevron]:rotate-180",
+        "flex flex-1 items-center justify-between py-2 font-medium transition-all [&[data-state=open]>svg.accordion-chevron]:rotate-180",
+        // Removed hover:underline to let parent control hover states
         className
       )}
       {...props}
     >
       {children}
+      {/* Chevron is part of the trigger content, its color should be handled by parent or specific classes */}
       <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200 accordion-chevron" />
     </AccordionPrimitive.Trigger>
   </AccordionPrimitive.Header>
@@ -57,3 +59,5 @@ const AccordionContent = React.forwardRef<
 AccordionContent.displayName = AccordionPrimitive.Content.displayName
 
 export { Accordion, AccordionItem, AccordionTrigger, AccordionContent }
+
+    

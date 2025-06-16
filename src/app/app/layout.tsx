@@ -37,7 +37,7 @@ import type { NavItemConfig, UserRole } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { GlobalPreloaderScreen } from "@/components/GlobalPreloaderScreen";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Sheet, SheetTrigger } from "@/components/ui/sheet"; 
+import { Sheet } from "@/components/ui/sheet"; 
 
 const CustomInventoryIcon = ({ className: propClassName }: { className?: string }) => (
   <svg
@@ -120,7 +120,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
   const { currentUser } = useAuth();
   const userRole = currentUser?.role;
   const pathname = usePathname();
-  const { isCollapsed, isMobile, navItems, openMobile, setOpenMobile } = useSidebarContext();
+  const { isCollapsed, isMobile, navItems } = useSidebarContext(); // Removed openMobile, setOpenMobile as they are handled by Sheet in Sidebar component
 
   const currentPageLabel = useMemo(
     () => calculateCurrentPageLabel(pathname, userRole, navItems),
@@ -129,39 +129,18 @@ function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-screen bg-background">
-      {!isMobile && (
-        <div className={cn(
-            "fixed inset-y-0 left-0 z-20 transition-all duration-300 ease-in-out",
-            isCollapsed ? `w-[${sidebarVars.collapsed}]` : `w-[${sidebarVars.expanded}]`
-        )}>
-            <AppNewSidebar>
-                <AppNewSidebarHeader>
-                    <AppLogo size={isCollapsed ? "iconOnly" : "sm"} />
-                </AppNewSidebarHeader>
-                <AppNewSidebarContent />
-                <AppNewSidebarFooter>
-                {!isCollapsed && (
-                    <p className="text-xs text-muted-foreground">&copy; {new Date().getFullYear()} NGroup</p>
-                )}
-                </AppNewSidebarFooter>
-            </AppNewSidebar>
-        </div>
-      )}
-
-      {isMobile && (
-        <Sheet open={openMobile} onOpenChange={setOpenMobile}>
-          {/* The AppHeaderSidebarTrigger for mobile is effectively the SheetTrigger */}
-          <AppNewSidebar> 
-            <AppNewSidebarHeader>
-                <AppLogo size={"sm"} />
-            </AppNewSidebarHeader>
-            <AppNewSidebarContent />
-            <AppNewSidebarFooter>
-                <p className="text-xs text-muted-foreground">&copy; {new Date().getFullYear()} NGroup</p>
-            </AppNewSidebarFooter>
-          </AppNewSidebar>
-        </Sheet>
-      )}
+      {/* AppNewSidebar will handle its own rendering based on isMobile context (Sheet or fixed div) */}
+      <AppNewSidebar>
+          <AppNewSidebarHeader>
+              <AppLogo size={isMobile ? "sm" : (isCollapsed ? "iconOnly" : "sm")} />
+          </AppNewSidebarHeader>
+          <AppNewSidebarContent />
+          <AppNewSidebarFooter>
+          {(!isCollapsed || isMobile) && ( // Show footer text if mobile or not collapsed on desktop
+              <p className="text-xs text-sidebar-foreground/70">&copy; {new Date().getFullYear()} NGroup</p>
+          )}
+          </AppNewSidebarFooter>
+      </AppNewSidebar>
       
       <div
         className={cn(
@@ -171,8 +150,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
       >
         <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-card/95 px-4 backdrop-blur-sm sm:px-6">
           <div className="flex items-center gap-2">
-            {/* Mobile trigger is part of Sheet - uses AppHeaderSidebarTrigger internally */}
-            {/* Desktop trigger */}
+            {/* AppHeaderSidebarTrigger handles mobile SheetTrigger and desktop toggle */}
             <AppHeaderSidebarTrigger />
             <h1 className="text-xl font-semibold font-headline hidden sm:block">
               {currentPageLabel}
@@ -193,13 +171,19 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const isMobile = useIsMobile(); 
-  const [openMobile, setOpenMobile] = useState(false);
+  const [openMobile, setOpenMobile] = useState(false); // State for mobile sheet
 
   useEffect(() => {
+    if (currentUser === undefined) return; // Still loading auth state
+
     if (!currentUser && !pathname.startsWith('/_next/')) { 
       router.replace("/");
     }
   }, [currentUser, router, pathname]);
+
+  if (currentUser === undefined) { // Initial loading state for auth
+    return <GlobalPreloaderScreen message="Initializing..." />;
+  }
 
   if (!currentUser && !pathname.startsWith('/_next/')) {
     return <GlobalPreloaderScreen message="Loading application..." />;
@@ -215,10 +199,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       navItems={currentNavItemsForUser} 
       userRole={userRole} 
       isMobile={isMobile}
-      openMobile={openMobile}
-      setOpenMobile={setOpenMobile}
+      openMobile={openMobile} // Pass state for mobile sheet
+      setOpenMobile={setOpenMobile} // Pass setter for mobile sheet
     >
       <AppShell>{children}</AppShell>
     </NewSidebarProvider>
   );
 }
+
+    

@@ -2,11 +2,11 @@
 "use client";
 
 import type { UserRole, User } from "@/lib/types";
-import React, { createContext, useContext, useState, ReactNode } from "react";
+import React, { createContext, useContext, useState, ReactNode, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 interface AuthContextType {
-  currentUser: User | null;
+  currentUser: User | null | undefined; // undefined means still loading
   login: (username: string, password_plain: string) => boolean;
   logout: () => void;
   availableRoles: UserRole[];
@@ -16,7 +16,6 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const availableRoles: UserRole[] = ["admin", "cashier"];
 
-// Define mock users - in a real app, this would come from a database
 const mockUsersCredentials: Record<string, { password_hashed_or_plain: string; role: UserRole, name: string }> = {
   "admin": { password_hashed_or_plain: "123", role: "admin", name: "Admin User" },
   "user": { password_hashed_or_plain: "123", role: "cashier", name: "Cashier User" },
@@ -24,23 +23,39 @@ const mockUsersCredentials: Record<string, { password_hashed_or_plain: string; r
 
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null | undefined>(undefined); // Start as undefined
   const router = useRouter();
 
+  useEffect(() => {
+    // Simulate async check for existing session (e.g., from localStorage)
+    // For now, we'll just set it to null after a short delay if no actual check is done
+    const timer = setTimeout(() => {
+      if (currentUser === undefined) { // Only if still in initial loading state
+        setCurrentUser(null); 
+      }
+    }, 50); // Minimal delay to allow initial render with undefined
+    return () => clearTimeout(timer);
+  }, []); // Runs once on mount
+
   const login = (usernameInput: string, password_plain: string): boolean => {
-    const username = usernameInput.toLowerCase(); // Normalize username
+    const username = usernameInput.toLowerCase(); 
     const userCredentials = mockUsersCredentials[username];
     if (userCredentials && userCredentials.password_hashed_or_plain === password_plain) {
-      setCurrentUser({ username: username, role: userCredentials.role, name: userCredentials.name });
+      const userToSet = { username: username, role: userCredentials.role, name: userCredentials.name };
+      setCurrentUser(userToSet);
+      // Persist to localStorage (example)
+      // localStorage.setItem('currentUser', JSON.stringify(userToSet));
       return true;
     }
-    setCurrentUser(null); // Ensure logout on failed attempt
+    setCurrentUser(null); 
+    // localStorage.removeItem('currentUser');
     return false;
   };
 
   const logout = () => {
     setCurrentUser(null);
-    router.push("/"); // Redirect to login page after logout
+    // localStorage.removeItem('currentUser');
+    router.push("/"); 
   };
 
   return (
@@ -58,3 +73,4 @@ export function useAuth(): AuthContextType {
   return context;
 }
 
+    
