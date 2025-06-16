@@ -38,9 +38,10 @@ import {
 import { AppLogo } from "@/components/AppLogo";
 import { UserProfile } from "@/components/UserProfile";
 import { Separator } from "@/components/ui/separator";
-import { useAuth } from "@/contexts/AuthContext"; // AuthProvider removed, useAuth remains
+import { useAuth } from "@/contexts/AuthContext"; 
 import type { NavItemConfig, UserRole } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { GlobalPreloaderScreen } from "@/components/GlobalPreloaderScreen";
 
 const CustomInventoryIcon = ({ className: propClassName }: { className?: string }) => (
   <svg
@@ -103,12 +104,7 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
   const userRole = currentUser?.role;
 
   if (!currentUser && pathname !== "/") {
-    return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
-        <AppLogo size="lg" />
-        <p className="mt-4 text-lg text-muted-foreground">Loading application...</p>
-      </div>
-    );
+    return <GlobalPreloaderScreen message="Loading application..." />;
   }
   
   const navItems = userRole ? allNavItems.filter(item => item.allowedRoles.includes(userRole)) : [];
@@ -253,7 +249,6 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
 }
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  // AuthProvider is removed from here and placed in the root layout
   return (
     <AppLayoutContent>{children}</AppLayoutContent>
   )

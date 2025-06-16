@@ -15,7 +15,7 @@ import { useRouter } from "next/navigation";
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable'; 
-import { AppLogo } from "@/components/AppLogo";
+import { GlobalPreloaderScreen } from "@/components/GlobalPreloaderScreen";
 
 
 interface jsPDFWithAutoTable extends jsPDF {
@@ -38,12 +38,7 @@ export default function FullReportPage() {
   }, [currentUser, router]);
 
   if (!currentUser) {
-     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
-        <AppLogo size="lg" />
-        <p className="mt-4 text-lg text-muted-foreground">Loading report...</p>
-      </div>
-    );
+     return <GlobalPreloaderScreen message="Loading report..." />;
   }
 
   if (currentUser.role !== "admin") {
@@ -131,4 +126,3 @@ export default function FullReportPage() {
     </>
   );
 }
-

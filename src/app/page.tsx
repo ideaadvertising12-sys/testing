@@ -10,6 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import { useState, FormEvent, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { GlobalPreloaderScreen } from "@/components/GlobalPreloaderScreen";
 
 export default function LoginPage() {
   const [username, setUsername] = useState("");
@@ -45,11 +46,7 @@ export default function LoginPage() {
   };
   
   if (currentUser) {
-      return (
-        <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
-            <p>Loading...</p>
-        </div>
-      );
+      return <GlobalPreloaderScreen message="Redirecting..." />;
   }
 
   return (
@@ -100,4 +97,3 @@ export default function LoginPage() {
     </div>
   );
 }
-

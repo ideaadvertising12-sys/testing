@@ -1,32 +1,27 @@
 
-"use client"; // Added "use client"
+"use client"; 
 
 import { Users } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { CustomerDataTable } from "@/components/customers/CustomerDataTable";
-import { useAuth } from "@/contexts/AuthContext"; // Added
-import { useEffect } from "react"; // Added
-import { useRouter } from "next/navigation"; // Added
-import { AppLogo } from "@/components/AppLogo"; // Added
+import { useAuth } from "@/contexts/AuthContext";
+import { useEffect } from "react"; 
+import { useRouter } from "next/navigation"; 
+import { GlobalPreloaderScreen } from "@/components/GlobalPreloaderScreen";
 
 
 export default function CustomersPage() {
-  const { currentUser } = useAuth(); // Added
-  const router = useRouter(); // Added
+  const { currentUser } = useAuth(); 
+  const router = useRouter(); 
 
-  useEffect(() => { // Added
+  useEffect(() => { 
     if (!currentUser) {
       router.replace("/");
     }
   }, [currentUser, router]);
 
-  if (!currentUser) { // Added
-     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
-        <AppLogo size="lg" />
-        <p className="mt-4 text-lg text-muted-foreground">Loading customers...</p>
-      </div>
-    );
+  if (!currentUser) { 
+     return <GlobalPreloaderScreen message="Loading customers..." />;
   }
   // Customer page is accessible to both admin and cashier, so no specific role check here beyond being logged in.
 
@@ -41,4 +36,3 @@ export default function CustomersPage() {
     </>
   );
 }
-

@@ -8,7 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { AccessDenied } from "@/components/AccessDenied";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { AppLogo } from "@/components/AppLogo";
+import { GlobalPreloaderScreen } from "@/components/GlobalPreloaderScreen";
 
 export default function ManageStockPage() {
   const { currentUser } = useAuth();
@@ -25,12 +25,7 @@ export default function ManageStockPage() {
   }, [currentUser, router]);
 
   if (!currentUser) {
-     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
-        <AppLogo size="lg" />
-        <p className="mt-4 text-lg text-muted-foreground">Loading stock management...</p>
-      </div>
-    );
+     return <GlobalPreloaderScreen message="Loading stock management..." />;
   }
 
   if (currentUser.role === "cashier") {
@@ -48,4 +43,3 @@ export default function ManageStockPage() {
     </>
   );
 }
-
