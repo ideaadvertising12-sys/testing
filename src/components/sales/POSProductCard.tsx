@@ -10,9 +10,14 @@ import { PlusCircle } from "lucide-react";
 interface POSProductCardProps {
   product: Product;
   onAddToCart: (product: Product) => void;
+  currentSaleType: 'retail' | 'wholesale';
 }
 
-export function POSProductCard({ product, onAddToCart }: POSProductCardProps) {
+export function POSProductCard({ product, onAddToCart, currentSaleType }: POSProductCardProps) {
+  const displayPrice = (currentSaleType === 'wholesale' && product.wholesalePrice && product.wholesalePrice > 0)
+    ? product.wholesalePrice
+    : product.price;
+
   return (
     <Card className="overflow-hidden shadow-md hover:shadow-lg transition-shadow duration-200 flex flex-col h-full max-w-sm mx-auto w-full">
       <CardHeader className="p-0 relative aspect-[3/2] hidden sm:block">
@@ -31,7 +36,7 @@ export function POSProductCard({ product, onAddToCart }: POSProductCardProps) {
         <p className="text-sm text-muted-foreground">Stock: {product.stock}</p>
       </CardContent>
       <CardFooter className="p-4 border-t flex flex-col items-start gap-2 sm:flex-row sm:justify-between sm:items-center">
-        <p className="text-lg font-bold text-primary">Rs. {product.price.toFixed(2)}</p>
+        <p className="text-lg font-bold text-primary">Rs. {displayPrice.toFixed(2)}</p>
         <Button 
           size="sm" 
           onClick={() => onAddToCart(product)} 
@@ -44,4 +49,3 @@ export function POSProductCard({ product, onAddToCart }: POSProductCardProps) {
     </Card>
   );
 }
-
