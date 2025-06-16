@@ -108,8 +108,6 @@ export function SidebarProvider({
   );
 }
 
-// AppHeaderSidebarTrigger is removed. Its logic will be in AppShell.
-
 // Sidebar component is simplified to be a container for its children.
 // AppShell will handle its positioning (fixed for desktop) and whether it's in a SheetContent (mobile).
 export function Sidebar({ children, className }: { children: React.ReactNode, className?: string }) {
@@ -117,7 +115,7 @@ export function Sidebar({ children, className }: { children: React.ReactNode, cl
   return (
     <div className={cn(
       "flex flex-col h-full bg-sidebar text-sidebar-foreground",
-      className // AppShell will pass width, fixed, border-r etc. for desktop
+      className 
     )}>
       {children}
     </div>
@@ -162,9 +160,7 @@ function SidebarNavItem({ item }: SidebarNavItemProps) {
 
   const checkIsActive = (path: string, navHref?: string) => {
     if (!navHref) return false;
-    // More specific check for dashboard to avoid matching child routes unintentionally
     if (navHref === "/app/dashboard") return path === navHref;
-    // General check for other routes
     return path === navHref || (navHref !== "/" && path.startsWith(navHref + '/'));
   };
   
@@ -194,7 +190,7 @@ function SidebarNavItem({ item }: SidebarNavItemProps) {
                 className={cn(
                   "flex items-center w-full rounded-md text-sm font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-sidebar-ring",
                   "transition-colors duration-150 group",
-                  isCollapsed ? "justify-center h-12" : "justify-between h-11 px-3 py-2",
+                  isCollapsed ? "justify-center h-12" : "justify-between h-11 px-3 py-2", // justify-between allows RadixChevron to go right
                   isActive && !isCollapsed && "bg-sidebar-primary/20 text-sidebar-primary",
                   isActive && isCollapsed && "bg-sidebar-primary text-sidebar-primary-foreground"
                 )}
@@ -203,7 +199,7 @@ function SidebarNavItem({ item }: SidebarNavItemProps) {
                   <Icon className={cn("h-5 w-5 shrink-0", isActive && isCollapsed ? "text-sidebar-primary-foreground" : isActive ? "text-sidebar-primary" : "text-sidebar-foreground/70 group-hover:text-sidebar-accent-foreground")} />
                   {!isCollapsed && <span className="truncate text-sidebar-foreground group-hover:text-sidebar-accent-foreground">{item.label}</span>}
                 </div>
-                {!isCollapsed && <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200 accordion-chevron text-sidebar-foreground/70 group-hover:text-sidebar-accent-foreground" />}
+                {/* Removed explicit ChevronDown from here */}
               </RadixAccordionTrigger>
             </TooltipTrigger>
             {isCollapsed && !isMobile && <TooltipContent side="right">{item.label}</TooltipContent>}
@@ -258,7 +254,7 @@ function SidebarNavItem({ item }: SidebarNavItemProps) {
 }
 
 export function SidebarFooter({ children, className }: { children: React.ReactNode, className?: string }) {
-   const { isCollapsed } = useSidebarContext(); // Removed isMobile as AppShell controls footer visibility based on it
+   const { isCollapsed } = useSidebarContext(); 
   return (
     <div className={cn(
         "p-4 border-t border-sidebar-border mt-auto", 
@@ -270,3 +266,4 @@ export function SidebarFooter({ children, className }: { children: React.ReactNo
     </div>
   );
 }
+
