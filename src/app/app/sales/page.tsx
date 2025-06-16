@@ -130,7 +130,7 @@ export default function SalesPage() {
 
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)]"> 
+    <div className="flex flex-col h-full"> 
       <PageHeader 
         title="Point of Sale" 
         description="Create new sales transactions quickly."
