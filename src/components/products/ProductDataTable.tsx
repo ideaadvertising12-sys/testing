@@ -191,16 +191,16 @@ export function ProductDataTable() {
               {/* Desktop Table View - hidden on screens smaller than md */}
               <div className="hidden md:block">
                 <Table>
-                  <TableHeader className="md:sticky md:top-0 md:z-10">
+                  <TableHeader className="md:sticky md:top-0 md:z-10 md:bg-card">
                     <TableRow>
-                      <TableHead className="w-[80px] xl:w-[100px] md:bg-card">Image</TableHead>
-                      <TableHead className="md:bg-card">Name</TableHead>
-                      <TableHead className="md:bg-card">Category</TableHead>
-                      <TableHead className="md:bg-card">Stock</TableHead>
-                      <TableHead className="text-right md:bg-card">Wholesale Price</TableHead>
-                      <TableHead className="text-right md:bg-card">Retail Price</TableHead>
+                      <TableHead className="w-[80px] xl:w-[100px]">Image</TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead>Stock</TableHead>
+                      <TableHead className="text-right">Wholesale Price</TableHead>
+                      <TableHead className="text-right">Retail Price</TableHead>
                       {isAdmin && (
-                        <TableHead className="text-right md:bg-card">
+                        <TableHead className="text-right">
                           <span className="sr-only">Actions</span>
                         </TableHead>
                       )}
@@ -288,4 +288,6 @@ export function ProductDataTable() {
     </>
   );
 }
+    
+
     
