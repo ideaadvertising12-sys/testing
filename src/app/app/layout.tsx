@@ -27,7 +27,7 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
-  SidebarTrigger,
+  SidebarTrigger, // SidebarTrigger is imported
   SidebarInset,
   useSidebar,
 } from "@/components/ui/sidebar";
@@ -153,10 +153,7 @@ function AppMainStructure({ children, currentNavItems }: { children: React.React
               <span className="sr-only">Close sidebar</span>
             </Button>
           ) : (
-            <Button data-sidebar="trigger" variant="ghost" size="icon" onClick={toggleSidebar} className="h-7 w-7">
-              <X className="h-5 w-5" />
-              <span className="sr-only">Open sidebar</span>
-            </Button>
+            <SidebarTrigger className="h-7 w-7" />
           )}
         </div>
         <div className="hidden md:block">
