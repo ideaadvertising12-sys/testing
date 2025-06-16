@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { MinusCircle, PlusCircle, Trash2, Users, XCircle, Check, ChevronsUpDown } from "lucide-react";
+import { MinusCircle, PlusCircle, Trash2, Users, XCircle, Check, ChevronsUpDown, Tag } from "lucide-react";
 import Image from "next/image";
 import { placeholderCustomers } from "@/lib/placeholder-data";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -70,8 +70,8 @@ export function CartView({
   return (
     <Card className={cn(
       "flex flex-col h-full w-full",
-      "lg:rounded-lg lg:border lg:shadow-md", // Desktop card styles
-      "rounded-none border-0 shadow-none",    // Mobile panel styles (overridden by lg:)
+      "lg:rounded-lg lg:border lg:shadow-md", 
+      "rounded-none border-0 shadow-none",    
       className
     )}>
       <CardHeader className="p-3 lg:p-4 shrink-0 border-b">
@@ -139,30 +139,30 @@ export function CartView({
         </div>
       </CardHeader>
       
-      <CardContent className="flex-1 p-0 min-h-0">
+      <CardContent className="flex-1 p-0 min-h-0"> {/* Ensures content takes available space and handles overflow */}
         <ScrollArea className="h-full">
           {cartItems.length === 0 ? (
             <p className="p-4 text-center text-sm text-muted-foreground">Your cart is empty.</p>
           ) : (
             <div className="divide-y divide-border">
               {cartItems.map((item, index) => ( 
-                <div key={`${item.id}-${item.saleType}-${index}`} className="flex items-center p-2 sm:p-3 space-x-2">
+                <div key={`${item.id}-${item.saleType}-${index}`} className="flex items-center p-2 sm:p-3 gap-2">
                   <Image
                     src={item.imageUrl || "https://placehold.co/40x40.png"}
                     alt={item.name}
-                    width={32} // smaller for mobile
+                    width={32} 
                     height={32}
-                    className="rounded-md aspect-square object-cover flex-shrink-0 hidden sm:block" // Hidden on xs, block on sm+
+                    className="rounded-md aspect-square object-cover flex-shrink-0 hidden sm:block" 
                     data-ai-hint={`${item.category.toLowerCase()} product`}
                   />
-                  <div className="flex-grow min-w-0">
+                  <div className="flex-grow min-w-0"> {/* min-w-0 for proper truncation */}
                     <p className="text-xs sm:text-sm font-medium truncate">{item.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      Rs. {item.appliedPrice.toFixed(2)}
-                      {item.saleType === 'wholesale' && <span className="text-blue-500 ml-1">(W)</span>}
-                    </p>
+                    <div className="flex items-center text-xs text-muted-foreground">
+                      <span>Rs. {item.appliedPrice.toFixed(2)}</span>
+                      {item.saleType === 'wholesale' && <Tag className="h-3 w-3 text-blue-500 ml-1" />}
+                    </div>
                   </div>
-                  <div className="flex items-center space-x-1 shrink-0">
+                  <div className="flex items-center gap-1 shrink-0">
                     <Button
                       variant="outline"
                       size="icon"
@@ -190,11 +190,11 @@ export function CartView({
                       <PlusCircle className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                     </Button>
                   </div>
-                  <p className="text-xs sm:text-sm font-semibold w-12 sm:w-16 text-right shrink-0">
+                  <p className="text-xs sm:text-sm font-semibold w-12 sm:w-16 text-right shrink-0 min-w-0 truncate"> {/* min-w-0 for price */}
                     Rs. {(item.appliedPrice * item.quantity).toFixed(2)}
                   </p>
-                  <Button variant="ghost" size="icon" className="h-6 w-6 sm:h-7 sm:w-7 text-destructive shrink-0" onClick={() => onRemoveItem(item.id, item.saleType)}>
-                    <Trash2 className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                  <Button variant="ghost" size="icon" className="h-6 w-6 sm:h-7 sm:w-7 text-destructive shrink-0">
+                    <Trash2 className="h-3 w-3 sm:h-3.5 sm:w-3.5" onClick={() => onRemoveItem(item.id, item.saleType)}/>
                   </Button>
                 </div>
               ))}
