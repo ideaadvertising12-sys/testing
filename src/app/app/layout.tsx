@@ -200,15 +200,16 @@ function AppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Desktop Layout
+  // Desktop Layout with STATIC sidebar
   return (
     // Base container for desktop. Flex helps manage height if necessary.
     <div className="flex h-screen bg-background"> 
-      {/* Desktop Sidebar: Fixed position, dynamic width, and z-index to ensure it's above default content flow */}
+      {/* Desktop Sidebar: Static position, part of document flow. */}
       <AppNewSidebar 
         className={cn(
-          "fixed top-0 left-0 z-40 h-full border-r border-sidebar-border", 
-          "transition-all duration-300 ease-in-out", // For smooth collapse/expand
+          // Removed: "fixed top-0 left-0 z-40"
+          "h-full border-r border-sidebar-border", // Basic styling for a static sidebar
+          "transition-all duration-300 ease-in-out", // For smooth collapse/expand animation of width
           // Dynamically set the width of the sidebar
           isCollapsed ? `w-[${sidebarVars.collapsed}]` : `w-[${sidebarVars.expanded}]`
         )}
@@ -220,13 +221,12 @@ function AppShell({ children }: { children: React.ReactNode }) {
           - flex-1: Takes up remaining horizontal space.
           - flex flex-col: Allows header and main to stack vertically.
           - overflow-x-hidden: Prevents horizontal scrollbars on this container.
-          - dynamic margin-left: Crucial to prevent overlap with the fixed sidebar.
+          - No margin-left needed as sidebar is static.
       */}
       <div
         className={cn(
-          "flex-1 flex flex-col transition-all duration-300 ease-in-out overflow-x-hidden",
-          // This margin-left must match the sidebar's width
-          isCollapsed ? `ml-[${sidebarVars.collapsed}]` : `ml-[${sidebarVars.expanded}]`
+          "flex-1 flex flex-col transition-all duration-300 ease-in-out overflow-x-hidden"
+          // Removed: dynamic margin-left classes as sidebar is no longer fixed
         )}
       >
         {/* Header within the main content area */}
@@ -292,3 +292,4 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     </NewSidebarProvider>
   );
 }
+
