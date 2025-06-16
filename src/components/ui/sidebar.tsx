@@ -71,8 +71,9 @@ export function SidebarProvider({
   const toggleCollapse = () => {
     if (!isMobile) { 
       setIsCollapsed(!isCollapsed);
+    } else {
+      setOpenMobile(prev => !prev);
     }
-    // Mobile toggle is handled by Sheet's open/onOpenChange
   };
   
   const currentNavItemsForUser = userRole
@@ -102,10 +103,9 @@ export function SidebarProvider({
 }
 
 export function AppHeaderSidebarTrigger() {
-  const { isMobile, isCollapsed, toggleCollapse, setOpenMobile } = useSidebarContext();
+  const { isMobile, isCollapsed, toggleCollapse, openMobile, setOpenMobile } = useSidebarContext();
 
   if (isMobile) {
-    // This button is the trigger for the Sheet (mobile sidebar)
     return (
       <SheetTrigger asChild>
         <Button variant="ghost" size="icon" className="md:hidden h-9 w-9" onClick={() => setOpenMobile(true)}>
@@ -116,7 +116,6 @@ export function AppHeaderSidebarTrigger() {
     );
   }
 
-  // Desktop trigger
   return (
     <Button variant="ghost" size="icon" className="hidden md:flex h-9 w-9" onClick={toggleCollapse}>
       {isCollapsed ? <PanelLeft className="h-5 w-5" /> : <X className="h-5 w-5" />}
@@ -130,7 +129,7 @@ export function Sidebar({ children, className }: { children: React.ReactNode, cl
   const { isCollapsed, isMobile, openMobile, setOpenMobile } = useSidebarContext();
 
   const sidebarStyles = cn(
-    "flex flex-col h-full bg-sidebar text-sidebar-foreground border-r border-sidebar-border",
+    "flex flex-col h-full bg-sidebar text-sidebar-foreground border-r border-sidebar-border fixed top-0 left-0 z-40", // Added fixed, top-0, left-0, z-40
     "transition-all duration-300 ease-in-out",
     className
   );
@@ -146,9 +145,7 @@ export function Sidebar({ children, className }: { children: React.ReactNode, cl
   if (isMobile) {
     return (
       <Sheet open={openMobile} onOpenChange={setOpenMobile}>
-        {/* The AppHeaderSidebarTrigger for mobile is the SheetTrigger rendered in AppShell */}
         <SheetContent side="left" className="p-0 w-[280px] flex data-[state=closed]:duration-200 data-[state=open]:duration-300 bg-sidebar text-sidebar-foreground border-r-0">
-          {/* SheetContent automatically provides an X close button */}
           {sidebarContentInternal}
         </SheetContent>
       </Sheet>
@@ -163,7 +160,7 @@ export function SidebarHeader({ children, className }: { children: React.ReactNo
   return (
     <div className={cn(
         "h-16 flex items-center border-b border-sidebar-border",
-        isCollapsed ? "justify-center px-2" : "px-4 justify-start", // Changed to justify-start for expanded
+        isCollapsed ? "justify-center px-2" : "px-4 justify-start", 
         className
       )}
     >
@@ -173,7 +170,7 @@ export function SidebarHeader({ children, className }: { children: React.ReactNo
 }
 
 export function SidebarContent({ className }: { className?: string }) {
-  const { navItems, defaultOpenAccordion } = useSidebarContext();
+  const { navItems } = useSidebarContext();
   
   return (
     <ScrollArea className={cn("flex-1", className)}>
@@ -196,7 +193,7 @@ function SidebarNavItem({ item }: SidebarNavItemProps) {
 
   const checkIsActive = (path: string, navHref?: string) => {
     if (!navHref) return false;
-    if (navHref === "/app/dashboard") return path === navHref || path.startsWith(navHref + '/'); // Dashboard exact or deeper
+    if (navHref === "/app/dashboard") return path === navHref || path.startsWith(navHref + '/');
     return path === navHref || (navHref !== "/" && path.startsWith(navHref + '/'));
   };
   
@@ -241,21 +238,20 @@ function SidebarNavItem({ item }: SidebarNavItemProps) {
             {isCollapsed && !isMobile && <TooltipContent side="right">{item.label}</TooltipContent>}
           </Tooltip>
           {!isCollapsed && (
-            <AccordionContent className="pl-6 pt-1 pb-0"> {/* Reduced pl for less indent */}
-              <ul className="space-y-0.5 border-l border-sidebar-border ml-3 pl-3"> {/* Adjusted padding for children */}
+            <AccordionContent className="pl-6 pt-1 pb-0"> 
+              <ul className="space-y-0.5 border-l border-sidebar-border ml-3 pl-3"> 
                 {filteredChildren.map(child => (
                   <li key={child.id}>
-                    <Link href={child.href!} passHref legacyBehavior>
-                      <a
-                        onClick={handleLinkClick}
-                        className={cn(
-                          "flex items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-sidebar-accent hover:text-sidebar-accent-foreground text-sidebar-foreground/80",
-                          checkIsActive(activePath, child.href) && "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
-                        )}
-                      >
-                        {child.icon && <child.icon className="h-4 w-4 text-sidebar-foreground/60 shrink-0" />}
-                        <span className="truncate">{child.label}</span>
-                      </a>
+                    <Link
+                      href={child.href!}
+                      onClick={handleLinkClick}
+                      className={cn(
+                        "flex items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-sidebar-accent hover:text-sidebar-accent-foreground text-sidebar-foreground/80",
+                        checkIsActive(activePath, child.href) && "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
+                      )}
+                    >
+                      {child.icon && <child.icon className="h-4 w-4 text-sidebar-foreground/60 shrink-0" />}
+                      <span className="truncate">{child.label}</span>
                     </Link>
                   </li>
                 ))}
@@ -270,20 +266,19 @@ function SidebarNavItem({ item }: SidebarNavItemProps) {
   return (
     <Tooltip disableHoverableContent={!isCollapsed || isMobile}>
       <TooltipTrigger asChild>
-        <Link href={item.href!} passHref legacyBehavior>
-          <a
-            onClick={handleLinkClick}
-            className={cn(
-              "flex items-center gap-3 rounded-md text-sm font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-sidebar-ring group",
-              "transition-colors duration-150",
-              isCollapsed ? "justify-center h-12" : "px-3 py-2 h-11",
-              isActive && !isCollapsed && "bg-sidebar-primary/20 text-sidebar-primary",
-              isActive && isCollapsed && "bg-sidebar-primary text-sidebar-primary-foreground"
-            )}
-          >
-            <Icon className={cn("h-5 w-5 shrink-0", isActive && isCollapsed ? "text-sidebar-primary-foreground" : isActive ? "text-sidebar-primary" : "text-sidebar-foreground/70 group-hover:text-sidebar-accent-foreground")} />
-            {!isCollapsed && <span className="truncate text-sidebar-foreground group-hover:text-sidebar-accent-foreground">{item.label}</span>}
-          </a>
+        <Link
+          href={item.href!}
+          onClick={handleLinkClick}
+          className={cn(
+            "flex items-center gap-3 rounded-md text-sm font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-sidebar-ring group",
+            "transition-colors duration-150",
+            isCollapsed ? "justify-center h-12" : "px-3 py-2 h-11",
+            isActive && !isCollapsed && "bg-sidebar-primary/20 text-sidebar-primary",
+            isActive && isCollapsed && "bg-sidebar-primary text-sidebar-primary-foreground"
+          )}
+        >
+          <Icon className={cn("h-5 w-5 shrink-0", isActive && isCollapsed ? "text-sidebar-primary-foreground" : isActive ? "text-sidebar-primary" : "text-sidebar-foreground/70 group-hover:text-sidebar-accent-foreground")} />
+          {!isCollapsed && <span className="truncate text-sidebar-foreground group-hover:text-sidebar-accent-foreground">{item.label}</span>}
         </Link>
       </TooltipTrigger>
       {isCollapsed && !isMobile && <TooltipContent side="right">{item.label}</TooltipContent>}
