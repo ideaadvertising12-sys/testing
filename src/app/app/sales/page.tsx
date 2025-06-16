@@ -172,7 +172,7 @@ export default function SalesPage() {
             </Tabs>
           </div>
 
-          <ScrollArea className="flex-grow p-1">
+          <ScrollArea className="flex-grow p-1"> {/* Added flex-grow here */}
             {filteredProducts.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-muted-foreground pt-10">
                     <PackageSearch className="w-16 h-16 mb-4" />
@@ -195,7 +195,7 @@ export default function SalesPage() {
         </div>
 
         {/* Cart View Area */}
-        <div className="flex flex-col min-h-0 lg:col-span-1 h-[40vh] lg:h-full">
+        <div className="flex flex-col min-h-0 lg:col-span-1 h-[40vh] lg:h-full"> {/* Retains fixed height on mobile */}
           <CartView 
             cartItems={cartItems}
             selectedCustomer={selectedCustomer}
