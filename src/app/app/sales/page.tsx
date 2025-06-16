@@ -179,7 +179,7 @@ export default function SalesPage() {
                     <p>Try adjusting your search or category filters.</p>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {filteredProducts.map(product => (
                     <POSProductCard key={product.id} product={product} onAddToCart={handleAddToCart} />
                 ))}
@@ -218,3 +218,4 @@ export default function SalesPage() {
     </div>
   );
 }
+
