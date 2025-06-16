@@ -19,7 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"; // Added CardDescription
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import type { Customer } from "@/lib/types";
 import { CustomerDialog } from "./CustomerDialog";
@@ -35,7 +35,7 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
-  AlertDialogTitle,
+  AlertDialogTitle as AlertDialogTitleComponent, // Renamed to avoid conflict
 } from "@/components/ui/alert-dialog";
 
 const getInitials = (name: string) => name.split(" ").map(n => n[0]).join("").toUpperCase();
@@ -127,39 +127,25 @@ export function CustomerDataTable() {
               {searchTerm && <p>Try adjusting your search term.</p>}
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Phone</TableHead>
-                  <TableHead>Address</TableHead>
-                  <TableHead>Shop Name</TableHead>
-                  {canManageCustomers && (
-                    <TableHead>
-                      <span className="sr-only">Actions</span>
-                    </TableHead>
-                  )}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              {/* Mobile Card View - hidden on md and larger screens */}
+              <div className="md:hidden space-y-4">
                 {filteredCustomers.map((customer) => (
-                  <TableRow key={customer.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-9 w-9 hidden sm:flex">
-                          <AvatarFallback>{getInitials(customer.name)}</AvatarFallback>
-                        </Avatar>
-                        <span className="font-medium">{customer.name}</span>
+                  <Card key={customer.id} className="w-full">
+                    <CardHeader className="p-4 flex flex-row justify-between items-start">
+                      <div>
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-9 w-9">
+                            <AvatarFallback>{getInitials(customer.name)}</AvatarFallback>
+                          </Avatar>
+                          <CardTitle className="text-lg font-semibold">{customer.name}</CardTitle>
+                        </div>
+                        {customer.shopName && <p className="text-sm text-muted-foreground mt-1 ml-12">{customer.shopName}</p>}
                       </div>
-                    </TableCell>
-                    <TableCell>{customer.phone}</TableCell>
-                    <TableCell>{customer.address || "N/A"}</TableCell>
-                    <TableCell>{customer.shopName || "N/A"}</TableCell>
-                    {canManageCustomers && (
-                      <TableCell>
+                      {canManageCustomers && (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button aria-haspopup="true" size="icon" variant="ghost">
+                            <Button aria-haspopup="true" size="icon" variant="ghost" className="h-8 w-8 -mt-1 -mr-1">
                               <MoreHorizontal className="h-4 w-4" />
                               <span className="sr-only">Toggle menu</span>
                             </Button>
@@ -174,12 +160,83 @@ export function CustomerDataTable() {
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
-                      </TableCell>
-                    )}
-                  </TableRow>
+                      )}
+                    </CardHeader>
+                    <CardContent className="p-4 pt-0">
+                      <div className="space-y-2 text-sm">
+                        <div className="flex">
+                          <span className="font-medium w-20 shrink-0">Phone:</span>
+                          <span className="text-muted-foreground truncate">{customer.phone}</span>
+                        </div>
+                        {customer.address && (
+                          <div className="flex">
+                            <span className="font-medium w-20 shrink-0">Address:</span>
+                            <span className="text-muted-foreground">{customer.address}</span>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+
+              {/* Desktop Table View - hidden on screens smaller than md */}
+              <div className="hidden md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Phone</TableHead>
+                      <TableHead>Address</TableHead>
+                      <TableHead>Shop Name</TableHead>
+                      {canManageCustomers && (
+                        <TableHead className="text-right">
+                          <span className="sr-only">Actions</span>
+                        </TableHead>
+                      )}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredCustomers.map((customer) => (
+                      <TableRow key={customer.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <Avatar className="h-9 w-9 hidden sm:flex">
+                              <AvatarFallback>{getInitials(customer.name)}</AvatarFallback>
+                            </Avatar>
+                            <span className="font-medium">{customer.name}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>{customer.phone}</TableCell>
+                        <TableCell>{customer.address || "N/A"}</TableCell>
+                        <TableCell>{customer.shopName || "N/A"}</TableCell>
+                        {canManageCustomers && (
+                          <TableCell className="text-right">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button aria-haspopup="true" size="icon" variant="ghost">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                  <span className="sr-only">Toggle menu</span>
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                <DropdownMenuItem onClick={() => handleEditCustomer(customer)}>
+                                  <Edit className="mr-2 h-4 w-4" /> Edit
+                                </DropdownMenuItem>
+                                <DropdownMenuItem className="text-destructive focus:text-destructive focus:bg-destructive/10" onClick={() => openDeleteConfirmation(customer.id)}>
+                                  <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           )}
           {canManageCustomers && editingCustomer && (
             <CustomerDialog
@@ -197,7 +254,7 @@ export function CustomerDataTable() {
       <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogTitleComponent>Are you absolutely sure?</AlertDialogTitleComponent>
             <AlertDialogDescription>
               This action cannot be undone. This will permanently delete the customer
               and remove their data from our servers.
@@ -214,3 +271,4 @@ export function CustomerDataTable() {
     </>
   );
 }
+
