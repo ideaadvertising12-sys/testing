@@ -124,58 +124,62 @@ export function ProductDataTable() {
               <div className="md:hidden space-y-4">
                 {filteredDisplayProducts.map((product) => (
                   <Card key={product.id} className="w-full overflow-hidden">
-                    <CardHeader className="p-0 relative aspect-[4/3] sm:aspect-[16/9]">
-                        <Image
-                            alt={product.name}
-                            className="object-cover w-full h-full"
-                            src={product.imageUrl || "https://placehold.co/400x300.png"}
-                            width={400}
-                            height={300}
-                            data-ai-hint={`${product.category.toLowerCase()} product`}
-                        />
-                    </CardHeader>
                     <CardContent className="p-4">
-                        <div className="flex justify-between items-start mb-2">
-                            <div>
-                                <CardTitle className="text-lg font-semibold" title={product.name}>{product.name}</CardTitle>
-                                <Badge variant="secondary" className="mt-1">{product.category}</Badge>
+                        <div className="flex items-start gap-4">
+                            <Image
+                                alt={product.name}
+                                className="object-cover rounded-full h-16 w-16 flex-shrink-0"
+                                src={product.imageUrl || "https://placehold.co/64x64.png"}
+                                width={64}
+                                height={64}
+                                data-ai-hint={`${product.category.toLowerCase()} product`}
+                            />
+                            <div className="flex-grow min-w-0"> {/* Added min-w-0 for proper truncation */}
+                                <div className="flex justify-between items-start">
+                                    <div className="flex-grow min-w-0 pr-2"> {/* Added min-w-0 and pr-2 for title truncation */}
+                                        <CardTitle className="text-base font-semibold leading-tight truncate" title={product.name}>
+                                          {product.name}
+                                        </CardTitle>
+                                        <Badge variant="secondary" className="mt-1 text-xs">{product.category}</Badge>
+                                    </div>
+                                    {isAdmin && (
+                                        <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button aria-haspopup="true" size="icon" variant="ghost" className="h-8 w-8 flex-shrink-0">
+                                            <MoreHorizontal className="h-4 w-4" />
+                                            <span className="sr-only">Toggle menu</span>
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                            <DropdownMenuItem onClick={() => handleEditProduct(product)}>
+                                            <Edit className="mr-2 h-4 w-4" /> Edit
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem className="text-destructive focus:text-destructive focus:bg-destructive/10" onClick={() => openDeleteConfirmation(product.id)}>
+                                            <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    )}
+                                </div>
+
+                                <div className="mt-2 space-y-1 text-sm text-muted-foreground">
+                                    <div className="flex items-center">
+                                        <Package className="mr-2 h-4 w-4 text-primary flex-shrink-0" />
+                                        <span className="truncate">Stock: <span className="font-medium text-foreground ml-1">{product.stock} units</span></span>
+                                    </div>
+                                    <div className="flex items-center">
+                                        <FileDigit className="mr-2 h-4 w-4 text-primary flex-shrink-0" />
+                                        <span className="truncate">SKU: <span className="font-medium text-foreground ml-1">{product.sku || "N/A"}</span></span>
+                                    </div>
+                                    <p className="text-lg font-bold text-primary pt-1">Rs. {product.price.toFixed(2)} <span className="text-xs text-muted-foreground">(Retail)</span></p>
+                                    {product.wholesalePrice !== undefined && (
+                                        <p className="text-md font-semibold text-accent-foreground">
+                                        Rs. {product.wholesalePrice.toFixed(2)} <span className="text-xs text-muted-foreground">(Wholesale)</span>
+                                        </p>
+                                    )}
+                                </div>
                             </div>
-                            {isAdmin && (
-                                <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button aria-haspopup="true" size="icon" variant="ghost" className="h-8 w-8 -mt-1 -mr-1">
-                                    <MoreHorizontal className="h-4 w-4" />
-                                    <span className="sr-only">Toggle menu</span>
-                                    </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                    <DropdownMenuItem onClick={() => handleEditProduct(product)}>
-                                    <Edit className="mr-2 h-4 w-4" /> Edit
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem className="text-destructive focus:text-destructive focus:bg-destructive/10" onClick={() => openDeleteConfirmation(product.id)}>
-                                    <Trash2 className="mr-2 h-4 w-4" /> Delete
-                                    </DropdownMenuItem>
-                                </DropdownMenuContent>
-                                </DropdownMenu>
-                            )}
-                        </div>
-                        
-                        <div className="space-y-1 text-sm text-muted-foreground">
-                            <div className="flex items-center">
-                                <Package className="mr-2 h-4 w-4 text-primary" />
-                                Stock: <span className="font-medium text-foreground ml-1">{product.stock} units</span>
-                            </div>
-                            <div className="flex items-center">
-                                <FileDigit className="mr-2 h-4 w-4 text-primary" />
-                                SKU: <span className="font-medium text-foreground ml-1">{product.sku || "N/A"}</span>
-                            </div>
-                            <p className="text-lg font-bold text-primary mt-2">Rs. {product.price.toFixed(2)} <span className="text-xs text-muted-foreground">(Retail)</span></p>
-                            {product.wholesalePrice !== undefined && (
-                                <p className="text-md font-semibold text-accent-foreground">
-                                Rs. {product.wholesalePrice.toFixed(2)} <span className="text-xs text-muted-foreground">(Wholesale)</span>
-                                </p>
-                            )}
                         </div>
                     </CardContent>
                   </Card>
@@ -282,3 +286,4 @@ export function ProductDataTable() {
     </>
   );
 }
+
