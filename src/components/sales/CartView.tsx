@@ -70,8 +70,8 @@ export function CartView({
   return (
     <Card className={cn(
       "flex flex-col h-full w-full",
-      "lg:rounded-lg lg:border lg:shadow-md", 
-      "rounded-none border-0 shadow-none",    
+      "lg:rounded-lg lg:border lg:shadow-md",
+      "rounded-none border-0 shadow-none",
       className
     )}>
       <CardHeader className="p-3 lg:p-4 shrink-0 border-b">
@@ -138,22 +138,22 @@ export function CartView({
           </Popover>
         </div>
       </CardHeader>
-      
+
       <CardContent className="flex-1 p-0 min-h-0"> {/* Ensures content takes available space and handles overflow */}
         <ScrollArea className="h-full">
           {cartItems.length === 0 ? (
             <p className="p-4 text-center text-sm text-muted-foreground">Your cart is empty.</p>
           ) : (
             <div className="divide-y divide-border">
-              {cartItems.map((item, index) => ( 
+              {cartItems.map((item, index) => (
                 <div key={`${item.id}-${item.saleType}-${index}`} className="flex items-center p-2 sm:p-3 gap-2">
                   <Image
                     src={item.imageUrl || "https://placehold.co/40x40.png"}
                     alt={item.name}
-                    width={32} 
+                    width={32}
                     height={32}
-                    className="rounded-md aspect-square object-cover flex-shrink-0 hidden sm:block" 
-                    data-ai-hint={`${item.category.toLowerCase()} product`}
+                    className="rounded-md aspect-square object-cover flex-shrink-0 hidden sm:block"
+                    data-ai-hint={item.aiHint || `${item.category.toLowerCase()} product`}
                   />
                   <div className="flex-grow min-w-0"> {/* min-w-0 for proper truncation */}
                     <p className="text-xs sm:text-sm font-medium truncate">{item.name}</p>

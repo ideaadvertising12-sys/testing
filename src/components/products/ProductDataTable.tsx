@@ -50,12 +50,12 @@ export function ProductDataTable() {
   const isAdmin = userRole === 'admin';
 
   const handleSaveProduct = (productToSave: Product) => {
-    if (!isAdmin) return; 
+    if (!isAdmin) return;
     if (editingProduct) {
       setProducts(products.map(p => p.id === productToSave.id ? productToSave : p));
     } else {
       const newProduct = { ...productToSave, id: productToSave.id || Date.now().toString() };
-      setProducts([...products, newProduct]); 
+      setProducts([...products, newProduct]);
     }
     setEditingProduct(null);
   };
@@ -67,7 +67,7 @@ export function ProductDataTable() {
   };
 
   const handleDeleteProduct = () => {
-    if (!isAdmin || !productToDeleteId) return; 
+    if (!isAdmin || !productToDeleteId) return;
     setProducts(products.filter(p => p.id !== productToDeleteId));
     setIsDeleteAlertOpen(false);
     setProductToDeleteId(null);
@@ -132,7 +132,7 @@ export function ProductDataTable() {
                                 src={product.imageUrl || "https://placehold.co/64x64.png"}
                                 width={64}
                                 height={64}
-                                data-ai-hint={`${product.category.toLowerCase()} product`}
+                                data-ai-hint={product.aiHint || `${product.category.toLowerCase()} product`}
                             />
                             <div className="flex-grow min-w-0"> {/* Added min-w-0 for proper truncation */}
                                 <div className="flex justify-between items-start">
@@ -214,7 +214,7 @@ export function ProductDataTable() {
                             height="64"
                             src={product.imageUrl || "https://placehold.co/64x64.png"}
                             width="64"
-                            data-ai-hint={`${product.category.toLowerCase()} product`}
+                            data-ai-hint={product.aiHint || `${product.category.toLowerCase()} product`}
                           />
                         </TableCell>
                         <TableCell className="font-medium">{product.name}</TableCell>
@@ -258,7 +258,7 @@ export function ProductDataTable() {
             <ProductDialog
               product={editingProduct}
               onSave={handleSaveProduct}
-              trigger={<></>} 
+              trigger={<></>}
               open={!!editingProduct}
               onOpenChange={(isOpen) => { if (!isOpen) setEditingProduct(null); }}
             />
@@ -286,4 +286,3 @@ export function ProductDataTable() {
     </>
   );
 }
-

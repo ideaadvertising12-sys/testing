@@ -27,7 +27,7 @@ export function POSProductCard({ product, onAddToCart, currentSaleType }: POSPro
           width={300}
           height={225}
           className="object-cover w-full h-full"
-          data-ai-hint={`${product.category.toLowerCase()} product`}
+          data-ai-hint={product.aiHint || `${product.category.toLowerCase()} product`}
         />
       </CardHeader>
       <CardContent className="p-3 sm:p-4 flex-grow">
@@ -37,9 +37,9 @@ export function POSProductCard({ product, onAddToCart, currentSaleType }: POSPro
       </CardContent>
       <CardFooter className="p-3 sm:p-4 border-t flex flex-col items-start gap-2 sm:flex-row sm:justify-between sm:items-center">
         <p className="text-base sm:text-lg font-bold text-primary">Rs. {displayPrice.toFixed(2)}</p>
-        <Button 
-          size="sm" 
-          onClick={() => onAddToCart(product)} 
+        <Button
+          size="sm"
+          onClick={() => onAddToCart(product)}
           disabled={product.stock <= 0}
           className="w-full sm:w-auto text-xs sm:text-sm py-1.5 sm:py-2"
         >

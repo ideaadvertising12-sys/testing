@@ -26,8 +26,8 @@ export function InventoryDataTable() {
   const getStockStatus = (stock: number, reorderLevel?: number) => {
     if (reorderLevel === undefined) reorderLevel = 10; // Default reorder level
     if (stock <= 0) return { text: "Out of Stock", color: "bg-red-500 text-destructive-foreground", variant: "destructive" as const };
-    if (stock <= reorderLevel) return { text: "Low Stock", color: "bg-orange-500 text-destructive-foreground", variant: "default" as const }; 
-    return { text: "In Stock", color: "bg-green-500 text-primary-foreground", variant: "default" as const }; 
+    if (stock <= reorderLevel) return { text: "Low Stock", color: "bg-orange-500 text-destructive-foreground", variant: "default" as const };
+    return { text: "In Stock", color: "bg-green-500 text-primary-foreground", variant: "default" as const };
   };
 
   const filteredProducts = products.filter(product =>
@@ -71,7 +71,7 @@ export function InventoryDataTable() {
           <TableBody>
             {filteredProducts.map((product) => {
               const status = getStockStatus(product.stock, product.reorderLevel);
-              
+
               return (
                 <TableRow key={product.id}>
                   <TableCell className="hidden sm:table-cell">
@@ -81,7 +81,7 @@ export function InventoryDataTable() {
                       height="48"
                       src={product.imageUrl || "https://placehold.co/48x48.png"}
                       width="48"
-                      data-ai-hint={`${product.category.toLowerCase()} inventory`}
+                      data-ai-hint={product.aiHint || `${product.category.toLowerCase()} inventory`}
                     />
                   </TableCell>
                   <TableCell className="font-medium">{product.name}</TableCell>
@@ -103,4 +103,3 @@ export function InventoryDataTable() {
     </Card>
   );
 }
-

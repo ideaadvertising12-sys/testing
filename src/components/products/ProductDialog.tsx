@@ -43,15 +43,16 @@ const defaultProduct: Product = {
   description: "",
   sku: "",
   reorderLevel: 10,
-  imageUrl: "https://placehold.co/400x300.png"
+  imageUrl: "https://images.unsplash.com/photo-1685967836586-aaefdda7b517?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHx5b2d1cnQlMjBwcm9kdWN0fGVufDB8fHx8MTc1MDA5Mjk4MXww&ixlib=rb-4.1.0&q=80&w=1080", // Default to first Unsplash image
+  aiHint: "product image" // Default hint
 };
 
-export function ProductDialog({ 
-  product, 
-  trigger, 
-  onSave, 
-  open: controlledOpen, 
-  onOpenChange: controlledOnOpenChange 
+export function ProductDialog({
+  product,
+  trigger,
+  onSave,
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange
 }: ProductDialogProps) {
   const [internalOpen, setInternalOpen] = useState(false);
   const isOpen = controlledOpen !== undefined ? controlledOpen : internalOpen;
@@ -80,7 +81,7 @@ export function ProductDialog({
   const handleCategoryChange = (value: Product["category"]) => {
     setFormData(prev => ({ ...prev, category: value }));
   };
-  
+
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -88,7 +89,7 @@ export function ProductDialog({
       reader.onloadend = () => {
         const result = reader.result as string;
         setPreviewImage(result);
-        setFormData(prev => ({...prev, imageUrl: result})); 
+        setFormData(prev => ({...prev, imageUrl: result}));
       };
       reader.readAsDataURL(file);
     } else {
@@ -103,7 +104,7 @@ export function ProductDialog({
       alert("Name, a valid retail price, and a valid wholesale price (if set) are required."); // Replace with toast in real app
       return;
     }
-    onSave({ ...formData, id: product?.id || Date.now().toString() }); 
+    onSave({ ...formData, id: product?.id || Date.now().toString() });
     setIsOpen(false);
   };
 
@@ -151,7 +152,7 @@ export function ProductDialog({
               <Input id="wholesalePrice" name="wholesalePrice" type="number" value={formData.wholesalePrice === undefined ? '' : formData.wholesalePrice} onChange={handleChange} className="mt-1" min="0" step="0.01" />
             </div>
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <Label htmlFor="stock">Stock Quantity</Label>
@@ -162,7 +163,7 @@ export function ProductDialog({
               <Input id="reorderLevel" name="reorderLevel" type="number" value={formData.reorderLevel} onChange={handleChange} className="mt-1" min="0" />
             </div>
           </div>
-          
+
           <div>
             <Label htmlFor="sku">SKU (Stock Keeping Unit)</Label>
             <Input id="sku" name="sku" value={formData.sku || ""} onChange={handleChange} className="mt-1" />
@@ -174,11 +175,16 @@ export function ProductDialog({
           </div>
 
           <div>
+            <Label htmlFor="aiHint">AI Hint (Optional)</Label>
+            <Input id="aiHint" name="aiHint" value={formData.aiHint || ""} onChange={handleChange} className="mt-1" placeholder="e.g. yogurt product, fruit drink" />
+          </div>
+
+          <div>
             <Label htmlFor="imageUrl">Product Image</Label>
             <Input id="imageUrl" name="imageUrl" type="file" accept="image/*" onChange={handleImageChange} className="mt-1" />
             {previewImage && (
               <div className="mt-2 rounded-md overflow-hidden border border-muted aspect-video w-full max-w-xs mx-auto">
-                <Image src={previewImage} alt="Product preview" width={400} height={300} className="object-cover w-full h-full" data-ai-hint="product image" />
+                <Image src={previewImage} alt="Product preview" width={400} height={300} className="object-cover w-full h-full" data-ai-hint={formData.aiHint || `${formData.category.toLowerCase()} product`} />
               </div>
             )}
           </div>

@@ -10,6 +10,7 @@ export interface Product {
   description?: string;
   sku?: string;
   reorderLevel?: number;
+  aiHint?: string; // Added for specific AI hints
 }
 
 export interface Customer {
@@ -66,10 +67,10 @@ export interface NavItemConfig {
   id: string; // Unique ID for accordion items
 }
 
-export type StockTransactionType = 
-  | "ADD_STOCK_INVENTORY" 
-  | "LOAD_TO_VEHICLE" 
-  | "UNLOAD_FROM_VEHICLE" 
+export type StockTransactionType =
+  | "ADD_STOCK_INVENTORY"
+  | "LOAD_TO_VEHICLE"
+  | "UNLOAD_FROM_VEHICLE"
   | "REMOVE_STOCK_WASTAGE"
   | "STOCK_ADJUSTMENT_MANUAL";
 
@@ -100,3 +101,15 @@ export interface FullReportEntry {
   staffId: string;
 }
 
+// For RecentActivity component
+export interface ActivityItem {
+  id: string;
+  type: "sale" | "new_product" | "new_customer";
+  title: string;
+  description: string;
+  timestamp: Date;
+  icon: React.ElementType;
+  avatarUrl?: string;
+  avatarFallback?: string;
+  aiHint?: string; // Added for product images
+}
