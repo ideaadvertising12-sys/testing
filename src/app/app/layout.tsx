@@ -21,13 +21,13 @@ import {
 
 import {
   SidebarProvider as NewSidebarProvider,
-  Sidebar as AppNewSidebar, 
+  Sidebar as AppNewSidebar,
   SidebarHeader as AppNewSidebarHeader,
   SidebarContent as AppNewSidebarContent,
   SidebarFooter as AppNewSidebarFooter,
   useSidebarContext,
-  sidebarVars, 
-} from "@/components/ui/sidebar"; 
+  sidebarVars,
+} from "@/components/ui/sidebar";
 
 import { AppLogo } from "@/components/AppLogo";
 import { UserProfile } from "@/components/UserProfile";
@@ -36,13 +36,13 @@ import type { NavItemConfig, UserRole } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { GlobalPreloaderScreen } from "@/components/GlobalPreloaderScreen";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"; 
-import { Button } from "@/components/ui/button"; 
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
 
 const CustomInventoryIcon = ({ className: propClassName }: { className?: string }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
-    width="24" 
+    width="24"
     height="24"
     viewBox="0 0 24 24"
     fill="none"
@@ -88,7 +88,7 @@ const ALL_NAV_ITEMS: NavItemConfig[] = [
 
 function calculateCurrentPageLabel(pathname: string, userRole: UserRole | undefined, currentNavItems: NavItemConfig[]): string {
     if (!userRole) return "NGroup Products";
-    
+
     const findLabel = (items: NavItemConfig[], currentPath: string): string | null => {
         for (const item of items) {
             if (item.href && currentPath === item.href) {
@@ -101,17 +101,17 @@ function calculateCurrentPageLabel(pathname: string, userRole: UserRole | undefi
         }
         return null;
     }
-    
+
     let label = findLabel(currentNavItems, pathname);
     if (label) return label;
-    
+
     for (const item of currentNavItems) {
         if (item.children) {
             for (const child of item.children) {
                 if (child.href && pathname.startsWith(child.href)) {
-                     label = findLabel(item.children, pathname); 
+                     label = findLabel(item.children, pathname);
                      if (label) return label;
-                     return child.label; 
+                     return child.label;
                 }
             }
         }
@@ -123,24 +123,24 @@ function calculateCurrentPageLabel(pathname: string, userRole: UserRole | undefi
         }
     }
 
-    const primarySegment = pathname.split('/')[2]; 
+    const primarySegment = pathname.split('/')[2];
     const fallbackItem = currentNavItems.find(item => item.id === primarySegment);
     if (fallbackItem) return fallbackItem.label;
-    
+
     return "NGroup Products";
 }
 
 
 function AppShell({ children }: { children: React.ReactNode }) {
-  const { 
-    isMobile, 
-    isCollapsed, 
-    toggleCollapse, 
-    openMobile, 
-    setOpenMobile, 
-    navItems, 
+  const {
+    isMobile,
+    isCollapsed,
+    toggleCollapse,
+    openMobile,
+    setOpenMobile,
+    navItems,
     userRole,
-    activePath 
+    activePath
   } = useSidebarContext();
 
   const currentPageLabel = useMemo(
@@ -166,8 +166,8 @@ function AppShell({ children }: { children: React.ReactNode }) {
     return (
       <Sheet open={openMobile} onOpenChange={setOpenMobile}>
         <div className="flex h-screen bg-background">
-          <SheetContent 
-            side="left" 
+          <SheetContent
+            side="left"
             className="p-0 w-[280px] flex flex-col data-[state=closed]:duration-200 data-[state=open]:duration-300 bg-sidebar text-sidebar-foreground border-r-0"
           >
             {/* SheetContent manages its own close button by default */}
@@ -200,23 +200,33 @@ function AppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
+  // Desktop Layout
   return (
-    <div className="flex h-screen bg-background"> 
-      <AppNewSidebar 
+    <div className="flex h-screen bg-background">
+      {/* Desktop Sidebar: Static positioning, part of flex layout */}
+      <AppNewSidebar
         className={cn(
-          "h-full border-r border-sidebar-border", 
-          "transition-all duration-300 ease-in-out", 
+          "h-full border-r border-sidebar-border",
+          // These classes ensure the sidebar has a width and animates its width change.
+          "transition-all duration-300 ease-in-out",
           isCollapsed ? `w-[${sidebarVars.collapsed}]` : `w-[${sidebarVars.expanded}]`
         )}
       >
         {sidebarActualContent}
       </AppNewSidebar>
-      
+
+      {/* Main Content Area for Desktop */}
       <div
         className={cn(
-          "flex-1 flex flex-col transition-all duration-300 ease-in-out overflow-x-hidden"
+          "flex-1 flex flex-col overflow-x-hidden",
+          // This div is a flex item, its size will adjust as the sidebar's width changes.
+          // The transition here helps if there were direct layout properties changing on this element,
+          // but for flex item resizing due to sibling change, it's often handled by the sibling's transition.
+          // Keeping it doesn't hurt and can cover other potential animated properties.
+          "transition-all duration-300 ease-in-out"
         )}
       >
+        {/* Header */}
         <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-card/95 px-4 backdrop-blur-sm sm:px-6">
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon" className="h-9 w-9" onClick={toggleCollapse}>
@@ -229,6 +239,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
           </div>
           <UserProfile />
         </header>
+        {/* Page Content */}
         <main className="flex-1 p-4 sm:p-6 overflow-y-auto bg-muted/30">
           {children}
         </main>
@@ -238,40 +249,40 @@ function AppShell({ children }: { children: React.ReactNode }) {
 }
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const { currentUser } = useAuth(); 
+  const { currentUser } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const isMobileView = useIsMobile(); 
+  const isMobileView = useIsMobile();
   const [openMobileSidebar, setOpenMobileSidebar] = useState(false);
 
   useEffect(() => {
-    if (currentUser === undefined) return; 
+    if (currentUser === undefined) return;
 
-    if (!currentUser && !pathname.startsWith('/_next/')) { 
+    if (!currentUser && !pathname.startsWith('/_next/')) {
       router.replace("/");
     }
   }, [currentUser, router, pathname]);
 
-  if (currentUser === undefined || isMobileView === undefined) { 
+  if (currentUser === undefined || isMobileView === undefined) {
     return <GlobalPreloaderScreen message="Initializing..." />;
   }
 
   if (!currentUser && !pathname.startsWith('/_next/')) {
     return <GlobalPreloaderScreen message="Redirecting to login..." />;
   }
-  
+
   const userRole = currentUser?.role;
-  const currentNavItemsForUser = userRole 
-    ? ALL_NAV_ITEMS.filter(item => item.allowedRoles.includes(userRole)) 
+  const currentNavItemsForUser = userRole
+    ? ALL_NAV_ITEMS.filter(item => item.allowedRoles.includes(userRole))
     : [];
 
   return (
-    <NewSidebarProvider 
-      navItems={currentNavItemsForUser} 
-      userRole={userRole} 
-      isMobile={isMobileView} 
-      openMobile={openMobileSidebar} 
-      setOpenMobile={setOpenMobileSidebar} 
+    <NewSidebarProvider
+      navItems={currentNavItemsForUser}
+      userRole={userRole}
+      isMobile={isMobileView}
+      openMobile={openMobileSidebar}
+      setOpenMobile={setOpenMobileSidebar}
     >
       <AppShell>{children}</AppShell>
     </NewSidebarProvider>
