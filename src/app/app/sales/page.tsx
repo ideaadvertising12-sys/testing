@@ -138,7 +138,7 @@ export default function SalesPage() {
       />
       <div className="flex-grow flex flex-col lg:grid lg:grid-cols-3 gap-6 min-h-0">
         <div className="flex-1 min-h-0 lg:col-span-2 flex flex-col">
-          <div className="p-1 mb-4">
+          <div className="px-4 pt-4 pb-2 sm:px-2 sm:pt-2 sm:pb-2 mb-4"> {/* Adjusted padding */}
             <div className="flex flex-col sm:flex-row gap-4 mb-4">
               <div className="relative flex-grow">
                 <PackageSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
@@ -188,7 +188,7 @@ export default function SalesPage() {
           </ScrollArea>
         </div>
 
-        <div className="flex-1 min-h-0 lg:col-span-1 flex flex-col overflow-y-auto">
+        <div className="flex-1 min-h-0 lg:col-span-1 flex flex-col"> {/* Removed overflow-y-auto */}
           <CartView 
             cartItems={cartItems}
             selectedCustomer={selectedCustomer}
@@ -218,4 +218,3 @@ export default function SalesPage() {
     </div>
   );
 }
-
