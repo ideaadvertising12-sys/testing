@@ -22,7 +22,6 @@ import {
 } from "@/components/ui/accordion";
 import { cn } from "@/lib/utils";
 import type { NavItemConfig, UserRole } from "@/lib/types";
-import { AppLogo } from "@/components/AppLogo"; // Import AppLogo
 
 const SIDEBAR_WIDTH_EXPANDED = "256px";
 const SIDEBAR_WIDTH_COLLAPSED = "80px";
@@ -35,6 +34,8 @@ interface SidebarContextProps {
   userRole?: UserRole;
   navItems: NavItemConfig[];
   defaultOpenAccordion?: string;
+  openMobile: boolean;
+  setOpenMobile: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 const SidebarContext = React.createContext<SidebarContextProps | undefined>(undefined);
@@ -52,15 +53,26 @@ interface SidebarProviderProps {
   navItems: NavItemConfig[];
   userRole?: UserRole;
   isMobile: boolean;
+  openMobile: boolean;
+  setOpenMobile: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-export function SidebarProvider({ children, navItems, userRole, isMobile }: SidebarProviderProps) {
+export function SidebarProvider({ 
+  children, 
+  navItems, 
+  userRole, 
+  isMobile,
+  openMobile,
+  setOpenMobile
+}: SidebarProviderProps) {
   const [isCollapsed, setIsCollapsed] = React.useState(false);
   const pathname = usePathname();
 
   const toggleCollapse = () => {
-    if (!isMobile) { // Collapse toggle only for desktop
+    if (!isMobile) { 
       setIsCollapsed(!isCollapsed);
+    } else {
+      setOpenMobile(!openMobile);
     }
   };
   
@@ -74,13 +86,15 @@ export function SidebarProvider({ children, navItems, userRole, isMobile }: Side
   return (
     <SidebarContext.Provider
       value={{
-        isCollapsed: isMobile ? false : isCollapsed,
+        isCollapsed: isMobile ? false : isCollapsed, // Mobile sidebar is never "collapsed", it's open or closed
         toggleCollapse,
         isMobile,
         activePath: pathname,
         userRole,
         navItems: currentNavItemsForUser,
         defaultOpenAccordion,
+        openMobile,
+        setOpenMobile,
       }}
     >
       <TooltipProvider delayDuration={0}>{children}</TooltipProvider>
@@ -88,14 +102,13 @@ export function SidebarProvider({ children, navItems, userRole, isMobile }: Side
   );
 }
 
-// This is the trigger component to be placed in the main App Header
 export function AppHeaderSidebarTrigger() {
-  const { isMobile, isCollapsed, toggleCollapse } = useSidebarContext();
+  const { isMobile, isCollapsed, toggleCollapse, openMobile, setOpenMobile } = useSidebarContext();
 
   if (isMobile) {
     return (
       <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" className="md:hidden h-9 w-9">
+        <Button variant="ghost" size="icon" className="md:hidden h-9 w-9" onClick={() => setOpenMobile(true)}>
           <PanelLeft className="h-5 w-5" />
           <span className="sr-only">Open Sidebar</span>
         </Button>
@@ -131,7 +144,6 @@ export function Sidebar({ children, className }: { children: React.ReactNode, cl
   );
 
   if (isMobile) {
-    // SheetContent will wrap the sidebar structure for mobile
     return (
       <SheetContent side="left" className="p-0 w-[280px] flex data-[state=closed]:duration-200 data-[state=open]:duration-300">
         {sidebarContentInternal}
@@ -139,7 +151,6 @@ export function Sidebar({ children, className }: { children: React.ReactNode, cl
     );
   }
 
-  // For desktop, the sidebar is fixed positioned by AppShell
   return sidebarContentInternal;
 }
 
@@ -162,12 +173,10 @@ export function SidebarContent({ className }: { className?: string }) {
   
   return (
     <ScrollArea className={cn("flex-1", className)}>
-      <nav className="px-2 py-4">
-        <Accordion type="single" collapsible className="w-full" defaultValue={defaultOpenAccordion}>
-          {navItems.map((item) => (
-            <SidebarNavItem key={item.id} item={item} />
-          ))}
-        </Accordion>
+      <nav className="px-2 py-4 space-y-1"> 
+        {navItems.map((item) => (
+          <SidebarNavItem key={item.id} item={item} />
+        ))}
       </nav>
     </ScrollArea>
   );
@@ -178,7 +187,7 @@ interface SidebarNavItemProps {
 }
 
 function SidebarNavItem({ item }: SidebarNavItemProps) {
-  const { isCollapsed, activePath, userRole } = useSidebarContext();
+  const { isCollapsed, activePath, userRole, defaultOpenAccordion } = useSidebarContext();
   const Icon = item.icon;
 
   const checkIsActive = (path: string, navHref?: string) => {
@@ -196,50 +205,56 @@ function SidebarNavItem({ item }: SidebarNavItemProps) {
     const filteredChildren = userRole ? item.children.filter(child => child.allowedRoles.includes(userRole)) : [];
     if (filteredChildren.length === 0) return null;
 
+    // For Accordion, if defaultOpenAccordion is not set, we determine if any child is active to open its parent
+    const isParentOfActiveChild = filteredChildren.some(child => child.href && checkIsActive(activePath, child.href));
+    const accordionDefaultValue = defaultOpenAccordion === item.id || (isParentOfActiveChild && !defaultOpenAccordion) ? item.id : undefined;
+
     return (
-      <AccordionItem value={item.id} className="border-b-0 mb-1">
-        <Tooltip disableHoverableContent={!isCollapsed}>
-          <TooltipTrigger asChild>
-            <RadixAccordionTrigger
-              className={cn(
-                "flex items-center w-full rounded-md text-sm font-medium hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                "transition-colors duration-150 group",
-                isCollapsed ? "justify-center h-12" : "justify-between h-11 px-3 py-2",
-                isActive && !isCollapsed && "bg-primary/10 text-primary",
-                isActive && isCollapsed && "bg-primary text-primary-foreground"
-              )}
-            >
-              <div className="flex items-center gap-3">
-                <Icon className={cn("h-5 w-5 shrink-0", isActive && isCollapsed ? "text-primary-foreground" : "text-muted-foreground group-hover:text-foreground")} />
-                {!isCollapsed && <span className="truncate">{item.label}</span>}
-              </div>
-              {!isCollapsed && <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200 accordion-chevron" />}
-            </RadixAccordionTrigger>
-          </TooltipTrigger>
-          {isCollapsed && <TooltipContent side="right">{item.label}</TooltipContent>}
-        </Tooltip>
-        {!isCollapsed && (
-          <AccordionContent className="pl-7 pt-1 pb-0">
-            <ul className="space-y-1 border-l border-border pl-4">
-              {filteredChildren.map(child => (
-                <li key={child.id}>
-                  <Link href={child.href!} legacyBehavior passHref>
-                    <a
-                      className={cn(
-                        "flex items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-muted",
-                        checkIsActive(activePath, child.href) && "bg-muted font-semibold text-primary"
-                      )}
-                    >
-                      {child.icon && <child.icon className="h-4 w-4 text-muted-foreground shrink-0" />}
-                      <span className="truncate">{child.label}</span>
-                    </a>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </AccordionContent>
-        )}
-      </AccordionItem>
+      <Accordion type="single" collapsible className="w-full" defaultValue={accordionDefaultValue}>
+        <AccordionItem value={item.id} className="border-b-0">
+          <Tooltip disableHoverableContent={!isCollapsed}>
+            <TooltipTrigger asChild>
+              <RadixAccordionTrigger
+                className={cn(
+                  "flex items-center w-full rounded-md text-sm font-medium hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  "transition-colors duration-150 group",
+                  isCollapsed ? "justify-center h-12" : "justify-between h-11 px-3 py-2",
+                  isActive && !isCollapsed && "bg-primary/10 text-primary",
+                  isActive && isCollapsed && "bg-primary text-primary-foreground"
+                )}
+              >
+                <div className="flex items-center gap-3">
+                  <Icon className={cn("h-5 w-5 shrink-0", isActive && isCollapsed ? "text-primary-foreground" : "text-muted-foreground group-hover:text-foreground")} />
+                  {!isCollapsed && <span className="truncate">{item.label}</span>}
+                </div>
+                {!isCollapsed && <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200 accordion-chevron" />}
+              </RadixAccordionTrigger>
+            </TooltipTrigger>
+            {isCollapsed && <TooltipContent side="right">{item.label}</TooltipContent>}
+          </Tooltip>
+          {!isCollapsed && (
+            <AccordionContent className="pl-7 pt-1 pb-0">
+              <ul className="space-y-1 border-l border-border ml-3 pl-3"> {/* Adjusted padding for children */}
+                {filteredChildren.map(child => (
+                  <li key={child.id}>
+                    <Link href={child.href!} legacyBehavior passHref>
+                      <a
+                        className={cn(
+                          "flex items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-muted",
+                          checkIsActive(activePath, child.href) && "bg-muted font-semibold text-primary"
+                        )}
+                      >
+                        {child.icon && <child.icon className="h-4 w-4 text-muted-foreground shrink-0" />}
+                        <span className="truncate">{child.label}</span>
+                      </a>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </AccordionContent>
+          )}
+        </AccordionItem>
+      </Accordion>
     );
   }
 
@@ -250,7 +265,7 @@ function SidebarNavItem({ item }: SidebarNavItemProps) {
           <a
             className={cn(
               "flex items-center gap-3 rounded-md text-sm font-medium hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring group",
-              "transition-colors duration-150 mb-1",
+              "transition-colors duration-150",
               isCollapsed ? "justify-center h-12" : "px-3 py-2 h-11",
               isActive && !isCollapsed && "bg-primary/10 text-primary",
               isActive && isCollapsed && "bg-primary text-primary-foreground"
@@ -284,5 +299,3 @@ export const sidebarVars = {
   expanded: SIDEBAR_WIDTH_EXPANDED,
   collapsed: SIDEBAR_WIDTH_COLLAPSED,
 };
-
-    

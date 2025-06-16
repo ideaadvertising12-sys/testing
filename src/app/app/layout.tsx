@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   LayoutDashboard,
   Package,
@@ -15,6 +15,8 @@ import {
   ClipboardList,
   Warehouse,
   UserCheck,
+  PanelLeft,
+  X,
 } from "lucide-react";
 
 import {
@@ -23,7 +25,7 @@ import {
   SidebarHeader as AppNewSidebarHeader,
   SidebarContent as AppNewSidebarContent,
   SidebarFooter as AppNewSidebarFooter,
-  AppHeaderSidebarTrigger, // The trigger for the header
+  AppHeaderSidebarTrigger, 
   sidebarVars,
   useSidebarContext,
 } from "@/components/ui/sidebar"; 
@@ -35,12 +37,12 @@ import type { NavItemConfig, UserRole } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { GlobalPreloaderScreen } from "@/components/GlobalPreloaderScreen";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Sheet } from "@/components/ui/sheet"; // For mobile sidebar container
+import { Sheet, SheetTrigger } from "@/components/ui/sheet"; 
 
 const CustomInventoryIcon = ({ className: propClassName }: { className?: string }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
-    width="24" // Ensure consistent size with other icons
+    width="24" 
     height="24"
     viewBox="0 0 24 24"
     fill="none"
@@ -90,14 +92,11 @@ function calculateCurrentPageLabel(pathname: string, userRole: UserRole | undefi
     const findLabel = (items: NavItemConfig[], currentPath: string): string | null => {
         for (const item of items) {
             const isDashboard = item.href === "/app/dashboard";
-            // Exact match or dashboard prefix match
             if (item.href && (currentPath === item.href || (isDashboard && currentPath.startsWith(item.href)))) {
-                 // Further check for non-dashboard items to ensure it's not a partial prefix of another route
                  if (isDashboard || currentPath.length === item.href.length || currentPath[item.href.length] === '/') {
                     return item.label;
                  }
             }
-            // Check children, ensuring they are more specific
             if (item.children) {
                 const childLabel = findLabel(item.children, currentPath);
                 if (childLabel) return childLabel;
@@ -109,9 +108,7 @@ function calculateCurrentPageLabel(pathname: string, userRole: UserRole | undefi
     const label = findLabel(currentNavItems, pathname);
     if (label) return label;
     
-    // Fallback for cases where the active route might be a sub-page not explicitly in nav (e.g., /app/products/edit/123)
-    // This part can be tricky and might need refinement based on exact routing patterns
-    const primarySegment = pathname.split('/')[2]; // e.g., 'dashboard', 'products'
+    const primarySegment = pathname.split('/')[2]; 
     const fallbackItem = currentNavItems.find(item => item.id === primarySegment);
     if (fallbackItem) return fallbackItem.label;
     
@@ -123,8 +120,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
   const { currentUser } = useAuth();
   const userRole = currentUser?.role;
   const pathname = usePathname();
-  // isCollapsed and navItems will be sourced from useSidebarContext
-  const { isCollapsed, isMobile, navItems } = useSidebarContext();
+  const { isCollapsed, isMobile, navItems, openMobile, setOpenMobile } = useSidebarContext();
 
   const currentPageLabel = useMemo(
     () => calculateCurrentPageLabel(pathname, userRole, navItems),
@@ -133,7 +129,6 @@ function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-screen bg-background">
-      {/* Desktop Sidebar: Fixed position */}
       {!isMobile && (
         <div className={cn(
             "fixed inset-y-0 left-0 z-20 transition-all duration-300 ease-in-out",
@@ -153,11 +148,10 @@ function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       )}
 
-      {/* Mobile Sidebar: Handled by Sheet component. The <AppHeaderSidebarTrigger /> inside will become the <SheetTrigger> */}
       {isMobile && (
-        <Sheet> 
-          <AppHeaderSidebarTrigger /> {/* This will render the <SheetTrigger> for mobile */}
-          <AppNewSidebar> {/* This will render as <SheetContent> */}
+        <Sheet open={openMobile} onOpenChange={setOpenMobile}>
+          {/* The AppHeaderSidebarTrigger for mobile is effectively the SheetTrigger */}
+          <AppNewSidebar> 
             <AppNewSidebarHeader>
                 <AppLogo size={"sm"} />
             </AppNewSidebarHeader>
@@ -172,16 +166,14 @@ function AppShell({ children }: { children: React.ReactNode }) {
       <div
         className={cn(
           "flex-1 flex flex-col transition-all duration-300 ease-in-out overflow-x-hidden",
-          // Adjust margin only for desktop based on sidebar state
           !isMobile && (isCollapsed ? `ml-[${sidebarVars.collapsed}]` : `ml-[${sidebarVars.expanded}]`)
         )}
       >
         <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-card/95 px-4 backdrop-blur-sm sm:px-6">
           <div className="flex items-center gap-2">
-            {/* 
-              The mobile trigger is now part of the Sheet component instance above.
-              The desktop trigger is removed from the header as per the request to hide it on larger screens.
-            */}
+            {/* Mobile trigger is part of Sheet - uses AppHeaderSidebarTrigger internally */}
+            {/* Desktop trigger */}
+            <AppHeaderSidebarTrigger />
             <h1 className="text-xl font-semibold font-headline hidden sm:block">
               {currentPageLabel}
             </h1>
@@ -200,22 +192,20 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { currentUser } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const isMobile = useIsMobile(); // Detect mobile state once
+  const isMobile = useIsMobile(); 
+  const [openMobile, setOpenMobile] = useState(false);
 
   useEffect(() => {
-    // Ensure this effect doesn't run for Next.js internal paths during build/dev
     if (!currentUser && !pathname.startsWith('/_next/')) { 
       router.replace("/");
     }
   }, [currentUser, router, pathname]);
 
-  // Show preloader if not logged in and not an internal Next.js path
   if (!currentUser && !pathname.startsWith('/_next/')) {
     return <GlobalPreloaderScreen message="Loading application..." />;
   }
   
   const userRole = currentUser?.role;
-  // Filter nav items based on role BEFORE passing to provider
   const currentNavItemsForUser = userRole 
     ? ALL_NAV_ITEMS.filter(item => item.allowedRoles.includes(userRole)) 
     : [];
@@ -225,10 +215,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       navItems={currentNavItemsForUser} 
       userRole={userRole} 
       isMobile={isMobile}
+      openMobile={openMobile}
+      setOpenMobile={setOpenMobile}
     >
       <AppShell>{children}</AppShell>
     </NewSidebarProvider>
   );
 }
-
-    
