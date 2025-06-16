@@ -21,12 +21,12 @@ import {
 
 import {
   SidebarProvider as NewSidebarProvider,
-  Sidebar as AppNewSidebar, // This is the simplified Sidebar from sidebar.tsx
+  Sidebar as AppNewSidebar, 
   SidebarHeader as AppNewSidebarHeader,
   SidebarContent as AppNewSidebarContent,
   SidebarFooter as AppNewSidebarFooter,
   useSidebarContext,
-  sidebarVars, // Import sidebarVars
+  sidebarVars, 
 } from "@/components/ui/sidebar"; 
 
 import { AppLogo } from "@/components/AppLogo";
@@ -36,8 +36,8 @@ import type { NavItemConfig, UserRole } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { GlobalPreloaderScreen } from "@/components/GlobalPreloaderScreen";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"; // Import Sheet components
-import { Button } from "@/components/ui/button"; // Import Button
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"; 
+import { Button } from "@/components/ui/button"; 
 
 const CustomInventoryIcon = ({ className: propClassName }: { className?: string }) => (
   <svg
@@ -91,8 +91,7 @@ function calculateCurrentPageLabel(pathname: string, userRole: UserRole | undefi
     
     const findLabel = (items: NavItemConfig[], currentPath: string): string | null => {
         for (const item of items) {
-            const isDashboard = item.href === "/app/dashboard";
-             if (item.href && (currentPath === item.href || (isDashboard && currentPath === item.href))) { // Exact match for dashboard too
+            if (item.href && currentPath === item.href) {
                 return item.label;
             }
             if (item.children) {
@@ -103,25 +102,34 @@ function calculateCurrentPageLabel(pathname: string, userRole: UserRole | undefi
         return null;
     }
     
-    const label = findLabel(currentNavItems, pathname);
+    let label = findLabel(currentNavItems, pathname);
     if (label) return label;
     
-    // Fallback for nested routes if direct match fails (e.g. /app/inventory/view-stock should show "View Stock")
+    // Fallback for nested routes if direct match fails and for active parent of a child
     for (const item of currentNavItems) {
         if (item.children) {
-            const childLabel = findLabel(item.children, pathname);
-            if (childLabel) return childLabel;
+            for (const child of item.children) {
+                if (child.href && pathname.startsWith(child.href)) {
+                     label = findLabel(item.children, pathname); // try to find exact match first
+                     if (label) return label;
+                     return child.label; // otherwise return matched child label
+                }
+            }
         }
         // Check if a top-level item matches the base of the pathname
         if (item.href && pathname.startsWith(item.href) && pathname !== item.href) {
-            const segments = pathname.split('/');
-            const itemSegments = item.href.split('/');
-            if (segments.length > itemSegments.length) { // Indicates a child page of a top-level item not explicitly in children
-                // Try to find a more specific label from children if possible
-                // This part can be complex if deeply nested and not in children array
-            }
+             const segments = pathname.split('/');
+             const itemSegments = item.href.split('/');
+             // Ensure it's a child page of a top-level item not explicitly in children and not a different top-level item
+             if (segments.length > itemSegments.length && segments[2] === itemSegments[2]) {
+                // This case is tricky if the exact child is not defined,
+                // For now, if a direct child label was not found above, but it's a sub-route of a top-level item,
+                // prefer the top-level item's label.
+                // Or, could try to derive from path, e.g. /app/products/edit -> "Edit Product" if "products" is "Products"
+             }
         }
     }
+
 
     // Fallback to primary segment if still no specific label
     const primarySegment = pathname.split('/')[2]; 
@@ -150,15 +158,17 @@ function AppShell({ children }: { children: React.ReactNode }) {
   );
 
   const sidebarActualContent = (
-    <AppNewSidebarHeader>
-        <AppLogo size={isMobile ? "sm" : (isCollapsed ? "iconOnly" : "sm")} />
-    </AppNewSidebarHeader>
-    <AppNewSidebarContent />
-    <AppNewSidebarFooter>
-    {(!isCollapsed || isMobile) && (
-        <p className="text-xs text-sidebar-foreground/70">&copy; {new Date().getFullYear()} NGroup</p>
-    )}
-    </AppNewSidebarFooter>
+    <>
+      <AppNewSidebarHeader>
+          <AppLogo size={isMobile ? "sm" : (isCollapsed ? "iconOnly" : "sm")} />
+      </AppNewSidebarHeader>
+      <AppNewSidebarContent />
+      <AppNewSidebarFooter>
+      {(!isCollapsed || isMobile) && (
+          <p className="text-xs text-sidebar-foreground/70">&copy; {new Date().getFullYear()} NGroup</p>
+      )}
+      </AppNewSidebarFooter>
+    </>
   );
 
   if (isMobile) {
@@ -168,19 +178,17 @@ function AppShell({ children }: { children: React.ReactNode }) {
           <SheetContent 
             side="left" 
             className="p-0 w-[280px] flex flex-col data-[state=closed]:duration-200 data-[state=open]:duration-300 bg-sidebar text-sidebar-foreground border-r-0"
-            showCloseButton={false} // Assuming SheetContent might have a default close, we use our own. If not, this prop might not exist.
           >
-            {/* Manually add a close button inside SheetContent if needed, or rely on trigger */}
-            <div className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-sidebar-border px-4">
+             <div className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-sidebar-border px-4">
                  <AppLogo size="sm" />
                  <SheetTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-9 w-9">
+                    <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setOpenMobile(false)}>
                         <X className="h-5 w-5" />
                         <span className="sr-only">Close sidebar</span>
                     </Button>
                  </SheetTrigger>
             </div>
-            <AppNewSidebar className="flex-1 overflow-y-auto"> {/* Pass children to simplified Sidebar */}
+            <AppNewSidebar className="flex-1 overflow-y-auto">
               {sidebarActualContent}
             </AppNewSidebar>
           </SheetContent>
@@ -189,7 +197,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
             <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-card/95 px-4 backdrop-blur-sm sm:px-6">
               <div className="flex items-center gap-2">
                 <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-9 w-9">
+                  <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setOpenMobile(true)}>
                     <PanelLeft className="h-5 w-5" />
                     <span className="sr-only">Open sidebar</span>
                   </Button>
@@ -249,7 +257,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
 }
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const { currentUser } = useAuth();
+  const { currentUser, login, logout } = useAuth(); 
   const router = useRouter();
   const pathname = usePathname();
   const isMobileView = useIsMobile(); 
@@ -263,12 +271,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     }
   }, [currentUser, router, pathname]);
 
-  if (currentUser === undefined) { 
+  if (currentUser === undefined || isMobileView === undefined) { 
     return <GlobalPreloaderScreen message="Initializing..." />;
   }
 
   if (!currentUser && !pathname.startsWith('/_next/')) {
-    return <GlobalPreloaderScreen message="Loading application..." />;
+    return <GlobalPreloaderScreen message="Redirecting to login..." />;
   }
   
   const userRole = currentUser?.role;
@@ -280,7 +288,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     <NewSidebarProvider 
       navItems={currentNavItemsForUser} 
       userRole={userRole} 
-      isMobile={isMobileView} // Pass the determined mobile state
+      isMobile={isMobileView} 
       openMobile={openMobileSidebar} 
       setOpenMobile={setOpenMobileSidebar} 
     >
@@ -288,3 +296,5 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     </NewSidebarProvider>
   );
 }
+
+    
