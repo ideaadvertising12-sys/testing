@@ -76,21 +76,21 @@ const DropdownMenuContent = React.forwardRef<
 DropdownMenuContent.displayName = DropdownMenuPrimitive.Content.displayName
 
 const DropdownMenuItem = React.forwardRef<
-  React.ElementRef<typeof DropdownMenuPrimitive.Item>,
+  HTMLElement, // Changed from React.ElementRef<typeof DropdownMenuPrimitive.Item>
   React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Item> & {
     inset?: boolean;
-    asChild?: boolean; // Explicitly define asChild
+    asChild?: boolean; 
   }
->(({ className, inset, asChild = false, children, ...props }, ref) => ( // Destructure asChild
+>(({ className, inset, asChild = false, children, ...props }, ref) => ( 
   <DropdownMenuPrimitive.Item
     ref={ref}
-    asChild={asChild} // Pass the destructured asChild to Radix Item
+    asChild={asChild} 
     className={cn(
       "relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
       inset && "pl-8",
       className
     )}
-    {...props} // Remaining props (do not include asChild here)
+    {...props} 
   >
     {children}
   </DropdownMenuPrimitive.Item>

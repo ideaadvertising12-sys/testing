@@ -535,7 +535,7 @@ const sidebarMenuButtonVariants = cva(
 )
 
 const SidebarMenuButton = React.forwardRef<
-  HTMLButtonElement,
+  HTMLElement, // Changed from HTMLButtonElement
   React.ComponentProps<"button"> & {
     asChild?: boolean
     isActive?: boolean
@@ -550,7 +550,7 @@ const SidebarMenuButton = React.forwardRef<
       size = "default",
       tooltip,
       className,
-      onClick, // Capture onClick from props
+      onClick, 
       ...props
     },
     ref
@@ -562,7 +562,7 @@ const SidebarMenuButton = React.forwardRef<
       if (isMobile) {
         closeMobileSidebar(false)
       }
-      onClick?.(event) // Call the original onClick if it exists
+      onClick?.(event) 
     }
 
     const button = (
@@ -572,7 +572,7 @@ const SidebarMenuButton = React.forwardRef<
         data-size={size}
         data-active={isActive}
         className={cn(sidebarMenuButtonVariants({ variant, size }), className)}
-        onClick={handleClick} // Use the new combined handler
+        onClick={handleClick} 
         {...props}
       />
     )
