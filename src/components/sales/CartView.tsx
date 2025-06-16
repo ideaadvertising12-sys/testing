@@ -67,7 +67,7 @@ export function CartView({
     : "Walk-in / Guest";
 
   return (
-    <Card className="rounded-lg border bg-card text-card-foreground shadow-xl flex flex-col h-full overflow-auto">
+    <Card className="rounded-lg border bg-card text-card-foreground shadow-xl flex flex-col h-full">
       <CardHeader className="flex flex-col space-y-1.5 p-6">
         <CardTitle className="font-semibold tracking-tight font-headline text-xl">Current Order</CardTitle>
         <div className="flex items-center gap-2 pt-2">
@@ -138,8 +138,8 @@ export function CartView({
           </Popover>
         </div>
       </CardHeader>
-      <CardContent className="flex-grow p-0">
-        <ScrollArea className="flex-grow min-h-[150px]">
+      <CardContent className="flex-grow p-0 flex flex-col">
+        <ScrollArea className="h-full min-h-[100px]">
           {cartItems.length === 0 ? (
             <p className="p-6 text-center text-muted-foreground">Your cart is empty.</p>
           ) : (
@@ -254,4 +254,3 @@ export function CartView({
     </Card>
   );
 }
-
