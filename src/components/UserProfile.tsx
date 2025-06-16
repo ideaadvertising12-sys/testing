@@ -11,6 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
+  DropdownMenuTrigger, // Added DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import { LogOut, Settings, User, Sun, Moon, Laptop } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -97,4 +98,3 @@ export function UserProfile() {
     </DropdownMenu>
   );
 }
-
