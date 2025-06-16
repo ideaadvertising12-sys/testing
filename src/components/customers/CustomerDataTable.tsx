@@ -1,7 +1,7 @@
 
 "use client";
 
-import { MoreHorizontal, Edit, Trash2, PlusCircle } from "lucide-react";
+import { MoreHorizontal, Edit, Trash2, PlusCircle, Users2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -26,6 +26,7 @@ import { CustomerDialog } from "./CustomerDialog";
 import { useState } from "react";
 import { placeholderCustomers } from "@/lib/placeholder-data";
 import { useAuth } from "@/contexts/AuthContext";
+import { Input } from "@/components/ui/input";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -44,7 +45,8 @@ export function CustomerDataTable() {
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
   const [customerToDeleteId, setCustomerToDeleteId] = useState<string | null>(null);
-  const { currentUser } = useAuth(); // Use currentUser
+  const [searchTerm, setSearchTerm] = useState("");
+  const { currentUser } = useAuth();
   const userRole = currentUser?.role;
   
   const canManageCustomers = userRole === 'admin'; 
@@ -79,78 +81,106 @@ export function CustomerDataTable() {
     setEditingCustomer(customer);
   }
 
+  const filteredCustomers = customers.filter(customer => {
+    const term = searchTerm.toLowerCase();
+    return (
+      customer.name.toLowerCase().includes(term) ||
+      (customer.shopName && customer.shopName.toLowerCase().includes(term)) ||
+      customer.phone.toLowerCase().includes(term)
+    );
+  });
+
   return (
     <>
       <Card className="shadow-lg">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="font-headline">Customer List</CardTitle>
-          {canAddCustomers && (
-            <CustomerDialog
-              customer={null} 
-              onSave={handleSaveCustomer}
-              isEditMode={false} 
-              trigger={
-                <Button size="sm">
-                  <PlusCircle className="mr-2 h-4 w-4" /> Add Customer
-                </Button>
-              }
-            />
-          )}
+        <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4">
+          <CardTitle className="font-headline shrink-0">Customer List</CardTitle>
+          <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
+            <div className="relative w-full sm:w-64">
+              <Users2 className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+              <Input
+                placeholder="Search customers..."
+                className="pl-10 w-full"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            {canAddCustomers && (
+              <CustomerDialog
+                customer={null} 
+                onSave={handleSaveCustomer}
+                isEditMode={false} 
+                trigger={
+                  <Button size="sm" className="w-full sm:w-auto shrink-0">
+                    <PlusCircle className="mr-2 h-4 w-4" /> Add Customer
+                  </Button>
+                }
+              />
+            )}
+          </div>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Phone</TableHead>
-                <TableHead className="hidden md:table-cell">Address</TableHead>
-                <TableHead className="hidden md:table-cell">Shop Name</TableHead>
-                {canManageCustomers && (
-                  <TableHead>
-                    <span className="sr-only">Actions</span>
-                  </TableHead>
-                )}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {customers.map((customer) => (
-                <TableRow key={customer.id}>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-9 w-9 hidden sm:flex">
-                        <AvatarFallback>{getInitials(customer.name)}</AvatarFallback>
-                      </Avatar>
-                      <span className="font-medium">{customer.name}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>{customer.phone}</TableCell>
-                  <TableCell className="hidden md:table-cell">{customer.address || "N/A"}</TableCell>
-                  <TableCell className="hidden md:table-cell">{customer.shopName || "N/A"}</TableCell>
+          {filteredCustomers.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-[200px] text-muted-foreground">
+              <Users2 className="w-16 h-16 mb-4" />
+              <p className="text-xl">No customers found.</p>
+              {searchTerm && <p>Try adjusting your search term.</p>}
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Phone</TableHead>
+                  <TableHead className="hidden md:table-cell">Address</TableHead>
+                  <TableHead className="hidden md:table-cell">Shop Name</TableHead>
                   {canManageCustomers && (
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button aria-haspopup="true" size="icon" variant="ghost">
-                            <MoreHorizontal className="h-4 w-4" />
-                            <span className="sr-only">Toggle menu</span>
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuItem onClick={() => handleEditCustomer(customer)}>
-                             <Edit className="mr-2 h-4 w-4" /> Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive focus:text-destructive focus:bg-destructive/10" onClick={() => openDeleteConfirmation(customer.id)}>
-                             <Trash2 className="mr-2 h-4 w-4" /> Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
+                    <TableHead>
+                      <span className="sr-only">Actions</span>
+                    </TableHead>
                   )}
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {filteredCustomers.map((customer) => (
+                  <TableRow key={customer.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-9 w-9 hidden sm:flex">
+                          <AvatarFallback>{getInitials(customer.name)}</AvatarFallback>
+                        </Avatar>
+                        <span className="font-medium">{customer.name}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>{customer.phone}</TableCell>
+                    <TableCell className="hidden md:table-cell">{customer.address || "N/A"}</TableCell>
+                    <TableCell className="hidden md:table-cell">{customer.shopName || "N/A"}</TableCell>
+                    {canManageCustomers && (
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button aria-haspopup="true" size="icon" variant="ghost">
+                              <MoreHorizontal className="h-4 w-4" />
+                              <span className="sr-only">Toggle menu</span>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                            <DropdownMenuItem onClick={() => handleEditCustomer(customer)}>
+                              <Edit className="mr-2 h-4 w-4" /> Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="text-destructive focus:text-destructive focus:bg-destructive/10" onClick={() => openDeleteConfirmation(customer.id)}>
+                              <Trash2 className="mr-2 h-4 w-4" /> Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    )}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
           {canManageCustomers && editingCustomer && (
             <CustomerDialog
               customer={editingCustomer}
@@ -184,4 +214,3 @@ export function CustomerDataTable() {
     </>
   );
 }
-
