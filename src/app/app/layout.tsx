@@ -3,53 +3,44 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import React, { useEffect, useMemo } from "react"; // Added React and useMemo
+import React, { useEffect, useMemo } from "react";
 import {
   LayoutDashboard,
   Package,
   ShoppingCart,
   Users,
-  ChevronDown,
   View,
   PlusSquare,
   FileText,
   ClipboardList,
   Warehouse,
   UserCheck,
-  X, // Ensure X is imported
 } from "lucide-react";
+
 import {
-  SidebarProvider,
-  Sidebar,
-  SidebarHeader,
-  SidebarContent,
-  SidebarFooter,
-  SidebarMenu,
-  SidebarMenuItem,
-  SidebarMenuButton,
-  SidebarTrigger, // SidebarTrigger is imported
-  SidebarInset,
-  useSidebar,
-} from "@/components/ui/sidebar";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
+  SidebarProvider as NewSidebarProvider,
+  Sidebar as AppNewSidebar,
+  SidebarHeader as AppNewSidebarHeader,
+  SidebarContent as AppNewSidebarContent,
+  SidebarFooter as AppNewSidebarFooter,
+  AppHeaderSidebarTrigger, // The trigger for the header
+  sidebarVars,
+  useSidebarContext,
+} from "@/components/ui/sidebar"; 
+
 import { AppLogo } from "@/components/AppLogo";
 import { UserProfile } from "@/components/UserProfile";
-import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/contexts/AuthContext";
 import type { NavItemConfig, UserRole } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { GlobalPreloaderScreen } from "@/components/GlobalPreloaderScreen";
-import { Button } from "@/components/ui/button";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { Sheet } from "@/components/ui/sheet"; // For mobile sidebar container
 
 const CustomInventoryIcon = ({ className: propClassName }: { className?: string }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
-    width="15"
+    width="24" // Ensure consistent size with other icons
     height="24"
     viewBox="0 0 24 24"
     fill="none"
@@ -93,210 +84,150 @@ const ALL_NAV_ITEMS: NavItemConfig[] = [
   }
 ];
 
-function calculateIsNavItemActive(item: NavItemConfig, pathname: string, userRole: UserRole | undefined): boolean {
-  if (item.href) {
-    if (item.href === "/app/dashboard") return pathname === item.href || pathname.startsWith("/app/dashboard/");
-    return pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href) && (pathname.length === item.href.length || pathname[item.href.length] === '/'));
-  }
-  if (item.children && userRole) {
-    return item.children.filter(child => child.allowedRoles.includes(userRole)).some(child => child.href && pathname.startsWith(child.href));
-  }
-  return false;
-}
-
 function calculateCurrentPageLabel(pathname: string, userRole: UserRole | undefined, currentNavItems: NavItemConfig[]): string {
-  if (!userRole) return "NGroup Products";
-  for (const item of currentNavItems) {
-    if (item.href && (pathname === item.href || (item.href !== "/app/dashboard" && pathname.startsWith(item.href)))) {
-      // A more specific check for startsWith to avoid partial matches like /app/products matching /app/products-old
-      if (pathname === item.href || (item.href && pathname.startsWith(item.href) && (pathname.length === item.href.length || pathname[item.href.length] === '/'))) {
-        return item.label;
-      }
-    }
-    if (item.children) {
-      for (const child of item.children) {
-         if (child.href && (pathname === child.href || (child.href && pathname.startsWith(child.href) && (pathname.length === child.href.length || pathname[child.href.length] === '/')))) {
-          return child.label;
+    if (!userRole) return "NGroup Products";
+    
+    const findLabel = (items: NavItemConfig[], currentPath: string): string | null => {
+        for (const item of items) {
+            const isDashboard = item.href === "/app/dashboard";
+            // Exact match or dashboard prefix match
+            if (item.href && (currentPath === item.href || (isDashboard && currentPath.startsWith(item.href)))) {
+                 // Further check for non-dashboard items to ensure it's not a partial prefix of another route
+                 if (isDashboard || currentPath.length === item.href.length || currentPath[item.href.length] === '/') {
+                    return item.label;
+                 }
+            }
+            // Check children, ensuring they are more specific
+            if (item.children) {
+                const childLabel = findLabel(item.children, currentPath);
+                if (childLabel) return childLabel;
+            }
         }
-      }
+        return null;
     }
-  }
-  if (pathname.startsWith("/app/dashboard") && userRole === "admin") return "Dashboard";
-  if (pathname.startsWith("/app/products") && userRole === "admin") return "Products";
-  if (pathname.startsWith("/app/customers")) return "Customers";
-  if (pathname.startsWith("/app/sales")) return "Sales (POS)";
-  if (pathname.startsWith("/app/inventory/view-stock")) return "View Stock";
-  if (pathname.startsWith("/app/inventory/manage-stock") && userRole === "admin") return "Manage Stock";
-  if (pathname.startsWith("/app/inventory")) return "Inventory";
-  if (pathname.startsWith("/app/reports/full-report") && userRole === "admin") return "Full Report";
-  if (pathname.startsWith("/app/reports/stock-report") && userRole === "admin") return "Stock Report";
-  if (pathname.startsWith("/app/reports/customer-report") && userRole === "admin") return "Customer Report";
-  if (pathname.startsWith("/app/reports") && userRole === "admin") return "Reports";
-  return "NGroup Products";
+    
+    const label = findLabel(currentNavItems, pathname);
+    if (label) return label;
+    
+    // Fallback for cases where the active route might be a sub-page not explicitly in nav (e.g., /app/products/edit/123)
+    // This part can be tricky and might need refinement based on exact routing patterns
+    const primarySegment = pathname.split('/')[2]; // e.g., 'dashboard', 'products'
+    const fallbackItem = currentNavItems.find(item => item.id === primarySegment);
+    if (fallbackItem) return fallbackItem.label;
+    
+    return "NGroup Products";
 }
 
-function AppMainStructure({ children, currentNavItems }: { children: React.ReactNode; currentNavItems: NavItemConfig[] }) {
-  const { openMobile, toggleSidebar } = useSidebar();
-  const pathname = usePathname();
-  const { currentUser } = useAuth(); 
-  const userRole = currentUser?.role;
 
-  const currentPageLabel = useMemo(() => calculateCurrentPageLabel(pathname, userRole, currentNavItems), [pathname, userRole, currentNavItems]);
-
-  return (
-    <SidebarInset>
-      <header className="app-layout-header sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-background/80 px-4 backdrop-blur-md sm:px-6">
-        <div className="md:hidden">
-          {openMobile ? (
-            <Button variant="ghost" size="icon" onClick={toggleSidebar} className="h-7 w-7">
-              <X className="h-5 w-5" />
-              <span className="sr-only">Close sidebar</span>
-            </Button>
-          ) : (
-            <SidebarTrigger className="h-7 w-7" />
-          )}
-        </div>
-        <div className="hidden md:block">
-          <h1 className="text-xl font-semibold font-headline">
-            {currentPageLabel}
-          </h1>
-        </div>
-        <UserProfile />
-      </header>
-      <main className="flex-1 p-4 sm:p-6 bg-background">
-        {children}
-      </main>
-      <footer className="app-layout-main-footer p-4 text-center text-sm text-muted-foreground border-t bg-background">
-        Powered by Limidora Ebusiness Solutions
-      </footer>
-    </SidebarInset>
-  );
-}
-
-function AppLayoutContent({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
+function AppShell({ children }: { children: React.ReactNode }) {
   const { currentUser } = useAuth();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (!currentUser) {
-      router.replace("/");
-    }
-  }, [currentUser, router, pathname]);
-
   const userRole = currentUser?.role;
+  const pathname = usePathname();
+  // isCollapsed and navItems will be sourced from useSidebarContext
+  const { isCollapsed, isMobile, navItems } = useSidebarContext();
 
-  if (!currentUser && pathname !== "/") {
-    return <GlobalPreloaderScreen message="Loading application..." />;
-  }
-
-  const currentNavItems = userRole ? ALL_NAV_ITEMS.filter(item => item.allowedRoles.includes(userRole)) : [];
-  const defaultOpenAccordion = userRole ? currentNavItems.find(item => item.children && item.children.filter(child => child.allowedRoles.includes(userRole)).some(child => child.href && pathname.startsWith(child.href)))?.id : undefined;
+  const currentPageLabel = useMemo(
+    () => calculateCurrentPageLabel(pathname, userRole, navItems),
+    [pathname, userRole, navItems]
+  );
 
   return (
-    <SidebarProvider defaultOpen>
-      <Sidebar variant="sidebar" collapsible="icon" className="app-layout-sidebar">
-        <SidebarHeader className="p-4">
-          <div className="flex items-center justify-between group-data-[collapsible=icon]:justify-center">
-            <div className="group-data-[collapsible=icon]:hidden">
-              <AppLogo size="sm" />
-            </div>
-            <div className="hidden group-data-[collapsible=icon]:block">
-              <AppLogoIconOnly />
-            </div>
-            <SidebarTrigger />
+    <div className="flex h-screen bg-background">
+      {/* Desktop Sidebar: Fixed position */}
+      {!isMobile && (
+        <div className={cn(
+            "fixed inset-y-0 left-0 z-20 transition-all duration-300 ease-in-out",
+            isCollapsed ? `w-[${sidebarVars.collapsed}]` : `w-[${sidebarVars.expanded}]`
+        )}>
+            <AppNewSidebar>
+                <AppNewSidebarHeader>
+                    <AppLogo size={isCollapsed ? "iconOnly" : "sm"} />
+                </AppNewSidebarHeader>
+                <AppNewSidebarContent />
+                <AppNewSidebarFooter>
+                {!isCollapsed && (
+                    <p className="text-xs text-muted-foreground">&copy; {new Date().getFullYear()} NGroup</p>
+                )}
+                </AppNewSidebarFooter>
+            </AppNewSidebar>
+        </div>
+      )}
+
+      {/* Mobile Sidebar: Handled by Sheet within AppHeaderSidebarTrigger's context provider */}
+      {isMobile && (
+        <Sheet> {/* This Sheet provider is for the mobile sidebar */}
+          <AppHeaderSidebarTrigger /> {/* This now contains SheetTrigger for mobile */}
+          <AppNewSidebar> {/* This contains SheetContent for mobile */}
+            <AppNewSidebarHeader>
+                <AppLogo size={"sm"} />
+            </AppNewSidebarHeader>
+            <AppNewSidebarContent />
+            <AppNewSidebarFooter>
+                <p className="text-xs text-muted-foreground">&copy; {new Date().getFullYear()} NGroup</p>
+            </AppNewSidebarFooter>
+          </AppNewSidebar>
+        </Sheet>
+      )}
+      
+      <div
+        className={cn(
+          "flex-1 flex flex-col transition-all duration-300 ease-in-out overflow-x-hidden",
+          // Adjust margin only for desktop based on sidebar state
+          !isMobile && (isCollapsed ? `ml-[${sidebarVars.collapsed}]` : `ml-[${sidebarVars.expanded}]`)
+        )}
+      >
+        <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-card/95 px-4 backdrop-blur-sm sm:px-6">
+          <div className="flex items-center gap-2">
+            {/* Desktop trigger is part of AppHeaderSidebarTrigger, mobile trigger is also there (wrapped in SheetTrigger) */}
+            {!isMobile && <AppHeaderSidebarTrigger />} 
+            {/* On mobile, the trigger is handled by the Sheet component wrapping above */}
+            <h1 className="text-xl font-semibold font-headline hidden sm:block">
+              {currentPageLabel}
+            </h1>
           </div>
-        </SidebarHeader>
-        <Separator className="group-data-[collapsible=icon]:hidden" />
-        <SidebarContent>
-          <Accordion type="single" collapsible className="w-full" defaultValue={defaultOpenAccordion}>
-            <SidebarMenu className="p-2">
-              {currentNavItems.map((item) => {
-                const isActive = calculateIsNavItemActive(item, pathname, userRole);
-                return item.children ? (
-                  <AccordionItem key={item.id} value={item.id} className="border-b-0">
-                    <SidebarMenuItem className="p-0">
-                      <AccordionTrigger
-                        className={cn(
-                          "flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm outline-none ring-sidebar-ring transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 group-has-[[data-sidebar=menu-action]]/menu-item:pr-8 data-[state=open]:bg-sidebar-accent/80 data-[state=open]:text-sidebar-accent-foreground group-data-[collapsible=icon]:!size-8 group-data-[collapsible=icon]:!p-2 [&>svg:last-child]:ml-auto [&>svg:last-child]:group-data-[collapsible=icon]:hidden",
-                          isActive && "bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90 hover:text-sidebar-primary-foreground data-[state=open]:bg-sidebar-primary data-[state=open]:text-sidebar-primary-foreground",
-                          "group-data-[collapsible=icon]:justify-center"
-                        )}
-                      >
-                        <item.icon className="group-data-[collapsible=icon]:mx-auto" />
-                        <span className="group-data-[collapsible=icon]:hidden truncate">{item.label}</span>
-                      </AccordionTrigger>
-                    </SidebarMenuItem>
-                    <AccordionContent className="pb-0 group-data-[collapsible=icon]:hidden">
-                      <SidebarMenu className="pl-6 pr-0 py-1">
-                        {userRole && item.children.filter(child => child.allowedRoles.includes(userRole)).map((child) => (
-                          <SidebarMenuItem key={child.id}>
-                            <Link href={child.href!} asChild>
-                              <SidebarMenuButton
-                                isActive={pathname === child.href || pathname.startsWith(child.href!)}
-                                tooltip={child.label}
-                                size="sm"
-                                className="gap-1.5"
-                              >
-                                <child.icon className="h-3.5 w-3.5" />
-                                <span>{child.label}</span>
-                              </SidebarMenuButton>
-                            </Link>
-                          </SidebarMenuItem>
-                        ))}
-                      </SidebarMenu>
-                    </AccordionContent>
-                  </AccordionItem>
-                ) : (
-                  <SidebarMenuItem key={item.id}>
-                    <Link href={item.href!} asChild>
-                      <SidebarMenuButton
-                        isActive={isActive}
-                        tooltip={item.label}
-                      >
-                        <item.icon />
-                        <span>{item.label}</span>
-                      </SidebarMenuButton>
-                    </Link>
-                  </SidebarMenuItem>
-                )
-              })}
-            </SidebarMenu>
-          </Accordion>
-        </SidebarContent>
-        <SidebarFooter className="p-4 items-center group-data-[collapsible=icon]:hidden">
-          <p className="text-xs text-muted-foreground">&copy; {new Date().getFullYear()} NGroup Products</p>
-        </SidebarFooter>
-      </Sidebar>
-
-      <AppMainStructure currentNavItems={currentNavItems}>
-        {children}
-      </AppMainStructure>
-
-    </SidebarProvider>
+          <UserProfile />
+        </header>
+        <main className="flex-1 p-4 sm:p-6 overflow-y-auto bg-muted/30">
+          {children}
+        </main>
+      </div>
+    </div>
   );
 }
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
+  const { currentUser } = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
+  const isMobile = useIsMobile(); // Detect mobile state once
+
+  useEffect(() => {
+    // Ensure this effect doesn't run for Next.js internal paths during build/dev
+    if (!currentUser && !pathname.startsWith('/_next/')) { 
+      router.replace("/");
+    }
+  }, [currentUser, router, pathname]);
+
+  // Show preloader if not logged in and not an internal Next.js path
+  if (!currentUser && !pathname.startsWith('/_next/')) {
+    return <GlobalPreloaderScreen message="Loading application..." />;
+  }
+  
+  const userRole = currentUser?.role;
+  // Filter nav items based on role BEFORE passing to provider
+  const currentNavItemsForUser = userRole 
+    ? ALL_NAV_ITEMS.filter(item => item.allowedRoles.includes(userRole)) 
+    : [];
+
   return (
-    <AppLayoutContent>{children}</AppLayoutContent>
-  )
+    <NewSidebarProvider 
+      navItems={currentNavItemsForUser} 
+      userRole={userRole} 
+      isMobile={isMobile}
+    >
+      <AppShell>{children}</AppShell>
+    </NewSidebarProvider>
+  );
 }
 
-const AppLogoIconOnly = () => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className="h-6 w-6 text-primary"
-  >
-    <path d="M20.56 10.44 15.3 3.29A2.52 2.52 0 0 0 13.14 2H10.9A2.52 2.52 0 0 0 8.7 3.29L3.44 10.44A2.13 2.13 0 0 0 3 11.79V20a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-8.21a2.13 2.13 0 0 0-.44-1.35Z" /><path d="m3.5 10.5 17 0" /><path d="M12 22V10.5" />
-  </svg>
-);
-
+    
