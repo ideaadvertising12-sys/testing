@@ -158,7 +158,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
   );
 
   const sidebarActualContent = (
-    <>
+    <React.Fragment>
       <AppNewSidebarHeader>
           <AppLogo size={isMobile ? "sm" : (isCollapsed ? "iconOnly" : "sm")} />
       </AppNewSidebarHeader>
@@ -168,7 +168,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
           <p className="text-xs text-sidebar-foreground/70">&copy; {new Date().getFullYear()} NGroup</p>
       )}
       </AppNewSidebarFooter>
-    </>
+    </React.Fragment>
   );
 
   if (isMobile) {
@@ -179,8 +179,8 @@ function AppShell({ children }: { children: React.ReactNode }) {
             side="left" 
             className="p-0 w-[280px] flex flex-col data-[state=closed]:duration-200 data-[state=open]:duration-300 bg-sidebar text-sidebar-foreground border-r-0"
           >
-             <div className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-sidebar-border px-4">
-                 <AppLogo size="sm" />
+             <div className="sticky top-0 z-10 flex h-16 items-center justify-end border-b border-sidebar-border px-4">
+                 {/* AppLogo removed from here to avoid duplication with AppNewSidebarHeader */}
                  <SheetTrigger asChild>
                     <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setOpenMobile(false)}>
                         <X className="h-5 w-5" />
@@ -296,5 +296,3 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     </NewSidebarProvider>
   );
 }
-
-    
