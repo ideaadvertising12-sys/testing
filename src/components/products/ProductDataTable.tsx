@@ -111,7 +111,7 @@ export function ProductDataTable() {
             )}
           </div>
         </CardHeader>
-        <CardContent className="p-4 overflow-auto max-h-[calc(100vh-18rem)] md:max-h-[calc(100vh-16rem)]"> {/* Adjusted max-h */}
+        <CardContent className="p-4 overflow-auto max-h-[calc(100vh-18rem)] md:max-h-[calc(100vh-16rem)]">
           {filteredDisplayProducts.length === 0 ? (
              <div className="flex flex-col items-center justify-center h-[200px] text-muted-foreground">
                 <PackageSearch className="w-16 h-16 mb-4" />
@@ -192,15 +192,15 @@ export function ProductDataTable() {
               <div className="hidden md:block">
                 <Table>
                   <TableHeader className="md:sticky md:top-0 md:z-10">
-                    <TableRow className="md:bg-card">
-                      <TableHead className="w-[80px] xl:w-[100px]">Image</TableHead>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Category</TableHead>
-                      <TableHead>Stock</TableHead>
-                      <TableHead className="text-right">Wholesale Price</TableHead>
-                      <TableHead className="text-right">Retail Price</TableHead>
+                    <TableRow>
+                      <TableHead className="w-[80px] xl:w-[100px] md:bg-card">Image</TableHead>
+                      <TableHead className="md:bg-card">Name</TableHead>
+                      <TableHead className="md:bg-card">Category</TableHead>
+                      <TableHead className="md:bg-card">Stock</TableHead>
+                      <TableHead className="text-right md:bg-card">Wholesale Price</TableHead>
+                      <TableHead className="text-right md:bg-card">Retail Price</TableHead>
                       {isAdmin && (
-                        <TableHead className="text-right">
+                        <TableHead className="text-right md:bg-card">
                           <span className="sr-only">Actions</span>
                         </TableHead>
                       )}
@@ -288,4 +288,4 @@ export function ProductDataTable() {
     </>
   );
 }
-
+    
