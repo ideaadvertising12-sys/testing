@@ -126,10 +126,12 @@ export default function SalesPage() {
         description="Create new sales transactions quickly."
         icon={ShoppingCart}
       />
+      {/* Main content area: Product Selection and Cart */}
       <div className="flex-1 flex flex-col lg:flex-row lg:gap-4 min-h-0">
-
-        {/* Product Selection Section */}
+        
+        {/* Product Selection Section (Mobile: Top, LG: Left Column) */}
         <div className="flex-1 lg:w-2/3 flex flex-col min-h-0">
+          {/* Controls: Search, Sale Type, Tabs */}
           <div className="p-3 sm:p-4 border-b lg:border-b-0 lg:border-r">
             <div className="relative mb-3 sm:mb-4">
               <PackageSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
@@ -163,6 +165,7 @@ export default function SalesPage() {
             </div>
           </div>
 
+          {/* Product Grid Area */}
           <ScrollArea className="flex-1 p-3 sm:p-4 bg-background lg:bg-muted/30">
             {filteredProducts.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-muted-foreground pt-10">
@@ -185,7 +188,7 @@ export default function SalesPage() {
           </ScrollArea>
         </div>
 
-        {/* Cart Section */}
+        {/* Cart Section (Mobile: Bottom Panel, LG: Right Column) */}
         <div className="h-[45vh] lg:h-auto lg:w-1/3 flex flex-col min-h-0 border-t lg:border-t-0 bg-card">
           <CartView 
             cartItems={cartItems}
@@ -197,7 +200,7 @@ export default function SalesPage() {
             onUpdateDiscountPercentage={setDiscountPercentage}
             onCheckout={handleCheckout}
             onCancelOrder={handleCancelOrder}
-            className="flex-1 min-h-0" 
+            className="flex-1 min-h-0" // Ensures CartView itself manages its height within this container
           />
         </div>
       </div>
