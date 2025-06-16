@@ -21,13 +21,12 @@ import {
 
 import {
   SidebarProvider as NewSidebarProvider,
-  Sidebar as AppNewSidebar,
+  Sidebar as AppNewSidebar, // This is the simplified Sidebar from sidebar.tsx
   SidebarHeader as AppNewSidebarHeader,
   SidebarContent as AppNewSidebarContent,
   SidebarFooter as AppNewSidebarFooter,
-  AppHeaderSidebarTrigger, 
-  sidebarVars,
   useSidebarContext,
+  sidebarVars, // Import sidebarVars
 } from "@/components/ui/sidebar"; 
 
 import { AppLogo } from "@/components/AppLogo";
@@ -37,7 +36,8 @@ import type { NavItemConfig, UserRole } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { GlobalPreloaderScreen } from "@/components/GlobalPreloaderScreen";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Sheet } from "@/components/ui/sheet"; 
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"; // Import Sheet components
+import { Button } from "@/components/ui/button"; // Import Button
 
 const CustomInventoryIcon = ({ className: propClassName }: { className?: string }) => (
   <svg
@@ -92,10 +92,8 @@ function calculateCurrentPageLabel(pathname: string, userRole: UserRole | undefi
     const findLabel = (items: NavItemConfig[], currentPath: string): string | null => {
         for (const item of items) {
             const isDashboard = item.href === "/app/dashboard";
-            if (item.href && (currentPath === item.href || (isDashboard && currentPath.startsWith(item.href)))) {
-                 if (isDashboard || currentPath.length === item.href.length || currentPath[item.href.length] === '/') {
-                    return item.label;
-                 }
+             if (item.href && (currentPath === item.href || (isDashboard && currentPath === item.href))) { // Exact match for dashboard too
+                return item.label;
             }
             if (item.children) {
                 const childLabel = findLabel(item.children, currentPath);
@@ -108,6 +106,24 @@ function calculateCurrentPageLabel(pathname: string, userRole: UserRole | undefi
     const label = findLabel(currentNavItems, pathname);
     if (label) return label;
     
+    // Fallback for nested routes if direct match fails (e.g. /app/inventory/view-stock should show "View Stock")
+    for (const item of currentNavItems) {
+        if (item.children) {
+            const childLabel = findLabel(item.children, pathname);
+            if (childLabel) return childLabel;
+        }
+        // Check if a top-level item matches the base of the pathname
+        if (item.href && pathname.startsWith(item.href) && pathname !== item.href) {
+            const segments = pathname.split('/');
+            const itemSegments = item.href.split('/');
+            if (segments.length > itemSegments.length) { // Indicates a child page of a top-level item not explicitly in children
+                // Try to find a more specific label from children if possible
+                // This part can be complex if deeply nested and not in children array
+            }
+        }
+    }
+
+    // Fallback to primary segment if still no specific label
     const primarySegment = pathname.split('/')[2]; 
     const fallbackItem = currentNavItems.find(item => item.id === primarySegment);
     if (fallbackItem) return fallbackItem.label;
@@ -117,41 +133,107 @@ function calculateCurrentPageLabel(pathname: string, userRole: UserRole | undefi
 
 
 function AppShell({ children }: { children: React.ReactNode }) {
-  const { currentUser } = useAuth();
-  const userRole = currentUser?.role;
-  const pathname = usePathname();
-  const { isCollapsed, isMobile, navItems } = useSidebarContext(); // Removed openMobile, setOpenMobile as they are handled by Sheet in Sidebar component
+  const { 
+    isMobile, 
+    isCollapsed, 
+    toggleCollapse, 
+    openMobile, 
+    setOpenMobile, 
+    navItems, 
+    userRole,
+    activePath 
+  } = useSidebarContext();
 
   const currentPageLabel = useMemo(
-    () => calculateCurrentPageLabel(pathname, userRole, navItems),
-    [pathname, userRole, navItems]
+    () => calculateCurrentPageLabel(activePath, userRole, navItems),
+    [activePath, userRole, navItems]
   );
 
+  const sidebarActualContent = (
+    <AppNewSidebarHeader>
+        <AppLogo size={isMobile ? "sm" : (isCollapsed ? "iconOnly" : "sm")} />
+    </AppNewSidebarHeader>
+    <AppNewSidebarContent />
+    <AppNewSidebarFooter>
+    {(!isCollapsed || isMobile) && (
+        <p className="text-xs text-sidebar-foreground/70">&copy; {new Date().getFullYear()} NGroup</p>
+    )}
+    </AppNewSidebarFooter>
+  );
+
+  if (isMobile) {
+    return (
+      <Sheet open={openMobile} onOpenChange={setOpenMobile}>
+        <div className="flex h-screen bg-background">
+          <SheetContent 
+            side="left" 
+            className="p-0 w-[280px] flex flex-col data-[state=closed]:duration-200 data-[state=open]:duration-300 bg-sidebar text-sidebar-foreground border-r-0"
+            showCloseButton={false} // Assuming SheetContent might have a default close, we use our own. If not, this prop might not exist.
+          >
+            {/* Manually add a close button inside SheetContent if needed, or rely on trigger */}
+            <div className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-sidebar-border px-4">
+                 <AppLogo size="sm" />
+                 <SheetTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-9 w-9">
+                        <X className="h-5 w-5" />
+                        <span className="sr-only">Close sidebar</span>
+                    </Button>
+                 </SheetTrigger>
+            </div>
+            <AppNewSidebar className="flex-1 overflow-y-auto"> {/* Pass children to simplified Sidebar */}
+              {sidebarActualContent}
+            </AppNewSidebar>
+          </SheetContent>
+
+          <div className="flex-1 flex flex-col overflow-x-hidden">
+            <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-card/95 px-4 backdrop-blur-sm sm:px-6">
+              <div className="flex items-center gap-2">
+                <SheetTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-9 w-9">
+                    <PanelLeft className="h-5 w-5" />
+                    <span className="sr-only">Open sidebar</span>
+                  </Button>
+                </SheetTrigger>
+                <h1 className="text-xl font-semibold font-headline hidden sm:block">
+                  {currentPageLabel}
+                </h1>
+              </div>
+              <UserProfile />
+            </header>
+            <main className="flex-1 p-4 sm:p-6 overflow-y-auto bg-muted/30">
+              {children}
+            </main>
+          </div>
+        </div>
+      </Sheet>
+    );
+  }
+
+  // Desktop Layout
   return (
     <div className="flex h-screen bg-background">
-      {/* AppNewSidebar will handle its own rendering based on isMobile context (Sheet or fixed div) */}
-      <AppNewSidebar>
-          <AppNewSidebarHeader>
-              <AppLogo size={isMobile ? "sm" : (isCollapsed ? "iconOnly" : "sm")} />
-          </AppNewSidebarHeader>
-          <AppNewSidebarContent />
-          <AppNewSidebarFooter>
-          {(!isCollapsed || isMobile) && ( // Show footer text if mobile or not collapsed on desktop
-              <p className="text-xs text-sidebar-foreground/70">&copy; {new Date().getFullYear()} NGroup</p>
-          )}
-          </AppNewSidebarFooter>
+      <AppNewSidebar
+        className={cn(
+          "fixed top-0 left-0 z-40 border-r border-sidebar-border",
+          "transition-all duration-300 ease-in-out",
+          isCollapsed ? `w-[${sidebarVars.collapsed}]` : `w-[${sidebarVars.expanded}]`
+        )}
+      >
+        {sidebarActualContent}
       </AppNewSidebar>
       
       <div
         className={cn(
           "flex-1 flex flex-col transition-all duration-300 ease-in-out overflow-x-hidden",
-          !isMobile && (isCollapsed ? `ml-[${sidebarVars.collapsed}]` : `ml-[${sidebarVars.expanded}]`)
+          isCollapsed ? `ml-[${sidebarVars.collapsed}]` : `ml-[${sidebarVars.expanded}]`
         )}
       >
         <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-card/95 px-4 backdrop-blur-sm sm:px-6">
           <div className="flex items-center gap-2">
-            {/* AppHeaderSidebarTrigger handles mobile SheetTrigger and desktop toggle */}
-            <AppHeaderSidebarTrigger />
+            <Button variant="ghost" size="icon" className="h-9 w-9" onClick={toggleCollapse}>
+              {isCollapsed ? <PanelLeft className="h-5 w-5" /> : <X className="h-5 w-5" />}
+              <span className="sr-only">{isCollapsed ? "Expand sidebar" : "Collapse sidebar"}</span>
+            </Button>
             <h1 className="text-xl font-semibold font-headline hidden sm:block">
               {currentPageLabel}
             </h1>
@@ -170,18 +252,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { currentUser } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const isMobile = useIsMobile(); 
-  const [openMobile, setOpenMobile] = useState(false); // State for mobile sheet
+  const isMobileView = useIsMobile(); 
+  const [openMobileSidebar, setOpenMobileSidebar] = useState(false);
 
   useEffect(() => {
-    if (currentUser === undefined) return; // Still loading auth state
+    if (currentUser === undefined) return; 
 
     if (!currentUser && !pathname.startsWith('/_next/')) { 
       router.replace("/");
     }
   }, [currentUser, router, pathname]);
 
-  if (currentUser === undefined) { // Initial loading state for auth
+  if (currentUser === undefined) { 
     return <GlobalPreloaderScreen message="Initializing..." />;
   }
 
@@ -198,13 +280,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     <NewSidebarProvider 
       navItems={currentNavItemsForUser} 
       userRole={userRole} 
-      isMobile={isMobile}
-      openMobile={openMobile} // Pass state for mobile sheet
-      setOpenMobile={setOpenMobile} // Pass setter for mobile sheet
+      isMobile={isMobileView} // Pass the determined mobile state
+      openMobile={openMobileSidebar} 
+      setOpenMobile={setOpenMobileSidebar} 
     >
       <AppShell>{children}</AppShell>
     </NewSidebarProvider>
   );
 }
-
-    

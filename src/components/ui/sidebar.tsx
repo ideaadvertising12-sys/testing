@@ -5,7 +5,8 @@ import * as React from "react";
 import { PanelLeft, X, ChevronDown, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+// Sheet and SheetTrigger are removed from here as AppShell will handle it.
+// SheetContent will also be handled by AppShell for mobile.
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -23,8 +24,14 @@ import {
 import { cn } from "@/lib/utils";
 import type { NavItemConfig, UserRole } from "@/lib/types";
 
-const SIDEBAR_WIDTH_EXPANDED = "256px";
-const SIDEBAR_WIDTH_COLLAPSED = "80px";
+export const SIDEBAR_WIDTH_EXPANDED = "256px";
+export const SIDEBAR_WIDTH_COLLAPSED = "80px";
+
+// sidebarVars is exported for AppShell to use
+export const sidebarVars = {
+  expanded: SIDEBAR_WIDTH_EXPANDED,
+  collapsed: SIDEBAR_WIDTH_COLLAPSED,
+};
 
 interface SidebarContextProps {
   isCollapsed: boolean;
@@ -72,7 +79,7 @@ export function SidebarProvider({
     if (!isMobile) { 
       setIsCollapsed(!isCollapsed);
     } else {
-      setOpenMobile(prev => !prev);
+      // Mobile toggle is handled by setOpenMobile directly in AppShell's SheetTrigger
     }
   };
   
@@ -81,7 +88,6 @@ export function SidebarProvider({
     : [];
 
   const defaultOpenAccordion = userRole ? currentNavItemsForUser.find(item => item.children && item.children.filter(child => child.allowedRoles.includes(userRole)).some(child => child.href && pathname.startsWith(child.href!)))?.id : undefined;
-
 
   return (
     <SidebarContext.Provider
@@ -102,57 +108,20 @@ export function SidebarProvider({
   );
 }
 
-export function AppHeaderSidebarTrigger() {
-  const { isMobile, isCollapsed, toggleCollapse, openMobile, setOpenMobile } = useSidebarContext();
+// AppHeaderSidebarTrigger is removed. Its logic will be in AppShell.
 
-  if (isMobile) {
-    return (
-      <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" className="md:hidden h-9 w-9" onClick={() => setOpenMobile(true)}>
-          <PanelLeft className="h-5 w-5" />
-          <span className="sr-only">Open Sidebar</span>
-        </Button>
-      </SheetTrigger>
-    );
-  }
-
-  return (
-    <Button variant="ghost" size="icon" className="hidden md:flex h-9 w-9" onClick={toggleCollapse}>
-      {isCollapsed ? <PanelLeft className="h-5 w-5" /> : <X className="h-5 w-5" />}
-      <span className="sr-only">{isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}</span>
-    </Button>
-  );
-}
-
-
+// Sidebar component is simplified to be a container for its children.
+// AppShell will handle its positioning (fixed for desktop) and whether it's in a SheetContent (mobile).
 export function Sidebar({ children, className }: { children: React.ReactNode, className?: string }) {
-  const { isCollapsed, isMobile, openMobile, setOpenMobile } = useSidebarContext();
-
-  const sidebarStyles = cn(
-    "flex flex-col h-full bg-sidebar text-sidebar-foreground border-r border-sidebar-border fixed top-0 left-0 z-40", // Added fixed, top-0, left-0, z-40
-    "transition-all duration-300 ease-in-out",
-    className
-  );
-
-  const sidebarDesktopStyles = isCollapsed ? `w-[${SIDEBAR_WIDTH_COLLAPSED}]` : `w-[${SIDEBAR_WIDTH_EXPANDED}]`;
-
-  const sidebarContentInternal = (
-    <div className={cn(sidebarStyles, isMobile ? "w-full" : sidebarDesktopStyles)}>
+  // isCollapsed and isMobile are still needed by child components like SidebarHeader, SidebarNavItem via context.
+  return (
+    <div className={cn(
+      "flex flex-col h-full bg-sidebar text-sidebar-foreground",
+      className // AppShell will pass width, fixed, border-r etc. for desktop
+    )}>
       {children}
     </div>
   );
-
-  if (isMobile) {
-    return (
-      <Sheet open={openMobile} onOpenChange={setOpenMobile}>
-        <SheetContent side="left" className="p-0 w-[280px] flex data-[state=closed]:duration-200 data-[state=open]:duration-300 bg-sidebar text-sidebar-foreground border-r-0">
-          {sidebarContentInternal}
-        </SheetContent>
-      </Sheet>
-    );
-  }
-
-  return sidebarContentInternal;
 }
 
 export function SidebarHeader({ children, className }: { children: React.ReactNode, className?: string }) {
@@ -193,7 +162,9 @@ function SidebarNavItem({ item }: SidebarNavItemProps) {
 
   const checkIsActive = (path: string, navHref?: string) => {
     if (!navHref) return false;
-    if (navHref === "/app/dashboard") return path === navHref || path.startsWith(navHref + '/');
+    // More specific check for dashboard to avoid matching child routes unintentionally
+    if (navHref === "/app/dashboard") return path === navHref;
+    // General check for other routes
     return path === navHref || (navHref !== "/" && path.startsWith(navHref + '/'));
   };
   
@@ -287,7 +258,7 @@ function SidebarNavItem({ item }: SidebarNavItemProps) {
 }
 
 export function SidebarFooter({ children, className }: { children: React.ReactNode, className?: string }) {
-   const { isCollapsed } = useSidebarContext();
+   const { isCollapsed } = useSidebarContext(); // Removed isMobile as AppShell controls footer visibility based on it
   return (
     <div className={cn(
         "p-4 border-t border-sidebar-border mt-auto", 
@@ -299,10 +270,3 @@ export function SidebarFooter({ children, className }: { children: React.ReactNo
     </div>
   );
 }
-
-export const sidebarVars = {
-  expanded: SIDEBAR_WIDTH_EXPANDED,
-  collapsed: SIDEBAR_WIDTH_COLLAPSED,
-};
-
-    
