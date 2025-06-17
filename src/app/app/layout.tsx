@@ -163,7 +163,9 @@ function AppShell({ children }: { children: React.ReactNode }) {
       <AppNewSidebarContent />
       <AppNewSidebarFooter>
       {(!isCollapsed || isMobile) && (
-          <p className="text-xs text-sidebar-foreground/70">&copy; {new Date().getFullYear()} NGroup</p>
+          <p className="text-xs text-sidebar-foreground/70">
+            Design, Development & Hosting by Limidora
+          </p>
       )}
       </AppNewSidebarFooter>
     </React.Fragment>
@@ -233,7 +235,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
 
       <div
         className={cn(
-          "flex-1 flex flex-col overflow-auto", // This overflow-auto handles scrolling for the header + main content area
+          "flex-1 flex flex-col overflow-auto", 
           "transition-all duration-300 ease-in-out"
         )}
       >
@@ -261,7 +263,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
             <UserProfile />
           </div>
         </header>
-        <main className="flex-1 p-4 sm:p-6 bg-muted/30"> {/* Removed min-h-[100vh], flex-1 allows it to take available space */}
+        <main className="flex-1 p-4 sm:p-6 bg-muted/30"> 
           {children}
         </main>
       </div>
