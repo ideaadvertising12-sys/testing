@@ -15,14 +15,17 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const [showFooter, setShowFooter] = useState(false); // Start with footer hidden
+  const [showFooter, setShowFooter] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const mainElementRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    setMounted(true); // Indicate that the component has mounted
+
     const mainElement = mainElementRef.current;
 
     const handleScrollInteraction = () => {
-      if (mainElement && mainElement.clientHeight > 0) { // Ensure element is rendered with height
+      if (mainElement && mainElement.clientHeight > 0) { 
         const { scrollTop, scrollHeight, clientHeight } = mainElement;
         
         const isScrolledToBottom = scrollHeight > clientHeight && (scrollHeight - scrollTop - clientHeight < 50);
@@ -34,25 +37,27 @@ export default function RootLayout({
           setShowFooter(false);
         }
       } else {
-        setShowFooter(false);
+        setShowFooter(false); // Default to hidden if element dimensions aren't reliable yet
       }
     };
 
     if (mainElement) {
+      // Initial check after first paint cycle, now that mounted is true
+      const rafId = requestAnimationFrame(() => {
+        handleScrollInteraction();
+      });
+
       mainElement.addEventListener('scroll', handleScrollInteraction);
       const resizeObserver = new ResizeObserver(handleScrollInteraction);
       resizeObserver.observe(mainElement);
 
-      requestAnimationFrame(() => {
-        handleScrollInteraction();
-      });
-
       return () => {
+        cancelAnimationFrame(rafId);
         mainElement.removeEventListener('scroll', handleScrollInteraction);
         resizeObserver.unobserve(mainElement);
       };
     }
-  }, []); 
+  }, []); // Empty dependency array ensures this effect runs once on mount
 
   return (
     <html lang="en" className="h-full" suppressHydrationWarning={true}>
@@ -80,10 +85,13 @@ export default function RootLayout({
                   className={cn(
                     "text-center py-4 px-6 border-t bg-background text-sm text-muted-foreground shrink-0",
                     "transition-all duration-300 ease-in-out",
-                    showFooter ? "opacity-100" : "opacity-0 pointer-events-none"
+                    // Apply hidden styles if not mounted OR if mounted but showFooter is false
+                    (!mounted || !showFooter) ? "opacity-0 pointer-events-none" : "opacity-100"
                   )}
                   style={{
-                    transform: showFooter ? 'translateY(0)' : 'translateY(90%)',
+                    // Initial position is translated down by 90%
+                    // It moves to translateY(0) only if mounted AND showFooter is true
+                    transform: (mounted && showFooter) ? 'translateY(0)' : 'translateY(90%)',
                   }}
                 >
                   Design, Development & Hosting by Limidora
