@@ -87,7 +87,7 @@
     @apply bg-background text-foreground;
   }
   html{
-    overflow:hidden;
+    /* overflow:hidden; Removed this line */
     font-size:90%;
   }
 }
@@ -147,3 +147,5 @@
     display: none !important;
   }
 }
+
+    
