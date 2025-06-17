@@ -19,6 +19,7 @@ import {
   X,
   Maximize,
   Minimize,
+  Settings, // Added Settings Icon
 } from "lucide-react";
 
 import {
@@ -86,7 +87,8 @@ const ALL_NAV_ITEMS: NavItemConfig[] = [
       { id: "stock-report", href: "/app/reports/stock-report", label: "Stock Report", icon: Warehouse, allowedRoles: ["admin"] },
       { id: "customer-report", href: "/app/reports/customer-report", label: "Customer Report", icon: UserCheck, allowedRoles: ["admin"] },
     ]
-  }
+  },
+  { id: "settings", href: "/app/settings", label: "Settings", icon: Settings, allowedRoles: ["admin", "cashier"] },
 ];
 
 function calculateCurrentPageLabel(pathname: string, userRole: UserRole | undefined, currentNavItems: NavItemConfig[]): string {
@@ -313,3 +315,4 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     </NewSidebarProvider>
   );
 }
+

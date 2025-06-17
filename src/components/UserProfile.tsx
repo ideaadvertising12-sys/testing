@@ -11,11 +11,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
-  DropdownMenuTrigger, // Added DropdownMenuTrigger
+  DropdownMenuTrigger, 
 } from "@/components/ui/dropdown-menu";
 import { LogOut, Settings, User, Sun, Moon, Laptop } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "next-themes";
+import Link from "next/link";
 
 export function UserProfile() {
   const { currentUser, logout } = useAuth();
@@ -67,9 +68,11 @@ export function UserProfile() {
           <User className="mr-2 h-4 w-4" />
           <span>Profile</span>
         </DropdownMenuItem>
-        <DropdownMenuItem disabled>
-          <Settings className="mr-2 h-4 w-4" />
-          <span>Settings</span>
+        <DropdownMenuItem asChild>
+          <Link href="/app/settings">
+            <Settings className="mr-2 h-4 w-4" />
+            <span>Settings</span>
+          </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         
@@ -98,3 +101,4 @@ export function UserProfile() {
     </DropdownMenu>
   );
 }
+
