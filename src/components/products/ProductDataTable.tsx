@@ -2,7 +2,7 @@
 "use client";
 
 import Image from "next/image";
-import { MoreHorizontal, Edit, Trash2, PlusCircle, PackageSearch, Package, FileDigit } from "lucide-react";
+import { MoreHorizontal, Edit, Trash2, PlusCircle, PackageSearch, Package, FileDigit, Maximize, Minimize } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -45,6 +45,7 @@ export function ProductDataTable() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
   const [productToDeleteId, setProductToDeleteId] = useState<string | null>(null);
+  const [isFullScreen, setIsFullScreen] = useState(false);
   const { currentUser } = useAuth();
   const userRole = currentUser?.role;
   const isAdmin = userRole === 'admin';
@@ -78,6 +79,10 @@ export function ProductDataTable() {
     setEditingProduct(product);
   }
 
+  const toggleFullScreen = () => {
+    setIsFullScreen(!isFullScreen);
+  };
+
   const filteredDisplayProducts = products.filter(product =>
     product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (product.sku && product.sku.toLowerCase().includes(searchTerm.toLowerCase()))
@@ -85,9 +90,11 @@ export function ProductDataTable() {
 
   return (
     <>
-      <Card className="shadow-lg">
-        <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4">
-          <CardTitle className="font-headline shrink-0">Product List</CardTitle>
+      <Card className={cn(
+        isFullScreen ? "fixed inset-0 z-50 flex flex-col bg-card" : "shadow-lg"
+      )}>
+        <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 p-4 sm:p-6">
+          <CardTitle className="font-headline shrink-0">{isFullScreen ? "Products (Fullscreen)" : "Product List"}</CardTitle>
           <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
             <div className="relative w-full sm:w-64">
               <PackageSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
@@ -109,9 +116,23 @@ export function ProductDataTable() {
                 }
               />
             )}
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={toggleFullScreen}
+              className="hidden md:inline-flex h-9 w-9 shrink-0"
+              title={isFullScreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+            >
+              {isFullScreen ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
+              <span className="sr-only">{isFullScreen ? "Exit Fullscreen" : "Enter Fullscreen"}</span>
+            </Button>
           </div>
         </CardHeader>
-        <CardContent className="p-4 overflow-auto max-h-[calc(100vh-18rem)] md:max-h-[calc(100vh-16rem)]">
+        <CardContent className={cn(
+            "p-4 overflow-auto",
+            isFullScreen ? "flex-1 min-h-0" : "max-h-[calc(100vh-18rem)] md:max-h-[calc(100vh-16rem)]"
+          )}
+        >
           {filteredDisplayProducts.length === 0 ? (
              <div className="flex flex-col items-center justify-center h-[200px] text-muted-foreground">
                 <PackageSearch className="w-16 h-16 mb-4" />
@@ -193,15 +214,15 @@ export function ProductDataTable() {
                 <Table>
                   <TableHeader className="md:sticky md:top-0 md:z-10 md:bg-card">
                     <TableRow>
-                      <TableHead className="w-[80px] xl:w-[100px]">Image</TableHead>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Category</TableHead>
-                      <TableHead>SKU</TableHead>
-                      <TableHead>Stock</TableHead>
-                      <TableHead className="text-right">Wholesale Price</TableHead>
-                      <TableHead className="text-right">Retail Price</TableHead>
+                      <TableHead className="w-[80px] xl:w-[100px] md:bg-card">Image</TableHead>
+                      <TableHead className="md:bg-card">Name</TableHead>
+                      <TableHead className="md:bg-card">Category</TableHead>
+                      <TableHead className="md:bg-card">SKU</TableHead>
+                      <TableHead className="md:bg-card">Stock</TableHead>
+                      <TableHead className="text-right md:bg-card">Wholesale Price</TableHead>
+                      <TableHead className="text-right md:bg-card">Retail Price</TableHead>
                       {isAdmin && (
-                        <TableHead className="text-right">
+                        <TableHead className="text-right md:bg-card">
                           <span className="sr-only">Actions</span>
                         </TableHead>
                       )}
@@ -293,3 +314,4 @@ export function ProductDataTable() {
     
 
     
+
