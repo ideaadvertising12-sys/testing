@@ -15,15 +15,7 @@ import { Label } from "@/components/ui/label";
 import type { Product, CartItem, Customer } from "@/lib/types";
 import { placeholderProducts, placeholderCustomers } from "@/lib/placeholder-data";
 
-const InjectedHeadContent = () => (
-  <>
-    <title>NGroup Products</title>
-    <meta name="description" content="Point of Sale system for milk products." />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-    <link href="https://fonts.googleapis.com/css2?family=PT+Sans:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet" />
-  </>
-);
+// InjectedHeadContent component removed
 
 export default function SalesPage() {
   const [allProducts] = useState<Product[]>(placeholderProducts);
@@ -222,7 +214,8 @@ export default function SalesPage() {
           saleId={`SALE-${Date.now().toString().slice(-6)}`} 
         />
       </div>
-      <InjectedHeadContent />
+      {/* InjectedHeadContent usage removed */}
+      <footer className="text-center py-4 px-6 border-t bg-background text-sm text-muted-foreground shrink-0">Design, Development & Hosting by Limidora</footer>
     </>
   );
 }

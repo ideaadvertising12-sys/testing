@@ -12,15 +12,7 @@ import React, { useState, FormEvent, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { GlobalPreloaderScreen } from "@/components/GlobalPreloaderScreen";
 
-const InjectedHeadContent = () => (
-  <>
-    <title>NGroup Products</title>
-    <meta name="description" content="Point of Sale system for milk products." />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-    <link href="https://fonts.googleapis.com/css2?family=PT+Sans:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet" />
-  </>
-);
+// InjectedHeadContent component removed
 
 export default function LoginPage() {
   const [username, setUsername] = useState("");
@@ -58,7 +50,8 @@ export default function LoginPage() {
       return (
         <>
           <GlobalPreloaderScreen message="Redirecting..." />
-          <InjectedHeadContent />
+          {/* InjectedHeadContent usage removed */}
+          <footer className="text-center py-4 px-6 border-t bg-background text-sm text-muted-foreground shrink-0">Design, Development & Hosting by Limidora</footer>
         </>
       );
   }
@@ -107,7 +100,8 @@ export default function LoginPage() {
           </CardContent>
         </Card>
       </div>
-      <InjectedHeadContent />
+      {/* InjectedHeadContent usage removed */}
+      <footer className="text-center py-4 px-6 border-t bg-background text-sm text-muted-foreground shrink-0">Design, Development & Hosting by Limidora</footer>
     </>
   );
 }

@@ -16,6 +16,7 @@ export default function Error({
   }, [error]);
 
   return (
+    <>
     <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)] text-center p-8">
       <AlertTriangle className="w-16 h-16 text-destructive mb-6" />
       <h2 className="text-3xl font-headline font-semibold mb-4">Oops! Something went wrong.</h2>
@@ -29,5 +30,7 @@ export default function Error({
         <p className="text-xs text-muted-foreground mt-4">Error Digest: {error.digest}</p>
       )}
     </div>
+    <footer className="text-center py-4 px-6 border-t bg-background text-sm text-muted-foreground shrink-0">Design, Development & Hosting by Limidora</footer>
+    </>
   );
 }
