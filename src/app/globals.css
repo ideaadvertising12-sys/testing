@@ -87,7 +87,7 @@
     @apply bg-background text-foreground;
   }
   html{
-    /* overflow:hidden; Removed this line */
+    overflow:hidden;
     font-size:90%;
   }
 }
@@ -126,6 +126,7 @@
     height: auto;
     margin: 0;
     padding: 0;
+    overflow: visible !important; /* Allow printing to show all content */
   }
 
   /* Ensure table takes full width and looks decent */

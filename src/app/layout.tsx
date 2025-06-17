@@ -32,11 +32,11 @@ export default function RootLayout({
         >
           <AuthProvider>
             <FullscreenProvider>
-              <div className="flex flex-col min-h-full">
-                <main className="flex-grow">
+              <div className="flex flex-col h-full"> {/* Changed min-h-full to h-full */}
+                <main className="flex-grow overflow-y-auto">
                   {children}
                 </main>
-                <footer className="text-center py-4 px-6 border-t bg-background text-sm text-muted-foreground">
+                <footer className="text-center py-4 px-6 border-t bg-background text-sm text-muted-foreground shrink-0">
                   Design, Development, and Hosting by Limidora
                 </footer>
               </div>

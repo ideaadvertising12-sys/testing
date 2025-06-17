@@ -172,7 +172,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
   if (isMobile) {
     return (
       <Sheet open={openMobile} onOpenChange={setOpenMobile}>
-        <div className="flex h-screen bg-background">
+        <div className="flex flex-col h-full bg-background"> {/* Changed from h-screen to h-full */}
           <SheetContent
             side="left"
             className="p-0 w-[280px] flex flex-col data-[state=closed]:duration-200 data-[state=open]:duration-300 bg-sidebar text-sidebar-foreground border-r-0"
@@ -212,7 +212,6 @@ function AppShell({ children }: { children: React.ReactNode }) {
             <main className="flex-1 p-4 sm:p-6 overflow-y-auto bg-muted/30 min-h-0">
               {children}
             </main>
-            {/* Footer removed from here */}
           </div>
         </div>
       </Sheet>
@@ -221,7 +220,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
 
   // Desktop Layout
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex h-full bg-background"> {/* Changed from h-screen to h-full */}
       <AppNewSidebar
         className={cn(
           "h-full border-r border-sidebar-border",
@@ -265,7 +264,6 @@ function AppShell({ children }: { children: React.ReactNode }) {
         <main className="flex-1 p-4 sm:p-6 overflow-y-auto bg-muted/30 min-h-0">
           {children}
         </main>
-        {/* Footer removed from here */}
       </div>
     </div>
   );
