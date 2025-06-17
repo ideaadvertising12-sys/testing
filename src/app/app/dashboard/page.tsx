@@ -1,7 +1,7 @@
 
 "use client";
 
-import { Banknote, Package, Users, TrendingDown, TrendingUp, Activity, AlertTriangle, Loader2 } from "lucide-react";
+import { Banknote, Package, Users, TrendingDown, TrendingUp, Activity, AlertTriangle, Loader2, type LucideIcon } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { SalesChart } from "@/components/dashboard/SalesChart";
@@ -64,7 +64,7 @@ export default function DashboardPage() {
     .sort((a,b) => (b.price * (150 - b.stock)) - (a.price * (150 - a.stock)) ) 
     .slice(0,5);
   
-  const renderStatsCard = (title: string, valueKey: keyof StatsData | 'totalSalesFormatted' | 'revenueTodayFormatted', icon: React.ElementType, iconColor: string, description?: string) => {
+  const renderStatsCard = (title: string, valueKey: keyof StatsData | 'totalSalesFormatted' | 'revenueTodayFormatted', icon: LucideIcon, iconColor: string, description?: string) => {
     if (dashboardStats === null && (valueKey === "totalSalesFormatted" || valueKey === "totalCustomers" || valueKey === "lowStockItems" || valueKey === "revenueTodayFormatted")) {
       return (
         <Card className="shadow-lg">
@@ -124,7 +124,7 @@ export default function DashboardPage() {
           "Low Stock Items",
           "lowStockItems",
           AlertTriangle,
-          "text-destructive", // Changed from text-red-600
+          "text-destructive",
           "Needs reordering soon"
         )}
         {renderStatsCard(
@@ -172,6 +172,7 @@ export default function DashboardPage() {
       </div>
       
       <AlertQuantityTable />
+      
     </>
   );
 }
