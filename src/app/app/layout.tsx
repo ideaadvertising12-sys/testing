@@ -177,13 +177,11 @@ function AppShell({ children }: { children: React.ReactNode }) {
             side="left"
             className="p-0 w-[280px] flex flex-col data-[state=closed]:duration-200 data-[state=open]:duration-300 bg-sidebar text-sidebar-foreground border-r-0"
           >
-            {/* SheetContent manages its own close button by default */}
             <AppNewSidebar className="flex-1 overflow-y-auto">
               {sidebarActualContent}
             </AppNewSidebar>
           </SheetContent>
 
-          {/* Main panel that is always visible */}
           <div className="flex-1 flex flex-col overflow-x-hidden">
             <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-card/95 px-4 backdrop-blur-sm sm:px-6">
               <div className="flex items-center gap-2">
@@ -214,6 +212,9 @@ function AppShell({ children }: { children: React.ReactNode }) {
             <main className="flex-1 p-4 sm:p-6 overflow-y-auto bg-muted/30 min-h-0">
               {children}
             </main>
+            <footer className="text-center py-3 px-4 border-t bg-card/95 text-xs text-muted-foreground">
+              Design, Development, and Hosting by Limidora
+            </footer>
           </div>
         </div>
       </Sheet>
@@ -223,7 +224,6 @@ function AppShell({ children }: { children: React.ReactNode }) {
   // Desktop Layout
   return (
     <div className="flex h-screen bg-background">
-      {/* Desktop Sidebar: Static positioning, part of flex layout */}
       <AppNewSidebar
         className={cn(
           "h-full border-r border-sidebar-border",
@@ -234,14 +234,12 @@ function AppShell({ children }: { children: React.ReactNode }) {
         {sidebarActualContent}
       </AppNewSidebar>
 
-      {/* Main Content Area for Desktop */}
       <div
         className={cn(
           "flex-1 flex flex-col overflow-x-hidden",
           "transition-all duration-300 ease-in-out"
         )}
       >
-        {/* Header */}
         <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-card/95 px-4 backdrop-blur-sm sm:px-6">
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon" className="h-9 w-9" onClick={toggleCollapse}>
@@ -252,7 +250,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
               {currentPageLabel}
             </h1>
           </div>
-          <div className="flex items-center gap-2"> {/* Wrapper for UserProfile and Fullscreen button */}
+          <div className="flex items-center gap-2">
             <Button
               variant="ghost"
               size="icon"
@@ -266,10 +264,12 @@ function AppShell({ children }: { children: React.ReactNode }) {
             <UserProfile />
           </div>
         </header>
-        {/* Page Content */}
         <main className="flex-1 p-4 sm:p-6 overflow-y-auto bg-muted/30 min-h-0">
           {children}
         </main>
+        <footer className="text-center py-3 px-4 border-t bg-card/95 text-xs text-muted-foreground">
+          Design, Development, and Hosting by Limidora
+        </footer>
       </div>
     </div>
   );
