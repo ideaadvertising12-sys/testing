@@ -91,9 +91,7 @@ export default function LoginPage() {
           </form>
         </CardContent>
       </Card>
-      <footer className="mt-8 text-center text-sm text-muted-foreground">
-        © {new Date().getFullYear()} NGroup Products. All rights reserved.
-      </footer>
+      {/* Footer removed from here, will be handled by global layout */}
     </div>
   );
 }

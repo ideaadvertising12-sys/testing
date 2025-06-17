@@ -19,7 +19,7 @@ import {
   X,
   Maximize,
   Minimize,
-  Settings, // Added Settings Icon
+  Settings,
 } from "lucide-react";
 
 import {
@@ -172,7 +172,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
   if (isMobile) {
     return (
       <Sheet open={openMobile} onOpenChange={setOpenMobile}>
-        <div className="flex h-screen bg-background"> {/* Root container for mobile view */}
+        <div className="flex h-screen bg-background">
           <SheetContent
             side="left"
             className="p-0 w-[280px] flex flex-col data-[state=closed]:duration-200 data-[state=open]:duration-300 bg-sidebar text-sidebar-foreground border-r-0"
@@ -212,9 +212,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
             <main className="flex-1 p-4 sm:p-6 overflow-y-auto bg-muted/30 min-h-0">
               {children}
             </main>
-            <footer className="text-center py-3 px-4 border-t bg-card/95 text-xs text-muted-foreground">
-              Design, Development, and Hosting by Limidora
-            </footer>
+            {/* Footer removed from here */}
           </div>
         </div>
       </Sheet>
@@ -267,9 +265,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
         <main className="flex-1 p-4 sm:p-6 overflow-y-auto bg-muted/30 min-h-0">
           {children}
         </main>
-        <footer className="text-center py-3 px-4 border-t bg-card/95 text-xs text-muted-foreground">
-          Design, Development, and Hosting by Limidora
-        </footer>
+        {/* Footer removed from here */}
       </div>
     </div>
   );
@@ -315,4 +311,3 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     </NewSidebarProvider>
   );
 }
-

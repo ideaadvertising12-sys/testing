@@ -4,7 +4,7 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { AppThemeProvider } from '@/components/providers/AppThemeProvider';
 import { AuthProvider } from '@/contexts/AuthContext';
-import { FullscreenProvider } from '@/contexts/FullscreenContext'; // Added
+import { FullscreenProvider } from '@/contexts/FullscreenContext';
 
 export const metadata: Metadata = {
   title: 'NGroup Products',
@@ -31,8 +31,15 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <AuthProvider>
-            <FullscreenProvider> {/* Added FullscreenProvider */}
-              {children}
+            <FullscreenProvider>
+              <div className="flex flex-col min-h-full">
+                <main className="flex-grow">
+                  {children}
+                </main>
+                <footer className="text-center py-4 px-6 border-t bg-background text-sm text-muted-foreground">
+                  Design, Development, and Hosting by Limidora
+                </footer>
+              </div>
               <Toaster />
             </FullscreenProvider>
           </AuthProvider>
@@ -41,4 +48,3 @@ export default function RootLayout({
     </html>
   );
 }
-
