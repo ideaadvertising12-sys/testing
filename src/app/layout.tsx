@@ -1,4 +1,3 @@
-
 "use client";
 
 // import type { Metadata } from 'next'; // Metadata export is not allowed in client components.
@@ -10,50 +9,59 @@ import { FullscreenProvider } from '@/contexts/FullscreenContext';
 import { useState, useEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
 
-// export const metadata: Metadata = {
-//   title: 'NGroup Products',
-//   description: 'Point of Sale system for milk products.',
-// };
-
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const [showFooter, setShowFooter] = useState(false);
+  const [showFooter, setShowFooter] = useState(false); // Start with footer hidden
   const mainElementRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const mainElement = mainElementRef.current;
 
     const handleScrollInteraction = () => {
-      if (mainElement) {
+      if (mainElement && mainElement.clientHeight > 0) { // Ensure element is rendered with height
         const { scrollTop, scrollHeight, clientHeight } = mainElement;
-        // Show footer if scrolled to near bottom (50px threshold) OR if content is not scrollable
-        if (scrollHeight - scrollTop - clientHeight < 50 || scrollHeight <= clientHeight) {
+        
+        // Condition to show footer:
+        // 1. If the content is scrollable AND the user has scrolled to near the bottom.
+        // OR
+        // 2. If the content is not scrollable (i.e., it's short), then the footer should be shown.
+        const isScrolledToBottom = scrollHeight > clientHeight && (scrollHeight - scrollTop - clientHeight < 50);
+        const isContentShort = scrollHeight <= clientHeight;
+
+        if (isScrolledToBottom || isContentShort) {
           setShowFooter(true);
         } else {
           setShowFooter(false);
         }
+      } else {
+         // If element isn't ready (e.g. clientHeight is 0), keep footer hidden.
+        setShowFooter(false);
       }
     };
 
     if (mainElement) {
       mainElement.addEventListener('scroll', handleScrollInteraction);
-      handleScrollInteraction(); // Initial check
-    }
+      const resizeObserver = new ResizeObserver(handleScrollInteraction);
+      resizeObserver.observe(mainElement);
 
-    return () => {
-      if (mainElement) {
+      // Perform initial check after layout is stable using requestAnimationFrame
+      requestAnimationFrame(() => {
+        handleScrollInteraction();
+      });
+
+      return () => {
         mainElement.removeEventListener('scroll', handleScrollInteraction);
-      }
-    };
-  }, []); // Empty dependency array means this effect runs once on mount and cleanup on unmount
+        resizeObserver.unobserve(mainElement);
+      };
+    }
+  }, []); // Empty dependency array: runs once on mount, cleans up on unmount
 
   return (
     <html lang="en" className="h-full" suppressHydrationWarning={true}>
       <head>
-        {/* Metadata can be set here directly or via a Head component from next/head if needed for client component */}
         <title>NGroup Products</title>
         <meta name="description" content="Point of Sale system for milk products." />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
