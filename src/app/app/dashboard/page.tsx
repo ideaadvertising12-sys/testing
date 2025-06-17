@@ -20,9 +20,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { placeholderProducts } from "@/lib/placeholder-data";
 import { useAuth } from "@/contexts/AuthContext";
 import { AccessDenied } from "@/components/AccessDenied";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { GlobalPreloaderScreen } from "@/components/GlobalPreloaderScreen";
+
+const InjectedHeadContent = () => (
+  <>
+    <title>NGroup Products</title>
+    <meta name="description" content="Point of Sale system for milk products." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+    <link href="https://fonts.googleapis.com/css2?family=PT+Sans:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet" />
+  </>
+);
 
 export default function DashboardPage() {
   const { currentUser } = useAuth();
@@ -37,17 +47,26 @@ export default function DashboardPage() {
     if (currentUser.role === "cashier") {
       router.replace("/app/sales"); 
     } else {
-      // Calculate stats on client-side after hydration
       setDashboardStats(generatePlaceholderStats());
     }
   }, [currentUser, router]);
 
   if (!currentUser) {
-    return <GlobalPreloaderScreen message="Loading dashboard..." />;
+    return (
+      <>
+        <GlobalPreloaderScreen message="Loading dashboard..." />
+        <InjectedHeadContent />
+      </>
+    );
   }
 
   if (currentUser.role === "cashier") {
-    return <AccessDenied message="Dashboard is not available for your role. Redirecting..." />;
+    return (
+      <>
+        <AccessDenied message="Dashboard is not available for your role. Redirecting..." />
+        <InjectedHeadContent />
+      </>
+    );
   }
   
   const topSellingProducts = [...placeholderProducts]
@@ -79,7 +98,6 @@ export default function DashboardPage() {
       />
     );
   };
-
 
   return (
     <>
@@ -150,6 +168,7 @@ export default function DashboardPage() {
       </div>
       
       <AlertQuantityTable />
+      <InjectedHeadContent />
     </>
   );
 }

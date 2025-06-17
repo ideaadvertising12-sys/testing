@@ -5,10 +5,19 @@ import { Users } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { CustomerDataTable } from "@/components/customers/CustomerDataTable";
 import { useAuth } from "@/contexts/AuthContext";
-import { useEffect } from "react"; 
+import React, { useEffect } from "react"; 
 import { useRouter } from "next/navigation"; 
 import { GlobalPreloaderScreen } from "@/components/GlobalPreloaderScreen";
 
+const InjectedHeadContent = () => (
+  <>
+    <title>NGroup Products</title>
+    <meta name="description" content="Point of Sale system for milk products." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+    <link href="https://fonts.googleapis.com/css2?family=PT+Sans:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet" />
+  </>
+);
 
 export default function CustomersPage() {
   const { currentUser } = useAuth(); 
@@ -21,9 +30,13 @@ export default function CustomersPage() {
   }, [currentUser, router]);
 
   if (!currentUser) { 
-     return <GlobalPreloaderScreen message="Loading customers..." />;
+     return (
+      <>
+        <GlobalPreloaderScreen message="Loading customers..." />
+        <InjectedHeadContent />
+      </>
+     );
   }
-  // Customer page is accessible to both admin and cashier, so no specific role check here beyond being logged in.
 
   return (
     <>
@@ -33,6 +46,7 @@ export default function CustomersPage() {
         icon={Users}
       />
       <CustomerDataTable />
+      <InjectedHeadContent />
     </>
   );
 }

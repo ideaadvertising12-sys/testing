@@ -88,7 +88,9 @@
   }
   html{
     font-size:90%;
-  
+  }
+  body{
+    overflow:hidden;
   }
  
 }

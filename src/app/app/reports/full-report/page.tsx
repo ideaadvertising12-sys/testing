@@ -10,13 +10,22 @@ import { placeholderFullReportData } from "@/lib/placeholder-data";
 import type { FullReportEntry } from "@/lib/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { AccessDenied } from "@/components/AccessDenied";
-import { useEffect } from "react";
+import React, { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable'; 
 import { GlobalPreloaderScreen } from "@/components/GlobalPreloaderScreen";
 
+const InjectedHeadContent = () => (
+  <>
+    <title>NGroup Products</title>
+    <meta name="description" content="Point of Sale system for milk products." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+    <link href="https://fonts.googleapis.com/css2?family=PT+Sans:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet" />
+  </>
+);
 
 interface jsPDFWithAutoTable extends jsPDF {
   autoTable: (options: any) => jsPDF;
@@ -38,11 +47,21 @@ export default function FullReportPage() {
   }, [currentUser, router]);
 
   if (!currentUser) {
-     return <GlobalPreloaderScreen message="Loading report..." />;
+     return (
+      <>
+        <GlobalPreloaderScreen message="Loading report..." />
+        <InjectedHeadContent />
+      </>
+     );
   }
 
   if (currentUser.role !== "admin") {
-    return <AccessDenied message="Full reports are not available for your role. Redirecting..." />;
+    return (
+      <>
+        <AccessDenied message="Full reports are not available for your role. Redirecting..." />
+        <InjectedHeadContent />
+      </>
+    );
   }
 
   const handleExportExcel = () => {
@@ -123,6 +142,7 @@ export default function FullReportPage() {
           <FullReportTable data={reportData} />
         </CardContent>
       </Card>
+      <InjectedHeadContent />
     </>
   );
 }

@@ -1,3 +1,4 @@
+
 "use client";
 
 import './globals.css';
@@ -5,7 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { AppThemeProvider } from '@/components/providers/AppThemeProvider';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { FullscreenProvider } from '@/contexts/FullscreenContext';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
 
 export default function RootLayout({
@@ -15,36 +16,51 @@ export default function RootLayout({
 }>) {
   const [showFooter, setShowFooter] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const mainElementRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setMounted(true);
+
+    const mainElement = mainElementRef.current;
+    if (!mainElement) return;
+
+    const handleScrollInteraction = () => {
+      if (!mainElementRef.current || mainElementRef.current.clientHeight === 0) {
+        setShowFooter(false);
+        return;
+      }
+      const { scrollTop, scrollHeight, clientHeight } = mainElement;
+      const isScrolledToBottom = scrollHeight > clientHeight && (scrollHeight - scrollTop - clientHeight < 5);
+      const isContentTooShortToScroll = scrollHeight <= clientHeight;
+
+      setShowFooter(isScrolledToBottom || isContentTooShortToScroll);
+    };
     
-    // This will be handled by the intersection observer
-    setShowFooter(false);
+    requestAnimationFrame(handleScrollInteraction); 
+
+    mainElement.addEventListener('scroll', handleScrollInteraction);
+    const resizeObserver = new ResizeObserver(handleScrollInteraction);
+    resizeObserver.observe(mainElement);
+
+    return () => {
+      mainElement.removeEventListener('scroll', handleScrollInteraction);
+      resizeObserver.disconnect();
+    };
   }, []);
 
   return (
     <html lang="en" className="h-full" suppressHydrationWarning>
-      <head>
-        <title>NGroup Products</title>
-        <meta name="description" content="Point of Sale system for milk products." />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=PT+Sans:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet" />
-      </head>
+      {/* head section removed as requested */}
       <body className="font-body antialiased h-full" suppressHydrationWarning>
         <AppThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <AuthProvider>
             <FullscreenProvider>
               <div className="flex flex-col h-full">
-                <main className="flex-grow overflow-y-auto relative">
+                <main
+                  ref={mainElementRef}
+                  className="flex-grow overflow-y-auto"
+                >
                   {children}
-                  {/* Footer Sentinel - detects when we're near the bottom */}
-                  <div 
-                    id="footer-sentinel"
-                    className="absolute bottom-0 h-1 w-full"
-                    style={{ visibility: 'hidden' }}
-                  />
                 </main>
                 <footer
                   className={cn(
@@ -63,34 +79,7 @@ export default function RootLayout({
             </FullscreenProvider>
           </AuthProvider>
         </AppThemeProvider>
-        <FooterObserver onVisibilityChange={setShowFooter} />
       </body>
     </html>
   );
-}
-
-function FooterObserver({ onVisibilityChange }: { onVisibilityChange: (visible: boolean) => void }) {
-  useEffect(() => {
-    const sentinel = document.getElementById('footer-sentinel');
-    if (!sentinel) return;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        onVisibilityChange(entry.isIntersecting);
-      },
-      {
-        root: null,
-        rootMargin: '0px',
-        threshold: 0.1,
-      }
-    );
-
-    observer.observe(sentinel);
-
-    return () => {
-      observer.disconnect();
-    };
-  }, [onVisibilityChange]);
-
-  return null;
 }

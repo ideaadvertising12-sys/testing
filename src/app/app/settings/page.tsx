@@ -7,10 +7,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
-import { useEffect } from "react";
+import React, { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { GlobalPreloaderScreen } from "@/components/GlobalPreloaderScreen";
-// import Link from "next/link"; // Not used currently
+
+const InjectedHeadContent = () => (
+  <>
+    <title>NGroup Products</title>
+    <meta name="description" content="Point of Sale system for milk products." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+    <link href="https://fonts.googleapis.com/css2?family=PT+Sans:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet" />
+  </>
+);
 
 interface PremiumFeatureCardProps {
   title: string;
@@ -44,18 +53,27 @@ export default function SettingsPage() {
   const router = useRouter();
 
   useEffect(() => {
-    if (currentUser === null) { // Changed from !currentUser to currentUser === null after initial load
+    if (currentUser === null) { 
       router.replace("/");
     }
   }, [currentUser, router]);
 
-  if (currentUser === undefined) { // Still loading
-    return <GlobalPreloaderScreen message="Loading settings..." />;
+  if (currentUser === undefined) { 
+    return (
+      <>
+        <GlobalPreloaderScreen message="Loading settings..." />
+        <InjectedHeadContent />
+      </>
+    );
   }
-  if (currentUser === null) { // Explicitly handle redirect case after loading
-     return <GlobalPreloaderScreen message="Redirecting..." />;
+  if (currentUser === null) { 
+     return (
+      <>
+        <GlobalPreloaderScreen message="Redirecting..." />
+        <InjectedHeadContent />
+      </>
+     );
   }
-
 
   const premiumFeatures: PremiumFeatureCardProps[] = [
     {
@@ -123,11 +141,10 @@ export default function SettingsPage() {
         
         <div className="text-center text-sm text-muted-foreground mt-10 pt-6 border-t">
             <p>For inquiries about premium features or to discuss upgrading your plan, please do not hesitate to contact Limidora support.</p>
-            {/* <p className="mt-1">Visit <Link href="https://limidora.com/contact" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">limidora.com/contact</Link> or email us at <strong className="text-primary">support@limidora.com</strong>.</p> */}
             <p className="mt-1">You can reach out to <strong className="text-primary">Limidora</strong> through your account representative.</p>
         </div>
       </div>
+      <InjectedHeadContent />
     </>
   );
 }
-

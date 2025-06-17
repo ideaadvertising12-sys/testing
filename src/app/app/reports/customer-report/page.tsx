@@ -6,9 +6,19 @@ import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
 import { AccessDenied } from "@/components/AccessDenied";
-import { useEffect } from "react";
+import React, { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { GlobalPreloaderScreen } from "@/components/GlobalPreloaderScreen";
+
+const InjectedHeadContent = () => (
+  <>
+    <title>NGroup Products</title>
+    <meta name="description" content="Point of Sale system for milk products." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+    <link href="https://fonts.googleapis.com/css2?family=PT+Sans:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet" />
+  </>
+);
 
 export default function CustomerReportPage() {
   const { currentUser } = useAuth();
@@ -25,11 +35,21 @@ export default function CustomerReportPage() {
   }, [currentUser, router]);
 
   if (!currentUser) {
-    return <GlobalPreloaderScreen message="Loading report..." />;
+    return (
+      <>
+        <GlobalPreloaderScreen message="Loading report..." />
+        <InjectedHeadContent />
+      </>
+    );
   }
 
   if (currentUser.role !== "admin") {
-    return <AccessDenied message="Customer reports are not available for your role. Redirecting..." />;
+    return (
+      <>
+        <AccessDenied message="Customer reports are not available for your role. Redirecting..." />
+        <InjectedHeadContent />
+      </>
+    );
   }
 
   return (
@@ -62,6 +82,7 @@ export default function CustomerReportPage() {
           </ul>
         </CardContent>
       </Card>
+      <InjectedHeadContent />
     </>
   );
 }

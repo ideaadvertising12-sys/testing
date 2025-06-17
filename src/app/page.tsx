@@ -8,9 +8,19 @@ import { Label } from "@/components/ui/label";
 import { AppLogo } from "@/components/AppLogo";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
-import { useState, FormEvent, useEffect } from "react";
+import React, { useState, FormEvent, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { GlobalPreloaderScreen } from "@/components/GlobalPreloaderScreen";
+
+const InjectedHeadContent = () => (
+  <>
+    <title>NGroup Products</title>
+    <meta name="description" content="Point of Sale system for milk products." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+    <link href="https://fonts.googleapis.com/css2?family=PT+Sans:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet" />
+  </>
+);
 
 export default function LoginPage() {
   const [username, setUsername] = useState("");
@@ -34,7 +44,6 @@ export default function LoginPage() {
     const success = login(username, password);
     if (success) {
       // Redirection is handled by the useEffect hook above
-      // which listens to currentUser changes.
     } else {
       toast({
         variant: "destructive",
@@ -46,52 +55,59 @@ export default function LoginPage() {
   };
   
   if (currentUser) {
-      return <GlobalPreloaderScreen message="Redirecting..." />;
+      return (
+        <>
+          <GlobalPreloaderScreen message="Redirecting..." />
+          <InjectedHeadContent />
+        </>
+      );
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-sm shadow-2xl">
-        <CardHeader className="space-y-1 text-center">
-          <div className="mx-auto mb-4">
-            <AppLogo />
-          </div>
-          <CardTitle className="text-3xl font-headline">Welcome to NGroup Products</CardTitle>
-          <CardDescription>Enter your credentials to access your account</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit}>
-            <div className="space-y-2">
-              <Label htmlFor="username">Username</Label>
-              <Input 
-                id="username" 
-                type="text" 
-                placeholder="admin or user" 
-                required 
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                autoComplete="username"
-              />
+    <>
+      <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
+        <Card className="w-full max-w-sm shadow-2xl">
+          <CardHeader className="space-y-1 text-center">
+            <div className="mx-auto mb-4">
+              <AppLogo />
             </div>
-            <div className="space-y-2 mt-4">
-              <Label htmlFor="password">Password</Label>
-              <Input 
-                id="password" 
-                type="password" 
-                required 
-                placeholder="••••••••" 
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete="current-password"
-              />
-            </div>
-            <Button type="submit" className="w-full mt-6">
-              Login
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
-      {/* Footer removed from here, will be handled by global layout */}
-    </div>
+            <CardTitle className="text-3xl font-headline">Welcome to NGroup Products</CardTitle>
+            <CardDescription>Enter your credentials to access your account</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit}>
+              <div className="space-y-2">
+                <Label htmlFor="username">Username</Label>
+                <Input 
+                  id="username" 
+                  type="text" 
+                  placeholder="admin or user" 
+                  required 
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  autoComplete="username"
+                />
+              </div>
+              <div className="space-y-2 mt-4">
+                <Label htmlFor="password">Password</Label>
+                <Input 
+                  id="password" 
+                  type="password" 
+                  required 
+                  placeholder="••••••••" 
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="current-password"
+                />
+              </div>
+              <Button type="submit" className="w-full mt-6">
+                Login
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+      <InjectedHeadContent />
+    </>
   );
 }
