@@ -91,7 +91,8 @@ export function ProductDataTable() {
   return (
     <>
       <Card className={cn(
-        isFullScreen ? "fixed inset-0 z-50 flex flex-col bg-card" : "shadow-lg"
+        "shadow-lg flex flex-col", 
+        isFullScreen ? "fixed inset-0 z-50 bg-card" : "flex-1 min-h-0"
       )}>
         <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 p-4 sm:p-6">
           <CardTitle className="font-headline shrink-0">{isFullScreen ? "Products (Fullscreen)" : "Product List"}</CardTitle>
@@ -129,12 +130,11 @@ export function ProductDataTable() {
           </div>
         </CardHeader>
         <CardContent className={cn(
-            "p-4 overflow-auto",
-            isFullScreen ? "flex-1 min-h-0" : "max-h-[calc(100vh-18rem)] md:max-h-[calc(100vh-16rem)]"
+            "p-4 overflow-auto flex-1 min-h-0" 
           )}
         >
           {filteredDisplayProducts.length === 0 ? (
-             <div className="flex flex-col items-center justify-center h-[200px] text-muted-foreground">
+             <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
                 <PackageSearch className="w-16 h-16 mb-4" />
                 <p className="text-xl">No products found.</p>
                 {searchTerm && <p>Try adjusting your search term.</p>}
@@ -314,4 +314,3 @@ export function ProductDataTable() {
     
 
     
-
