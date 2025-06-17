@@ -19,7 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"; // Added CardDescription
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"; 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import type { Customer } from "@/lib/types";
 import { CustomerDialog } from "./CustomerDialog";
@@ -35,7 +35,7 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
-  AlertDialogTitle as AlertDialogTitleComponent, // Renamed to avoid conflict
+  AlertDialogTitle as AlertDialogTitleComponent, 
 } from "@/components/ui/alert-dialog";
 
 const getInitials = (name: string) => name.split(" ").map(n => n[0]).join("").toUpperCase();
@@ -92,7 +92,7 @@ export function CustomerDataTable() {
 
   return (
     <>
-      <Card className="shadow-lg">
+      <Card className="shadow-lg flex-1 flex flex-col min-h-0"> {/* Allow card to grow and manage internal scrolling */}
         <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4">
           <CardTitle className="font-headline shrink-0">Customer List</CardTitle>
           <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
@@ -119,9 +119,9 @@ export function CustomerDataTable() {
             )}
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex-1 overflow-y-auto"> {/* Make CardContent scrollable */}
           {filteredCustomers.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-[200px] text-muted-foreground">
+            <div className="flex flex-col items-center justify-center h-full text-muted-foreground"> {/* Use h-full for empty state */}
               <Users2 className="w-16 h-16 mb-4" />
               <p className="text-xl">No customers found.</p>
               {searchTerm && <p>Try adjusting your search term.</p>}
@@ -129,7 +129,7 @@ export function CustomerDataTable() {
           ) : (
             <>
               {/* Mobile Card View - hidden on md and larger screens */}
-              <div className="md:hidden space-y-4 overflow-auto h-[500px]">
+              <div className="md:hidden space-y-4"> {/* Removed h-[500px] and overflow-auto, parent CardContent handles scroll */}
                 {filteredCustomers.map((customer) => (
                   <Card key={customer.id} className="w-full">
                     <CardHeader className="p-4 flex flex-row justify-between items-start">
@@ -271,4 +271,3 @@ export function CustomerDataTable() {
     </>
   );
 }
-

@@ -87,9 +87,10 @@
     @apply bg-background text-foreground;
   }
   html{
-    overflow:hidden;
     font-size:90%;
+  
   }
+ 
 }
 
 @media print {
@@ -148,5 +149,3 @@
     display: none !important;
   }
 }
-
-    

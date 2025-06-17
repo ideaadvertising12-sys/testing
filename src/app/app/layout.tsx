@@ -261,7 +261,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
             <UserProfile />
           </div>
         </header>
-        <main className="flex-1 p-4 sm:p-6 overflow-y-auto bg-muted/30 min-h-0">
+        <main className="flex-1 p-4 sm:p-6 overflow-y-auto bg-muted/30 min-h-0 ">
           {children}
         </main>
       </div>

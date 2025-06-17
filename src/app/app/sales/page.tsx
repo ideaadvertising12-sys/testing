@@ -130,7 +130,7 @@ export default function SalesPage() {
       <div className="flex-1 flex flex-col lg:flex-row lg:gap-4 min-h-0" >
         
         {/* Product Selection Section (Mobile: Top, LG: Left Column) */}
-        <div className="flex-1 lg:w-2/3 flex flex-col ">
+        <div className="flex-1 lg:w-2/3 flex flex-col min-h-0"> {/* Added min-h-0 here */}
           {/* Controls: Search, Sale Type, Tabs */}
           <div className="p-3 sm:p-4 border-b lg:border-b-0 lg:border-r">
             <div className="relative mb-3 sm:mb-4">
@@ -166,15 +166,15 @@ export default function SalesPage() {
           </div>
 
           {/* Product Grid Area */}
-          <ScrollArea className="flex-1 p-3 sm:p-4 h-[500px] overflow-auto">
+          <ScrollArea className="flex-1 p-3 sm:p-4"> {/* Changed h-[500px] to flex-1 */}
             {filteredProducts.length === 0 ? (
-                <div className="flex flex-col items-center justify-center text-muted-foreground pt-10 h-[400px] overflow-auto">
+                <div className="flex flex-col items-center justify-center text-muted-foreground pt-10 h-full"> {/* Changed h-[400px] to h-full */}
                     <PackageSearch className="w-16 h-16 mb-4" />
                     <p className="text-xl">No products found.</p>
                     <p>Try adjusting your search or category filters.</p>
                 </div>
             ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4  ">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
                 {filteredProducts.map(product => (
                     <POSProductCard 
                       key={product.id} 
@@ -189,7 +189,8 @@ export default function SalesPage() {
         </div>
 
         {/* Cart Section (Mobile: Bottom Panel, LG: Right Column) */}
-        <div className="h-[45vh] lg:h-auto lg:w-1/3 flex flex-col min-h-0 border-t lg:border-t-0 bg-card">
+        {/* Adjusted height for mobile using flex-basis and flex-shrink-0 */}
+        <div className="flex-shrink-0 basis-[280px] sm:basis-[320px] md:basis-[360px] lg:basis-auto lg:w-1/3 flex flex-col min-h-0 border-t lg:border-t-0 bg-card">
           <CartView 
             cartItems={cartItems}
             selectedCustomer={selectedCustomer}
@@ -200,7 +201,7 @@ export default function SalesPage() {
             onUpdateDiscountPercentage={setDiscountPercentage}
             onCheckout={handleCheckout}
             onCancelOrder={handleCancelOrder}
-            className="flex-1 min-h-0" // Ensures CartView itself manages its height within this container
+            className="flex-1 min-h-0" 
           />
         </div>
       </div>
