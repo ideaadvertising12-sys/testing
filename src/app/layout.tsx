@@ -1,7 +1,7 @@
 
 "use client";
 
-import type { Metadata } from 'next';
+// import type { Metadata } from 'next'; // Metadata export is not allowed in client components.
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { AppThemeProvider } from '@/components/providers/AppThemeProvider';
@@ -10,7 +10,7 @@ import { FullscreenProvider } from '@/contexts/FullscreenContext';
 import { useState, useEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
 
-// export const metadata: Metadata = { // Metadata export is not allowed in client components.
+// export const metadata: Metadata = {
 //   title: 'NGroup Products',
 //   description: 'Point of Sale system for milk products.',
 // };
@@ -26,7 +26,7 @@ export default function RootLayout({
   useEffect(() => {
     const mainElement = mainElementRef.current;
 
-    const handleScroll = () => {
+    const handleScrollInteraction = () => {
       if (mainElement) {
         const { scrollTop, scrollHeight, clientHeight } = mainElement;
         // Show footer if scrolled to near bottom (50px threshold) OR if content is not scrollable
@@ -39,13 +39,13 @@ export default function RootLayout({
     };
 
     if (mainElement) {
-      mainElement.addEventListener('scroll', handleScroll);
-      handleScroll(); // Initial check
+      mainElement.addEventListener('scroll', handleScrollInteraction);
+      handleScrollInteraction(); // Initial check
     }
 
     return () => {
       if (mainElement) {
-        mainElement.removeEventListener('scroll', handleScroll);
+        mainElement.removeEventListener('scroll', handleScrollInteraction);
       }
     };
   }, []); // Empty dependency array means this effect runs once on mount and cleanup on unmount
@@ -75,8 +75,9 @@ export default function RootLayout({
                 </main>
                 <footer 
                   className={cn(
-                    "text-center py-4 px-6 border-t bg-background text-sm text-muted-foreground shrink-0 transition-opacity duration-300",
-                    showFooter ? "opacity-100" : "opacity-0 pointer-events-none"
+                    "text-center py-4 px-6 border-t bg-background text-sm text-muted-foreground shrink-0",
+                    "transition-all duration-300 ease-in-out", // Animate opacity and transform
+                    showFooter ? "opacity-100 translate-y-0" : "opacity-0 translate-y-full pointer-events-none"
                   )}
                 >
                   Design, Development, and Hosting by Limidora
