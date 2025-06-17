@@ -17,6 +17,8 @@ import {
   UserCheck,
   PanelLeft,
   X,
+  Maximize, // Added
+  Minimize, // Added
 } from "lucide-react";
 
 import {
@@ -38,6 +40,7 @@ import { GlobalPreloaderScreen } from "@/components/GlobalPreloaderScreen";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import { useFullscreen } from "@/contexts/FullscreenContext"; // Added
 
 const CustomInventoryIcon = ({ className: propClassName }: { className?: string }) => (
   <svg
@@ -143,6 +146,8 @@ function AppShell({ children }: { children: React.ReactNode }) {
     activePath
   } = useSidebarContext();
 
+  const { isAppFullScreen, toggleAppFullScreen } = useFullscreen(); // Added
+
   const currentPageLabel = useMemo(
     () => calculateCurrentPageLabel(activePath, userRole, navItems),
     [activePath, userRole, navItems]
@@ -192,7 +197,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
               </div>
               <UserProfile />
             </header>
-            <main className="flex-1 p-4 sm:p-6 overflow-y-auto bg-muted/30 min-h-0"> {/* Added min-h-0 */}
+            <main className="flex-1 p-4 sm:p-6 overflow-y-auto bg-muted/30 min-h-0">
               {children}
             </main>
           </div>
@@ -233,10 +238,22 @@ function AppShell({ children }: { children: React.ReactNode }) {
               {currentPageLabel}
             </h1>
           </div>
-          <UserProfile />
+          <div className="flex items-center gap-2"> {/* Wrapper for UserProfile and Fullscreen button */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleAppFullScreen}
+              className="h-9 w-9 hidden md:inline-flex" 
+              title={isAppFullScreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+            >
+              {isAppFullScreen ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
+              <span className="sr-only">{isAppFullScreen ? "Exit Fullscreen" : "Enter Fullscreen"}</span>
+            </Button>
+            <UserProfile />
+          </div>
         </header>
         {/* Page Content */}
-        <main className="flex-1 p-4 sm:p-6 overflow-y-auto bg-muted/30 min-h-0"> {/* Added min-h-0 */}
+        <main className="flex-1 p-4 sm:p-6 overflow-y-auto bg-muted/30 min-h-0">
           {children}
         </main>
       </div>
