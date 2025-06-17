@@ -196,6 +196,7 @@ export function ProductDataTable() {
                       <TableHead className="w-[80px] xl:w-[100px]">Image</TableHead>
                       <TableHead>Name</TableHead>
                       <TableHead>Category</TableHead>
+                      <TableHead>SKU</TableHead>
                       <TableHead>Stock</TableHead>
                       <TableHead className="text-right">Wholesale Price</TableHead>
                       <TableHead className="text-right">Retail Price</TableHead>
@@ -223,6 +224,7 @@ export function ProductDataTable() {
                         <TableCell>
                           <Badge variant="outline">{product.category}</Badge>
                         </TableCell>
+                        <TableCell>{product.sku || "N/A"}</TableCell>
                         <TableCell>{product.stock}</TableCell>
                         <TableCell className="text-right">
                           {product.wholesalePrice !== undefined && product.wholesalePrice > 0 ? `Rs. ${product.wholesalePrice.toFixed(2)}` : "N/A"}
