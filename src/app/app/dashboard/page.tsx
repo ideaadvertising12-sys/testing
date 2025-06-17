@@ -24,8 +24,6 @@ import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { GlobalPreloaderScreen } from "@/components/GlobalPreloaderScreen";
 
-// InjectedHeadContent component removed
-
 export default function DashboardPage() {
   const { currentUser } = useAuth();
   const router = useRouter();
@@ -47,8 +45,6 @@ export default function DashboardPage() {
     return (
       <>
         <GlobalPreloaderScreen message="Loading dashboard..." />
-        {/* InjectedHeadContent usage removed */}
-        <footer className="text-center py-4 px-6 border-t bg-background text-sm text-muted-foreground shrink-0">Design, Development & Hosting by Limidora</footer>
       </>
     );
   }
@@ -57,8 +53,6 @@ export default function DashboardPage() {
     return (
       <>
         <AccessDenied message="Dashboard is not available for your role. Redirecting..." />
-        {/* InjectedHeadContent usage removed */}
-        <footer className="text-center py-4 px-6 border-t bg-background text-sm text-muted-foreground shrink-0">Design, Development & Hosting by Limidora</footer>
       </>
     );
   }
@@ -162,8 +156,6 @@ export default function DashboardPage() {
       </div>
       
       <AlertQuantityTable />
-      {/* InjectedHeadContent usage removed */}
-      <footer className="text-center py-4 px-6 border-t bg-background text-sm text-muted-foreground shrink-0">Design, Development & Hosting by Limidora</footer>
     </>
   );
 }

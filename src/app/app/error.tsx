@@ -1,3 +1,4 @@
+
 "use client"; 
 
 import { useEffect } from "react";
@@ -30,7 +31,6 @@ export default function Error({
         <p className="text-xs text-muted-foreground mt-4">Error Digest: {error.digest}</p>
       )}
     </div>
-    <footer className="text-center py-4 px-6 border-t bg-background text-sm text-muted-foreground shrink-0">Design, Development & Hosting by Limidora</footer>
     </>
   );
 }

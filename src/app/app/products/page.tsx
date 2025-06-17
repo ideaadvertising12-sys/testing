@@ -10,8 +10,6 @@ import React, { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { GlobalPreloaderScreen } from "@/components/GlobalPreloaderScreen";
 
-// InjectedHeadContent component removed
-
 export default function ProductsPage() {
   const { currentUser } = useAuth();
   const router = useRouter();
@@ -30,8 +28,6 @@ export default function ProductsPage() {
      return (
       <>
         <GlobalPreloaderScreen message="Loading products..." />
-        {/* InjectedHeadContent usage removed */}
-        <footer className="text-center py-4 px-6 border-t bg-background text-sm text-muted-foreground shrink-0">Design, Development & Hosting by Limidora</footer>
       </>
      );
   }
@@ -40,8 +36,6 @@ export default function ProductsPage() {
     return (
       <>
         <AccessDenied message="Product management is not available for your role. Redirecting..." />
-        {/* InjectedHeadContent usage removed */}
-        <footer className="text-center py-4 px-6 border-t bg-background text-sm text-muted-foreground shrink-0">Design, Development & Hosting by Limidora</footer>
       </>
     );
   }
@@ -54,8 +48,6 @@ export default function ProductsPage() {
         icon={Package}
       />
       <ProductDataTable />
-      {/* InjectedHeadContent usage removed */}
-      <footer className="text-center py-4 px-6 border-t bg-background text-sm text-muted-foreground shrink-0">Design, Development & Hosting by Limidora</footer>
     </>
   );
 }

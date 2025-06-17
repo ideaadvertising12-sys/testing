@@ -12,8 +12,6 @@ import React, { useState, FormEvent, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { GlobalPreloaderScreen } from "@/components/GlobalPreloaderScreen";
 
-// InjectedHeadContent component removed
-
 export default function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -50,8 +48,6 @@ export default function LoginPage() {
       return (
         <>
           <GlobalPreloaderScreen message="Redirecting..." />
-          {/* InjectedHeadContent usage removed */}
-          <footer className="text-center py-4 px-6 border-t bg-background text-sm text-muted-foreground shrink-0">Design, Development & Hosting by Limidora</footer>
         </>
       );
   }
@@ -100,8 +96,6 @@ export default function LoginPage() {
           </CardContent>
         </Card>
       </div>
-      {/* InjectedHeadContent usage removed */}
-      <footer className="text-center py-4 px-6 border-t bg-background text-sm text-muted-foreground shrink-0">Design, Development & Hosting by Limidora</footer>
     </>
   );
 }

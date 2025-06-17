@@ -172,7 +172,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
   if (isMobile) {
     return (
       <Sheet open={openMobile} onOpenChange={setOpenMobile}>
-        <div className="flex flex-col h-full bg-background"> {/* Changed from h-screen to h-full */}
+        <div className="flex flex-col h-full bg-background">
           <SheetContent
             side="left"
             className="p-0 w-[280px] flex flex-col data-[state=closed]:duration-200 data-[state=open]:duration-300 bg-sidebar text-sidebar-foreground border-r-0"
@@ -220,7 +220,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
 
   // Desktop Layout
   return (
-    <div className="flex h-full bg-background"> {/* Changed from h-screen to h-full */}
+    <div className="flex h-full bg-background">
       <AppNewSidebar
         className={cn(
           "h-full border-r border-sidebar-border",
@@ -233,11 +233,11 @@ function AppShell({ children }: { children: React.ReactNode }) {
 
       <div
         className={cn(
-          "flex-1 flex flex-col overflow-x-hidden",
+          "flex-1 flex flex-col overflow-auto", // This overflow-auto handles scrolling for the header + main content area
           "transition-all duration-300 ease-in-out"
         )}
       >
-        <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-card/95 px-4 backdrop-blur-sm sm:px-6">
+        <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-card/95 px-4 backdrop-blur-sm sm:px-6 py-4">
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon" className="h-9 w-9" onClick={toggleCollapse}>
               {isCollapsed ? <PanelLeft className="h-5 w-5" /> : <X className="h-5 w-5" />}
@@ -261,7 +261,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
             <UserProfile />
           </div>
         </header>
-        <main className="flex-1 p-4 sm:p-6 overflow-y-auto bg-muted/30 min-h-0 ">
+        <main className="flex-1 p-4 sm:p-6 bg-muted/30"> {/* Removed min-h-[100vh], flex-1 allows it to take available space */}
           {children}
         </main>
       </div>

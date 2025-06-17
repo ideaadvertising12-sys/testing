@@ -17,8 +17,6 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable'; 
 import { GlobalPreloaderScreen } from "@/components/GlobalPreloaderScreen";
 
-// InjectedHeadContent component removed
-
 interface jsPDFWithAutoTable extends jsPDF {
   autoTable: (options: any) => jsPDF;
 }
@@ -42,8 +40,6 @@ export default function FullReportPage() {
      return (
       <>
         <GlobalPreloaderScreen message="Loading report..." />
-        {/* InjectedHeadContent usage removed */}
-        <footer className="text-center py-4 px-6 border-t bg-background text-sm text-muted-foreground shrink-0">Design, Development & Hosting by Limidora</footer>
       </>
      );
   }
@@ -52,8 +48,6 @@ export default function FullReportPage() {
     return (
       <>
         <AccessDenied message="Full reports are not available for your role. Redirecting..." />
-        {/* InjectedHeadContent usage removed */}
-        <footer className="text-center py-4 px-6 border-t bg-background text-sm text-muted-foreground shrink-0">Design, Development & Hosting by Limidora</footer>
       </>
     );
   }
@@ -136,8 +130,6 @@ export default function FullReportPage() {
           <FullReportTable data={reportData} />
         </CardContent>
       </Card>
-      {/* InjectedHeadContent usage removed */}
-      <footer className="text-center py-4 px-6 border-t bg-background text-sm text-muted-foreground shrink-0">Design, Development & Hosting by Limidora</footer>
     </>
   );
 }

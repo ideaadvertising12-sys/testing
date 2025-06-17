@@ -6,7 +6,7 @@ import type { Product } from "@/lib/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Package } from "lucide-react"; // Combined Package import
 
 export function AlertQuantityTable() {
   const productsToReorder = placeholderProducts.filter(
@@ -25,7 +25,7 @@ export function AlertQuantityTable() {
       <CardContent>
         {productsToReorder.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-[350px] text-muted-foreground">
-            <Package className="w-16 h-16 mb-4 text-green-500" /> {/* Using Package icon from lucide */}
+            <Package className="w-16 h-16 mb-4 text-green-500" />
             <p className="text-xl">All Products Well Stocked!</p>
             <p>No products currently need reordering.</p>
           </div>
@@ -57,6 +57,3 @@ export function AlertQuantityTable() {
     </Card>
   );
 }
-
-// Need to import Package icon if used
-import { Package } from "lucide-react";

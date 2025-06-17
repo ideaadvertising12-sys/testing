@@ -30,7 +30,7 @@ export default function RootLayout({
               <div className="flex flex-col h-full">
                 <main
                   // ref is removed as it was for the dynamic footer
-                  className="flex-grow overflow-y-auto"
+                  className="overflow-auto h-full w-full"
                 >
                   {children}
                 </main>

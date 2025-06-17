@@ -10,8 +10,6 @@ import React, { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { GlobalPreloaderScreen } from "@/components/GlobalPreloaderScreen";
 
-// InjectedHeadContent component removed
-
 export default function CustomerReportPage() {
   const { currentUser } = useAuth();
   const router = useRouter();
@@ -30,8 +28,6 @@ export default function CustomerReportPage() {
     return (
       <>
         <GlobalPreloaderScreen message="Loading report..." />
-        {/* InjectedHeadContent usage removed */}
-        <footer className="text-center py-4 px-6 border-t bg-background text-sm text-muted-foreground shrink-0">Design, Development & Hosting by Limidora</footer>
       </>
     );
   }
@@ -40,8 +36,6 @@ export default function CustomerReportPage() {
     return (
       <>
         <AccessDenied message="Customer reports are not available for your role. Redirecting..." />
-        {/* InjectedHeadContent usage removed */}
-        <footer className="text-center py-4 px-6 border-t bg-background text-sm text-muted-foreground shrink-0">Design, Development & Hosting by Limidora</footer>
       </>
     );
   }
@@ -76,8 +70,6 @@ export default function CustomerReportPage() {
           </ul>
         </CardContent>
       </Card>
-      {/* InjectedHeadContent usage removed */}
-      <footer className="text-center py-4 px-6 border-t bg-background text-sm text-muted-foreground shrink-0">Design, Development & Hosting by Limidora</footer>
     </>
   );
 }

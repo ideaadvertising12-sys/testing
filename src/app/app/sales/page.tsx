@@ -15,8 +15,6 @@ import { Label } from "@/components/ui/label";
 import type { Product, CartItem, Customer } from "@/lib/types";
 import { placeholderProducts, placeholderCustomers } from "@/lib/placeholder-data";
 
-// InjectedHeadContent component removed
-
 export default function SalesPage() {
   const [allProducts] = useState<Product[]>(placeholderProducts);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>(placeholderProducts);
@@ -214,8 +212,6 @@ export default function SalesPage() {
           saleId={`SALE-${Date.now().toString().slice(-6)}`} 
         />
       </div>
-      {/* InjectedHeadContent usage removed */}
-      <footer className="text-center py-4 px-6 border-t bg-background text-sm text-muted-foreground shrink-0">Design, Development & Hosting by Limidora</footer>
     </>
   );
 }

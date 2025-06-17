@@ -11,8 +11,6 @@ import React, { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { GlobalPreloaderScreen } from "@/components/GlobalPreloaderScreen";
 
-// InjectedHeadContent component removed
-
 interface PremiumFeatureCardProps {
   title: string;
   description: string;
@@ -54,8 +52,6 @@ export default function SettingsPage() {
     return (
       <>
         <GlobalPreloaderScreen message="Loading settings..." />
-        {/* InjectedHeadContent usage removed */}
-        <footer className="text-center py-4 px-6 border-t bg-background text-sm text-muted-foreground shrink-0">Design, Development & Hosting by Limidora</footer>
       </>
     );
   }
@@ -63,8 +59,6 @@ export default function SettingsPage() {
      return (
       <>
         <GlobalPreloaderScreen message="Redirecting..." />
-        {/* InjectedHeadContent usage removed */}
-        <footer className="text-center py-4 px-6 border-t bg-background text-sm text-muted-foreground shrink-0">Design, Development & Hosting by Limidora</footer>
       </>
      );
   }
@@ -138,8 +132,6 @@ export default function SettingsPage() {
             <p className="mt-1">You can reach out to <strong className="text-primary">Limidora</strong> through your account representative.</p>
         </div>
       </div>
-      {/* InjectedHeadContent usage removed */}
-      <footer className="text-center py-4 px-6 border-t bg-background text-sm text-muted-foreground shrink-0">Design, Development & Hosting by Limidora</footer>
     </>
   );
 }

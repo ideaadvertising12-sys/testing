@@ -6,7 +6,6 @@ export default function Loading() {
   return (
     <>
       <GlobalPreloaderScreen message="Loading application..." />
-      <footer className="text-center py-4 px-6 border-t bg-background text-sm text-muted-foreground shrink-0">Design, Development & Hosting by Limidora</footer>
     </>
   );
 }
