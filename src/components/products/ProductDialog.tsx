@@ -118,7 +118,7 @@ export function ProductDialog({
             {product ? "Update the details of this product." : "Fill in the details for the new product."}
           </DialogDescription>
         </DialogHeader>
-        <div className="grid gap-6 py-4">
+        <div className="space-y-6 py-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <Label htmlFor="name">Product Name</Label>
@@ -148,7 +148,7 @@ export function ProductDialog({
               <Input id="price" name="price" type="number" value={formData.price} onChange={handleChange} className="mt-1" min="0" step="0.01" />
             </div>
             <div>
-              <Label htmlFor="wholesalePrice">Wholesale Price (Rs.)</Label>
+              <Label htmlFor="wholesalePrice">Wholesale Price (Rs.) (Optional)</Label>
               <Input id="wholesalePrice" name="wholesalePrice" type="number" value={formData.wholesalePrice === undefined ? '' : formData.wholesalePrice} onChange={handleChange} className="mt-1" min="0" step="0.01" />
             </div>
           </div>
@@ -165,17 +165,17 @@ export function ProductDialog({
           </div>
 
           <div>
-            <Label htmlFor="sku">SKU (Stock Keeping Unit)</Label>
+            <Label htmlFor="sku">SKU (Stock Keeping Unit) (Optional)</Label>
             <Input id="sku" name="sku" value={formData.sku || ""} onChange={handleChange} className="mt-1" />
           </div>
 
           <div>
-            <Label htmlFor="description">Description</Label>
+            <Label htmlFor="description">Description (Optional)</Label>
             <Textarea id="description" name="description" value={formData.description || ""} onChange={handleChange} className="mt-1" rows={3} />
           </div>
-
+          
           <div>
-            <Label htmlFor="aiHint">AI Hint (Optional)</Label>
+            <Label htmlFor="aiHint">AI Hint for Image (Optional)</Label>
             <Input id="aiHint" name="aiHint" value={formData.aiHint || ""} onChange={handleChange} className="mt-1" placeholder="e.g. yogurt product, fruit drink" />
           </div>
 
@@ -183,7 +183,7 @@ export function ProductDialog({
             <Label htmlFor="imageUrl">Product Image</Label>
             <Input id="imageUrl" name="imageUrl" type="file" accept="image/*" onChange={handleImageChange} className="mt-1" />
             {previewImage && (
-              <div className="mt-2 rounded-md overflow-hidden border border-muted aspect-video w-full max-w-xs mx-auto">
+              <div className="mt-2 rounded-md overflow-hidden border border-muted aspect-video w-full max-w-sm mx-auto">
                 <Image src={previewImage} alt="Product preview" width={400} height={300} className="object-cover w-full h-full" data-ai-hint={formData.aiHint || `${formData.category.toLowerCase()} product`} />
               </div>
             )}

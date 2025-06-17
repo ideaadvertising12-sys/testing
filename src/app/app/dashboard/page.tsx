@@ -37,7 +37,10 @@ export default function DashboardPage() {
     if (currentUser.role === "cashier") {
       router.replace("/app/sales"); 
     } else {
-      setDashboardStats(generatePlaceholderStats());
+      // Simulate fetching data
+      setTimeout(() => {
+        setDashboardStats(generatePlaceholderStats());
+      }, 1000); // Simulate 1 second delay
     }
   }, [currentUser, router]);
 
@@ -61,8 +64,8 @@ export default function DashboardPage() {
     .sort((a,b) => (b.price * (150 - b.stock)) - (a.price * (150 - a.stock)) ) 
     .slice(0,5);
   
-  const renderStatsCard = (title: string, value: string | number | undefined, icon: React.ElementType, iconColor: string, description?: string) => {
-    if (dashboardStats === null && (title === "Total Revenue" || title === "Total Customers" || title === "Low Stock Items" || title === "Revenue Today")) {
+  const renderStatsCard = (title: string, valueKey: keyof StatsData | 'totalSalesFormatted' | 'revenueTodayFormatted', icon: React.ElementType, iconColor: string, description?: string) => {
+    if (dashboardStats === null && (valueKey === "totalSalesFormatted" || valueKey === "totalCustomers" || valueKey === "lowStockItems" || valueKey === "revenueTodayFormatted")) {
       return (
         <Card className="shadow-lg">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -76,10 +79,23 @@ export default function DashboardPage() {
         </Card>
       );
     }
+
+    let displayValue: string | number = 'N/A';
+    if (dashboardStats) {
+      if (valueKey === "totalSalesFormatted") {
+        displayValue = `Rs. ${dashboardStats.totalSales.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+      } else if (valueKey === "revenueTodayFormatted") {
+         displayValue = `Rs. ${dashboardStats.revenueToday.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+      } else {
+        displayValue = dashboardStats[valueKey as keyof StatsData] ?? 'N/A';
+      }
+    }
+
+
     return (
       <StatsCard
         title={title}
-        value={value ?? 'N/A'}
+        value={displayValue}
         icon={icon}
         iconColor={iconColor}
         description={description}
@@ -94,26 +110,26 @@ export default function DashboardPage() {
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-6">
         {renderStatsCard(
           "Total Revenue",
-          dashboardStats ? `Rs. ${dashboardStats.totalSales.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : undefined,
+          "totalSalesFormatted",
           Banknote,
           "text-green-600"
         )}
         {renderStatsCard(
           "Total Customers",
-          dashboardStats?.totalCustomers,
+          "totalCustomers",
           Users,
           "text-blue-600"
         )}
         {renderStatsCard(
           "Low Stock Items",
-          dashboardStats?.lowStockItems,
+          "lowStockItems",
           AlertTriangle,
-          "text-red-600",
+          "text-destructive", // Changed from text-red-600
           "Needs reordering soon"
         )}
         {renderStatsCard(
           "Revenue Today",
-          dashboardStats ? `Rs. ${dashboardStats.revenueToday.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : undefined,
+          "revenueTodayFormatted",
           TrendingUp,
           "text-emerald-600"
         )}
@@ -156,6 +172,7 @@ export default function DashboardPage() {
       </div>
       
       <AlertQuantityTable />
+        <footer className="text-center py-4 px-6 border-t bg-background text-sm text-muted-foreground shrink-0">Design, Development & Hosting by Limidora</footer>
     </>
   );
 }

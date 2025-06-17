@@ -120,8 +120,6 @@ export function Sidebar({ children, className }: { children: React.ReactNode, cl
 export function SidebarHeader({ children, className }: { children: React.ReactNode, className?: string }) {
   const { isCollapsed, isMobile } = useSidebarContext();
 
-  // Conditionally wrap children with SheetTitle if on mobile, otherwise render directly.
-  // This ensures SheetTitle is only used when SidebarHeader is within a Sheet component.
   const HeaderContent = isMobile ? <SheetTitle asChild>{children}</SheetTitle> : children;
 
   return (
@@ -176,9 +174,8 @@ function SidebarNavItem({ item }: SidebarNavItemProps) {
 
   const handleAccordionTriggerClick = () => {
     if (isCollapsed && !isMobile) {
-      toggleCollapse(); // Expand the sidebar if it's collapsed on desktop
+      toggleCollapse(); 
     }
-    // Accordion will open/close due to its own default behavior
   };
 
   if (item.children && item.children.length > 0) {
@@ -207,7 +204,6 @@ function SidebarNavItem({ item }: SidebarNavItemProps) {
                   <Icon className={cn("h-5 w-5 shrink-0", isActive && isCollapsed && !isMobile ? "text-sidebar-primary-foreground" : isActive ? "text-sidebar-primary" : "text-sidebar-foreground/70 group-hover:text-sidebar-accent-foreground")} />
                   {(!isCollapsed || isMobile) && <span className="truncate text-sidebar-foreground group-hover:text-sidebar-accent-foreground">{item.label}</span>}
                 </div>
-                {/* AccordionTrigger itself provides the chevron, so no explicit one here */}
               </RadixAccordionTrigger>
             </TooltipTrigger>
             {isCollapsed && !isMobile && <TooltipContent side="right">{item.label}</TooltipContent>}
@@ -266,7 +262,7 @@ export function SidebarFooter({ children, className }: { children: React.ReactNo
   return (
     <div className={cn(
         "p-4 border-t border-sidebar-border mt-auto", 
-        isCollapsed && !isMobile ? "text-center" : "px-4", // Adjusted for better centering of text if children is simple text
+        isCollapsed && !isMobile ? "text-center" : "px-4", 
         className
       )}
     >
