@@ -17,8 +17,8 @@ import {
   UserCheck,
   PanelLeft,
   X,
-  Maximize, // Added
-  Minimize, // Added
+  Maximize,
+  Minimize,
 } from "lucide-react";
 
 import {
@@ -40,7 +40,7 @@ import { GlobalPreloaderScreen } from "@/components/GlobalPreloaderScreen";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { useFullscreen } from "@/contexts/FullscreenContext"; // Added
+import { useFullscreen } from "@/contexts/FullscreenContext";
 
 const CustomInventoryIcon = ({ className: propClassName }: { className?: string }) => (
   <svg
@@ -146,7 +146,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
     activePath
   } = useSidebarContext();
 
-  const { isAppFullScreen, toggleAppFullScreen } = useFullscreen(); // Added
+  const { isAppFullScreen, toggleAppFullScreen } = useFullscreen();
 
   const currentPageLabel = useMemo(
     () => calculateCurrentPageLabel(activePath, userRole, navItems),
@@ -195,7 +195,19 @@ function AppShell({ children }: { children: React.ReactNode }) {
                   {currentPageLabel}
                 </h1>
               </div>
-              <UserProfile />
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={toggleAppFullScreen}
+                  className="h-9 w-9 inline-flex"
+                  title={isAppFullScreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+                >
+                  {isAppFullScreen ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
+                  <span className="sr-only">{isAppFullScreen ? "Exit Fullscreen" : "Enter Fullscreen"}</span>
+                </Button>
+                <UserProfile />
+              </div>
             </header>
             <main className="flex-1 p-4 sm:p-6 overflow-y-auto bg-muted/30 min-h-0">
               {children}
@@ -243,7 +255,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
               variant="ghost"
               size="icon"
               onClick={toggleAppFullScreen}
-              className="h-9 w-9 hidden md:inline-flex" 
+              className="h-9 w-9 inline-flex" 
               title={isAppFullScreen ? "Exit Fullscreen" : "Enter Fullscreen"}
             >
               {isAppFullScreen ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
