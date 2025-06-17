@@ -1,3 +1,4 @@
+
 "use client";
 
 // import type { Metadata } from 'next'; // Metadata export is not allowed in client components.
@@ -24,20 +25,15 @@ export default function RootLayout({
       if (mainElement && mainElement.clientHeight > 0) { // Ensure element is rendered with height
         const { scrollTop, scrollHeight, clientHeight } = mainElement;
         
-        // Condition to show footer:
-        // 1. If the content is scrollable AND the user has scrolled to near the bottom.
-        // OR
-        // 2. If the content is not scrollable (i.e., it's short), then the footer should be shown.
         const isScrolledToBottom = scrollHeight > clientHeight && (scrollHeight - scrollTop - clientHeight < 50);
-        const isContentShort = scrollHeight <= clientHeight;
+        const isContentTooShortToScroll = scrollHeight <= clientHeight;
 
-        if (isScrolledToBottom || isContentShort) {
+        if (isScrolledToBottom || isContentTooShortToScroll) {
           setShowFooter(true);
         } else {
           setShowFooter(false);
         }
       } else {
-         // If element isn't ready (e.g. clientHeight is 0), keep footer hidden.
         setShowFooter(false);
       }
     };
@@ -47,7 +43,6 @@ export default function RootLayout({
       const resizeObserver = new ResizeObserver(handleScrollInteraction);
       resizeObserver.observe(mainElement);
 
-      // Perform initial check after layout is stable using requestAnimationFrame
       requestAnimationFrame(() => {
         handleScrollInteraction();
       });
@@ -57,7 +52,7 @@ export default function RootLayout({
         resizeObserver.unobserve(mainElement);
       };
     }
-  }, []); // Empty dependency array: runs once on mount, cleans up on unmount
+  }, []); 
 
   return (
     <html lang="en" className="h-full" suppressHydrationWarning={true}>
@@ -81,14 +76,17 @@ export default function RootLayout({
                 <main ref={mainElementRef} className="flex-grow overflow-y-auto">
                   {children}
                 </main>
-                <footer 
+                <footer
                   className={cn(
                     "text-center py-4 px-6 border-t bg-background text-sm text-muted-foreground shrink-0",
-                    "transition-all duration-300 ease-in-out", // Animate opacity and transform
-                    showFooter ? "opacity-100 translate-y-0" : "opacity-0 translate-y-full pointer-events-none"
+                    "transition-all duration-300 ease-in-out",
+                    showFooter ? "opacity-100" : "opacity-0 pointer-events-none"
                   )}
+                  style={{
+                    transform: showFooter ? 'translateY(0)' : 'translateY(90%)',
+                  }}
                 >
-                  Design, Development, and Hosting by Limidora
+                  Design, Development & Hosting by Limidora
                 </footer>
               </div>
               <Toaster />
