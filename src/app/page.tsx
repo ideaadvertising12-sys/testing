@@ -8,9 +8,10 @@ import { Label } from "@/components/ui/label";
 import { AppLogo } from "@/components/AppLogo";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
-import React, { useState, FormEvent, useEffect } from "react";
+import React, { useState, FormEvent, useEffect, useRef } from "react"; // Added useRef
 import { useToast } from "@/hooks/use-toast";
 import { GlobalPreloaderScreen } from "@/components/GlobalPreloaderScreen";
+import { cn } from "@/lib/utils"; // Added cn
 
 export default function LoginPage() {
   const [username, setUsername] = useState("");
@@ -18,6 +19,10 @@ export default function LoginPage() {
   const { login, currentUser } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
+
+  const [showFooter, setShowFooter] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const loginPageContentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (currentUser) {
@@ -28,6 +33,39 @@ export default function LoginPage() {
       }
     }
   }, [currentUser, router]);
+
+  useEffect(() => {
+    setMounted(true);
+
+    const mainElement = loginPageContentRef.current;
+    if (!mainElement) return;
+
+    const handleScrollInteraction = () => {
+      // Ensure the element is actually rendered and has dimensions
+      if (!loginPageContentRef.current || loginPageContentRef.current.clientHeight === 0) {
+        setShowFooter(false);
+        return;
+      }
+      const { scrollTop, scrollHeight, clientHeight } = mainElement;
+      
+      const isScrolledToBottom = scrollHeight > clientHeight && (scrollHeight - scrollTop - clientHeight < 5); // 5px threshold
+      const isContentTooShortToScroll = scrollHeight <= clientHeight;
+
+      setShowFooter(isScrolledToBottom || isContentTooShortToScroll);
+    };
+    
+    const animationFrameId = requestAnimationFrame(handleScrollInteraction);
+    
+    mainElement.addEventListener('scroll', handleScrollInteraction);
+    const resizeObserver = new ResizeObserver(handleScrollInteraction);
+    resizeObserver.observe(mainElement);
+
+    return () => {
+      cancelAnimationFrame(animationFrameId);
+      mainElement.removeEventListener('scroll', handleScrollInteraction);
+      resizeObserver.disconnect();
+    };
+  }, []); 
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -54,7 +92,10 @@ export default function LoginPage() {
 
   return (
     <>
-      <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
+      <div 
+        ref={loginPageContentRef}
+        className="flex min-h-screen flex-col items-center justify-center bg-background p-4 pb-20 overflow-y-auto"
+      >
         <Card className="w-full max-w-sm shadow-2xl">
           <CardHeader className="space-y-1 text-center">
             <div className="mx-auto mb-4">
@@ -96,6 +137,18 @@ export default function LoginPage() {
           </CardContent>
         </Card>
       </div>
+      <footer
+        className={cn(
+          "fixed bottom-0 left-0 right-0 text-center py-4 px-6 border-t bg-background text-sm text-muted-foreground z-40",
+          "transition-all duration-300 ease-in-out",
+          (!mounted || !showFooter) ? "opacity-0 pointer-events-none" : "opacity-100"
+        )}
+        style={{
+          transform: (mounted && showFooter) ? 'translateY(0)' : 'translateY(100%)',
+        }}
+      >
+        Design, Development & Hosting by Limidora
+      </footer>
     </>
   );
 }
