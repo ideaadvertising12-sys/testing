@@ -1,7 +1,8 @@
+
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { PackageSearch, ShoppingCart, Tag, X, Search } from "lucide-react";
+import { PackageSearch, ShoppingCart, Tag, X, Search, Maximize, Minimize } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { POSProductCard } from "@/components/sales/POSProductCard";
 import { CartView } from "@/components/sales/CartView";
@@ -17,6 +18,7 @@ import { Drawer, DrawerContent, DrawerTrigger, DrawerHeader, DrawerTitle, Drawer
 import { useMediaQuery } from "@/hooks/use-media-query";
 import type { Product, CartItem, Customer, Sale } from "@/lib/types";
 import { placeholderProducts, placeholderCustomers } from "@/lib/placeholder-data";
+import { cn } from "@/lib/utils";
 
 export default function SalesPage() {
   const [allProducts] = useState<Product[]>(placeholderProducts);
@@ -29,9 +31,12 @@ export default function SalesPage() {
   const [discountPercentage, setDiscountPercentage] = useState(0);
   const [currentSaleType, setCurrentSaleType] = useState<'retail' | 'wholesale'>('retail');
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isSalesPageFullScreen, setIsSalesPageFullScreen] = useState(false);
 
   const isMobile = useMediaQuery("(max-width: 768px)");
   const categories: (Product["category"] | "All")[] = ["All", ...new Set(allProducts.map(p => p.category))];
+
+  const toggleSalesPageFullScreen = () => setIsSalesPageFullScreen(!isSalesPageFullScreen);
 
   const filterAndCategorizeProducts = (term: string, category: Product["category"] | "All") => {
     let tempProducts = allProducts;
@@ -126,6 +131,8 @@ export default function SalesPage() {
 
   const handleSuccessfulSale = (paymentMethod: Sale["paymentMethod"]) => {
     console.log("Sale successful! Payment Method:", paymentMethod);
+    // Future: Here you would typically save the sale to a database
+    // For now, just reset the state
     setCartItems([]);
     setSelectedCustomer(null);
     setDiscountPercentage(0);
@@ -134,28 +141,49 @@ export default function SalesPage() {
 
   const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
+  const fullscreenToggleAction = (
+    <Button
+      variant="outline"
+      size="icon"
+      onClick={toggleSalesPageFullScreen}
+      className="h-9 w-9"
+      title={isSalesPageFullScreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+    >
+      {isSalesPageFullScreen ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
+      <span className="sr-only">{isSalesPageFullScreen ? "Exit Fullscreen" : "Enter Fullscreen"}</span>
+    </Button>
+  );
+
   return (
-    <div className="flex flex-col h-full bg-gray-50 dark:bg-transparent">
+    <div className={cn(
+      "flex flex-col",
+      isSalesPageFullScreen 
+        ? "fixed inset-0 z-40 bg-background p-3 sm:p-4 overflow-hidden" 
+        : "h-full bg-gray-50 dark:bg-transparent"
+    )}>
       <PageHeader
         title="Point of Sale"
         description="Create new sales transactions quickly."
         icon={ShoppingCart}
+        action={fullscreenToggleAction}
       />
-
-      {/* Floating cart button - now properly connected to the cart drawer */}
+      
       {isMobile && (
-        <Button
-          onClick={() => setIsCartOpen(true)}
-          size="lg"
-          className="fixed bottom-6 right-6 z-20 rounded-full h-14 w-14 shadow-lg  bg-primary hover:bg-primary/90"
-        >
-          <ShoppingCart className="h-6 w-6" />
-          {totalItems > 0 && (
-            <Badge className="absolute -top-2 -right-2 h-6 w-6 rounded-full flex items-center justify-center p-0">
-              {totalItems}
-            </Badge>
-          )}
-        </Button>
+         <DrawerTrigger asChild>
+            <div onClick={(e) => e.stopPropagation()}>
+              <Button
+                size="lg"
+                className="fixed bottom-6 right-6 z-30 rounded-full h-14 w-14 shadow-lg bg-primary hover:bg-primary/90"
+              >
+                <ShoppingCart className="h-6 w-6" />
+                {totalItems > 0 && (
+                  <Badge className="absolute -top-2 -right-2 h-6 w-6 rounded-full flex items-center justify-center p-0">
+                    {totalItems}
+                  </Badge>
+                )}
+              </Button>
+            </div>
+        </DrawerTrigger>
       )}
 
       <div className="flex-1 flex flex-col lg:flex-row lg:gap-4 min-h-0">
@@ -238,7 +266,6 @@ export default function SalesPage() {
           </ScrollArea>
         </div>
 
-        {/* Desktop cart view */}
         {!isMobile && (
           <div className="flex-shrink-0 basis-[360px] lg:w-1/3 flex flex-col min-h-0 border-t lg:border-t-0 bg-white dark:bg-gray-800 shadow-left">
             <CartView
@@ -257,11 +284,10 @@ export default function SalesPage() {
         )}
       </div>
 
-      {/* Mobile cart drawer */}
       {isMobile && (
         <Drawer open={isCartOpen} onOpenChange={setIsCartOpen}>
           <DrawerContent className="h-[85%]">
-            <DrawerHeader className="flex justify-between items-center p-4 border-b">
+           <DrawerHeader className="flex justify-between items-center p-4 border-b">
               <DrawerTitle className="text-lg font-semibold">Order Summary</DrawerTitle>
               <DrawerClose asChild>
                 <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -304,3 +330,5 @@ export default function SalesPage() {
     </div>
   );
 }
+
+    
