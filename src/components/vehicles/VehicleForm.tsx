@@ -25,11 +25,11 @@ export function VehicleForm({ onAddVehicle, existingVehicleNumbers }: VehicleFor
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!vehicleNumber.trim() || !driverName.trim()) {
+    if (!vehicleNumber.trim()) {
       toast({
         variant: "destructive",
         title: "Validation Error",
-        description: "Vehicle Number and Driver Name are required.",
+        description: "Vehicle Number is required.",
       });
       return;
     }
@@ -48,7 +48,7 @@ export function VehicleForm({ onAddVehicle, existingVehicleNumbers }: VehicleFor
     setTimeout(() => {
       onAddVehicle({ 
         vehicleNumber: vehicleNumber.trim().toUpperCase(), 
-        driverName: driverName.trim(), 
+        driverName: driverName.trim() || undefined, // Set to undefined if empty
         notes: notes.trim() 
       });
       toast({
@@ -85,13 +85,12 @@ export function VehicleForm({ onAddVehicle, existingVehicleNumbers }: VehicleFor
             />
           </div>
           <div>
-            <Label htmlFor="driverName">Driver Name *</Label>
+            <Label htmlFor="driverName">Driver Name (Optional)</Label>
             <Input
               id="driverName"
               value={driverName}
               onChange={(e) => setDriverName(e.target.value)}
               placeholder="e.g., John Doe"
-              required
               className="mt-1"
             />
           </div>

@@ -27,8 +27,8 @@ import { useMediaQuery } from "@/hooks/use-media-query";
 
 interface VehicleTableProps {
   vehicles: Vehicle[];
-  onEditVehicle: (vehicle: Vehicle) => void; // Placeholder for future edit
-  onDeleteVehicle: (vehicleId: string) => void; // Placeholder for future delete
+  onEditVehicle: (vehicle: Vehicle) => void;
+  onDeleteVehicle: (vehicleId: string) => void;
 }
 
 export function VehicleTable({ vehicles, onEditVehicle, onDeleteVehicle }: VehicleTableProps) {
@@ -64,7 +64,7 @@ export function VehicleTable({ vehicles, onEditVehicle, onDeleteVehicle }: Vehic
                   <div className="flex justify-between items-start">
                     <div>
                       <p className="font-semibold text-primary">{vehicle.vehicleNumber}</p>
-                      <p className="text-sm text-muted-foreground">Driver: {vehicle.driverName}</p>
+                      <p className="text-sm text-muted-foreground">Driver: {vehicle.driverName || "N/A"}</p>
                     </div>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -74,11 +74,11 @@ export function VehicleTable({ vehicles, onEditVehicle, onDeleteVehicle }: Vehic
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem onClick={() => onEditVehicle(vehicle)} disabled>
-                          <Edit className="mr-2 h-4 w-4" /> Edit (Soon)
+                        <DropdownMenuItem onClick={() => onEditVehicle(vehicle)}>
+                          <Edit className="mr-2 h-4 w-4" /> Edit
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => onDeleteVehicle(vehicle.id)} className="text-destructive focus:text-destructive" disabled>
-                          <Trash2 className="mr-2 h-4 w-4" /> Delete (Soon)
+                        <DropdownMenuItem onClick={() => onDeleteVehicle(vehicle.id)} className="text-destructive focus:text-destructive">
+                          <Trash2 className="mr-2 h-4 w-4" /> Delete
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -109,7 +109,7 @@ export function VehicleTable({ vehicles, onEditVehicle, onDeleteVehicle }: Vehic
                     <TableCell>
                       <Badge variant="secondary">{vehicle.vehicleNumber}</Badge>
                     </TableCell>
-                    <TableCell className="font-medium">{vehicle.driverName}</TableCell>
+                    <TableCell className="font-medium">{vehicle.driverName || "N/A"}</TableCell>
                     <TableCell className="text-sm text-muted-foreground max-w-xs truncate">
                       {vehicle.notes || "N/A"}
                     </TableCell>
@@ -122,11 +122,11 @@ export function VehicleTable({ vehicles, onEditVehicle, onDeleteVehicle }: Vehic
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuItem onClick={() => onEditVehicle(vehicle)} disabled>
-                            <Edit className="mr-2 h-4 w-4" /> Edit (Coming Soon)
+                          <DropdownMenuItem onClick={() => onEditVehicle(vehicle)}>
+                            <Edit className="mr-2 h-4 w-4" /> Edit
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => onDeleteVehicle(vehicle.id)} className="text-destructive focus:text-destructive" disabled>
-                            <Trash2 className="mr-2 h-4 w-4" /> Delete (Coming Soon)
+                          <DropdownMenuItem onClick={() => onDeleteVehicle(vehicle.id)} className="text-destructive focus:text-destructive">
+                            <Trash2 className="mr-2 h-4 w-4" /> Delete
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>

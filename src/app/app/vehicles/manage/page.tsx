@@ -39,22 +39,18 @@ export default function ManageVehiclesPage() {
   };
 
   const handleEditVehicle = (vehicle: Vehicle) => {
-    // Placeholder for future edit functionality
     toast({
       title: "Feature Coming Soon",
-      description: `Editing vehicle ${vehicle.vehicleNumber} is not yet implemented.`,
+      description: `Editing vehicle ${vehicle.vehicleNumber} is not yet implemented. Contact Limidora to enable this premium feature.`,
     });
   };
 
   const handleDeleteVehicle = (vehicleId: string) => {
-    // Placeholder for future delete functionality
-    // For now, it will just show a toast. In a real app, you'd confirm and then filter:
-    // setVehicles((prevVehicles) => prevVehicles.filter(v => v.id !== vehicleId));
     const vehicle = vehicles.find(v => v.id === vehicleId);
     toast({
       title: "Feature Coming Soon",
-      description: `Deleting vehicle ${vehicle?.vehicleNumber || 'ID: '+vehicleId} is not yet implemented.`,
-      variant: "destructive"
+      description: `Deleting vehicle ${vehicle?.vehicleNumber || 'ID: '+vehicleId} is not yet implemented. Contact Limidora to enable this premium feature.`,
+      variant: "default" 
     });
   };
 

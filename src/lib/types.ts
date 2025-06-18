@@ -137,6 +137,6 @@ export interface DayEndReportSummary {
 export interface Vehicle {
   id: string;
   vehicleNumber: string;
-  driverName: string;
+  driverName?: string;
   notes?: string;
 }
