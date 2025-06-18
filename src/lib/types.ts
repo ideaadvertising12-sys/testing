@@ -133,3 +133,10 @@ export interface DayEndReportSummary {
   overallTotalCreditOutstanding: number;
   totalTransactions: number;
 }
+
+export interface Vehicle {
+  id: string;
+  vehicleNumber: string;
+  driverName: string;
+  notes?: string;
+}

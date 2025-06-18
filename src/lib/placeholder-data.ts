@@ -1,5 +1,5 @@
 
-import type { Product, Customer, Sale, StatsData, SalesChartData, FullReportEntry, ActivityItem } from "./types";
+import type { Product, Customer, Sale, StatsData, SalesChartData, FullReportEntry, ActivityItem, Vehicle } from "./types";
 import { format } from "date-fns";
 import { ShoppingCart, Package, UserPlus } from "lucide-react"; // Added this line
 
@@ -201,3 +201,9 @@ export const recentActivities: ActivityItem[] = [
     avatarFallback: getInitials(placeholderCustomers[2].name),
   },
 ].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+
+export const placeholderVehicles: Vehicle[] = [
+  { id: "veh001", vehicleNumber: "VAN-001", driverName: "Sunil Perera", notes: "Primary delivery van" },
+  { id: "veh002", vehicleNumber: "TRK-002", driverName: "Kamal Silva", notes: "Handles bulk orders" },
+  { id: "veh003", vehicleNumber: "BIK-003", driverName: "Nimal Fernando", notes: "Quick local deliveries" },
+];

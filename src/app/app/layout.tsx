@@ -21,7 +21,10 @@ import {
   Minimize,
   Settings,
   ReceiptText, 
-  CalendarClock, // Added for Day End Report
+  CalendarClock,
+  Truck, // Added for Vehicles
+  ListPlus, // Added for Add/Manage Vehicles
+  MapPin, // Added for Track Vehicles
 } from "lucide-react";
 
 import {
@@ -78,6 +81,16 @@ const ALL_NAV_ITEMS: NavItemConfig[] = [
     children: [
       { id: "view-stock", href: "/app/inventory/view-stock", label: "View Stock", icon: View, allowedRoles: ["admin", "cashier"] },
       { id: "manage-stock", href: "/app/inventory/manage-stock", label: "Manage Stock", icon: PlusSquare, allowedRoles: ["admin"] },
+    ]
+  },
+  {
+    id: "vehicles",
+    label: "Vehicles",
+    icon: Truck,
+    allowedRoles: ["admin"],
+    children: [
+      { id: "manage-vehicles", href: "/app/vehicles/manage", label: "Add/Manage Vehicles", icon: ListPlus, allowedRoles: ["admin"] },
+      { id: "track-vehicles", href: "/app/vehicles/track", label: "Track Vehicles", icon: MapPin, allowedRoles: ["admin"] },
     ]
   },
   {
