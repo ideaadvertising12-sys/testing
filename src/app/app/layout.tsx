@@ -80,7 +80,7 @@ const ALL_NAV_ITEMS: NavItemConfig[] = [
     allowedRoles: ["admin", "cashier"],
     children: [
       { id: "view-stock", href: "/app/inventory/view-stock", label: "View Stock", icon: View, allowedRoles: ["admin", "cashier"] },
-      { id: "manage-stock", href: "/app/inventory/manage-stock", label: "Manage Stock", icon: PlusSquare, allowedRoles: ["admin"] },
+      { id: "manage-stock", href: "/app/inventory/manage-stock", label: "Manage Stock", icon: PlusSquare, allowedRoles: ["admin", "cashier"] },
     ]
   },
   {
