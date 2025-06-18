@@ -1,32 +1,43 @@
 
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { placeholderProducts as initialProducts, placeholderVehicles } from "@/lib/placeholder-data";
 import type { Product, StockTransactionType, Vehicle } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Info } from "lucide-react";
+import { Info, PlusCircle, Trash2, ChevronsUpDown, PackageSearch, Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+interface TransactionItem {
+  product: Product;
+  quantity: number | string;
+}
 
 export function ManageStockForm() {
-  const [products, setProducts] = useState<Product[]>(initialProducts);
-  const [vehicles, setVehicles] = useState<Vehicle[]>(placeholderVehicles);
-  const [selectedProductId, setSelectedProductId] = useState<string>("");
-  const [skuInput, setSkuInput] = useState<string>("");
+  const [allProducts] = useState<Product[]>(initialProducts);
+  const [vehicles] = useState<Vehicle[]>(placeholderVehicles);
+  
   const [transactionType, setTransactionType] = useState<StockTransactionType>("ADD_STOCK_INVENTORY");
-  const [quantity, setQuantity] = useState<number | string>("");
   const [transactionDate, setTransactionDate] = useState<string>("");
   const [notes, setNotes] = useState<string>("");
-  const [selectedVehicleId, setSelectedVehicleId] = useState<string>(""); // Changed from vehicleId to selectedVehicleId for clarity
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string>("");
+  const [transactionItems, setTransactionItems] = useState<TransactionItem[]>([]);
+  
+  const [productSearchPopoverOpen, setProductSearchPopoverOpen] = useState(false);
+  const [productSearchValue, setProductSearchValue] = useState("");
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -36,131 +47,148 @@ export function ManageStockForm() {
     setTransactionDate(localDate.toISOString().slice(0, 16));
   }, []);
 
-  const selectedProduct = useMemo(() => products.find(p => p.id === selectedProductId), [products, selectedProductId]);
-
-  const handleSkuInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newSku = e.target.value;
-    setSkuInput(newSku);
-    const productBySku = products.find(p => p.sku?.toLowerCase() === newSku.toLowerCase());
-    if (productBySku) {
-      setSelectedProductId(productBySku.id);
-    } else {
-      setSelectedProductId("");
+  const handleAddProductToTransaction = (productId: string) => {
+    const productToAdd = allProducts.find(p => p.id === productId);
+    if (productToAdd && !transactionItems.some(item => item.product.id === productId)) {
+      setTransactionItems(prev => [...prev, { product: productToAdd, quantity: "" }]);
     }
+    setProductSearchPopoverOpen(false);
+    setProductSearchValue(""); 
   };
 
-  const handleProductSelectChange = (productId: string) => {
-    setSelectedProductId(productId);
-    const productById = products.find(p => p.id === productId);
-    if (productById) {
-      setSkuInput(productById.sku || "");
-    } else {
-      setSkuInput("");
-    }
+  const handleRemoveProductFromTransaction = (productId: string) => {
+    setTransactionItems(prev => prev.filter(item => item.product.id !== productId));
+  };
+
+  const handleTransactionItemQuantityChange = (productId: string, quantity: string) => {
+    const numQuantity = quantity === "" ? "" : Number(quantity);
+    setTransactionItems(prev => 
+      prev.map(item => 
+        item.product.id === productId ? { ...item, quantity: numQuantity } : item
+      )
+    );
+  };
+
+  const resetForm = () => {
+    setTransactionItems([]);
+    setNotes("");
+    setSelectedVehicleId("");
+    // Keep transactionType and date as they might be intentionally set for multiple transactions
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSubmitting(true);
-    
-    try {
-      if (!selectedProductId || !transactionType || quantity === "" || Number(quantity) <= 0 || !transactionDate) {
-        toast({
-          variant: "destructive",
-          title: "Validation Error",
-          description: "Please fill in all required fields, ensure quantity is positive, and a product is selected.",
-        });
-        return;
-      }
-      
-      if ((transactionType === "LOAD_TO_VEHICLE" || transactionType === "UNLOAD_FROM_VEHICLE") && !selectedVehicleId.trim()) {
-        toast({
-          variant: "destructive",
-          title: "Validation Error",
-          description: "Vehicle ID is required for vehicle load/unload transactions.",
-        });
-        return;
-      }
 
-      const currentProduct = products.find(p => p.id === selectedProductId);
-      if (!currentProduct) {
-        toast({ variant: "destructive", title: "Error", description: "Selected product not found." });
-        return;
+    if (transactionItems.length === 0) {
+      toast({ variant: "destructive", title: "Validation Error", description: "Please add at least one product to the transaction." });
+      setIsSubmitting(false);
+      return;
+    }
+
+    if ((transactionType === "LOAD_TO_VEHICLE" || transactionType === "UNLOAD_FROM_VEHICLE") && !selectedVehicleId) {
+      toast({ variant: "destructive", title: "Validation Error", description: "Vehicle is required for vehicle load/unload transactions." });
+      setIsSubmitting(false);
+      return;
+    }
+
+    let allItemsValid = true;
+    for (const item of transactionItems) {
+      if (item.quantity === "" || Number(item.quantity) <= 0) {
+        toast({ variant: "destructive", title: "Validation Error", description: `Please enter a valid quantity for ${item.product.name}.` });
+        allItemsValid = false;
+        break;
       }
-      
-      let newStock = currentProduct.stock;
-      const numQuantity = Number(quantity);
+      if (transactionType === "LOAD_TO_VEHICLE" || transactionType === "REMOVE_STOCK_WASTAGE" || transactionType === "STOCK_ADJUSTMENT_MANUAL") {
+        // For manual adjustment, stock can go negative if user intends to correct a negative stock later
+        if (item.product.stock < Number(item.quantity) && transactionType !== "STOCK_ADJUSTMENT_MANUAL") {
+          toast({ 
+            variant: "destructive", 
+            title: "Stock Error", 
+            description: `Not enough stock for ${item.product.name}. Available: ${item.product.stock}, Trying to transact: ${item.quantity}.` 
+          });
+          allItemsValid = false;
+          break;
+        }
+      }
+    }
+
+    if (!allItemsValid) {
+      setIsSubmitting(false);
+      return;
+    }
+
+    // Simulate API call and update stock
+    // In a real app, this would be an API call and product state might be managed globally or refetched.
+    await new Promise(resolve => setTimeout(resolve, 700));
+
+    const updatedProducts = [...allProducts]; // Create a mutable copy for local state update simulation
+    let successfulTransactions = 0;
+
+    transactionItems.forEach(item => {
+      const productIndex = updatedProducts.findIndex(p => p.id === item.product.id);
+      if (productIndex === -1) return;
+
+      let newStock = updatedProducts[productIndex].stock;
+      const numQuantity = Number(item.quantity);
 
       if (transactionType === "ADD_STOCK_INVENTORY" || transactionType === "UNLOAD_FROM_VEHICLE") {
         newStock += numQuantity;
       } else if (transactionType === "LOAD_TO_VEHICLE" || transactionType === "REMOVE_STOCK_WASTAGE" || transactionType === "STOCK_ADJUSTMENT_MANUAL") {
-        if (newStock < numQuantity && transactionType !== "STOCK_ADJUSTMENT_MANUAL") {
-          toast({ 
-            variant: "destructive", 
-            title: "Stock Error", 
-            description: `Not enough stock for ${currentProduct.name} to perform ${transactionType}. Available: ${currentProduct.stock}` 
-          });
-          return;
-        }
         newStock -= numQuantity;
       }
-      newStock = Math.max(0, newStock);
-
-      const transactionData = {
-        productId: selectedProductId,
-        productName: currentProduct?.name,
-        sku: currentProduct?.sku,
+       // For STOCK_ADJUSTMENT_MANUAL, newStock can be anything (even negative if user is correcting an error)
+      if (transactionType !== "STOCK_ADJUSTMENT_MANUAL") {
+         newStock = Math.max(0, newStock);
+      }
+      
+      updatedProducts[productIndex] = { ...updatedProducts[productIndex], stock: newStock };
+      
+      console.log("Stock Transaction Logged:", {
+        productId: item.product.id,
+        productName: item.product.name,
+        sku: item.product.sku,
         type: transactionType,
         quantity: numQuantity,
         transactionDate: new Date(transactionDate),
         notes,
         vehicleId: (transactionType === "LOAD_TO_VEHICLE" || transactionType === "UNLOAD_FROM_VEHICLE") ? selectedVehicleId : undefined,
-        previousStock: currentProduct.stock,
+        previousStock: item.product.stock,
         newStock: newStock,
-      };
-
-      console.log("Stock Transaction Submitted:", transactionData);
-
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      setProducts(prevProducts => 
-        prevProducts.map(p => 
-          p.id === selectedProductId ? { ...p, stock: newStock } : p
-        )
-      );
-
-      toast({
-        title: "Transaction Logged",
-        description: `${transactionType} of ${quantity} ${currentProduct?.name || 'product'} recorded. New stock: ${newStock}.`,
       });
+      successfulTransactions++;
+    });
+    
+    // setAllProducts(updatedProducts); // This would update the global/parent state in a real app
 
-      // Reset form
-      setSelectedProductId("");
-      setSkuInput("");
-      setQuantity("");
-      setNotes("");
-      setSelectedVehicleId(""); // Reset selected vehicle ID
-    } finally {
-      setIsSubmitting(false);
-    }
+    toast({
+      title: "Transactions Processed",
+      description: `${successfulTransactions} product(s) updated for transaction type: ${transactionType}.`,
+    });
+    
+    resetForm();
+    setIsSubmitting(false);
   };
   
   const transactionTypes: { value: StockTransactionType; label: string }[] = [
-    { value: "ADD_STOCK_INVENTORY", label: "Add Stock" },
-    { value: "LOAD_TO_VEHICLE", label: "Load to Vehicle" },
-    { value: "UNLOAD_FROM_VEHICLE", label: "Unload from Vehicle" },
-    { value: "REMOVE_STOCK_WASTAGE", label: "Remove (Wastage)" },
-    { value: "STOCK_ADJUSTMENT_MANUAL", label: "Manual Adjustment" },
+    { value: "ADD_STOCK_INVENTORY", label: "Add Stock to Inventory" },
+    { value: "LOAD_TO_VEHICLE", label: "Load Stock to Vehicle" },
+    { value: "UNLOAD_FROM_VEHICLE", label: "Unload Stock from Vehicle" },
+    { value: "REMOVE_STOCK_WASTAGE", label: "Remove Stock (Wastage)" },
+    { value: "STOCK_ADJUSTMENT_MANUAL", label: "Manual Stock Adjustment" },
   ];
 
+  const availableProductsForSelection = allProducts.filter(
+    p => !transactionItems.some(item => item.product.id === p.id)
+  );
+
   return (
-    <Card className="shadow-lg border-0">
+    <Card className="shadow-xl border-0">
       <CardHeader className="bg-gradient-to-r from-primary/5 to-secondary/5 px-6 py-5 rounded-t-lg">
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle className="font-headline text-2xl">Inventory Management</CardTitle>
-            <CardDescription className="mt-1">Record stock movements and adjustments</CardDescription>
+            <CardTitle className="font-headline text-2xl">Manage Stock Transactions</CardTitle>
+            <CardDescription className="mt-1">Record stock movements and adjustments for multiple products.</CardDescription>
           </div>
           <Badge variant="outline" className="hidden sm:flex">
             {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
@@ -168,10 +196,11 @@ export function ManageStockForm() {
         </div>
       </CardHeader>
       <CardContent className="p-6">
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="transactionType">Transaction Type</Label>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Transaction Core Details */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+            <div className="space-y-1.5">
+              <Label htmlFor="transactionType">Transaction Type *</Label>
               <Select value={transactionType} onValueChange={(value) => setTransactionType(value as StockTransactionType)}>
                 <SelectTrigger id="transactionType" className="h-11">
                   <SelectValue placeholder="Select type" />
@@ -186,8 +215,8 @@ export function ManageStockForm() {
               </Select>
             </div>
             
-            <div className="space-y-2">
-              <Label htmlFor="transactionDate">Date & Time</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="transactionDate">Date & Time *</Label>
               <Input 
                 id="transactionDate" 
                 type="datetime-local" 
@@ -197,87 +226,12 @@ export function ManageStockForm() {
                 required
               />
             </div>
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="skuInput">Quick SKU Search</Label>
-                <span className="text-xs text-muted-foreground">Scan or type</span>
-              </div>
-              <Input 
-                id="skuInput" 
-                value={skuInput} 
-                onChange={handleSkuInputChange} 
-                className="h-11"
-                placeholder="Enter SKU"
-                autoFocus
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="productId">Select Product</Label>
-              <Select value={selectedProductId} onValueChange={handleProductSelectChange}>
-                <SelectTrigger id="productId" className="h-11">
-                  <SelectValue placeholder="Choose product" />
-                </SelectTrigger>
-                <SelectContent>
-                  {products.map(product => (
-                    <SelectItem key={product.id} value={product.id} className="text-sm">
-                      <div className="flex items-center justify-between w-full">
-                        <span className="truncate">{product.name}</span>
-                        <span className="ml-2 text-muted-foreground">{product.stock} in stock</span>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          
-          {selectedProduct && (
-            <Alert className="bg-muted/50 border-l-4 border-primary">
-              <Info className="h-4 w-4" />
-              <AlertTitle className="font-medium">{selectedProduct.name}</AlertTitle>
-              <AlertDescription className="mt-1">
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                  <div>
-                    <span className="text-xs text-muted-foreground">Current Stock</span>
-                    <p className="font-semibold">{selectedProduct.stock}</p>
-                  </div>
-                  <div>
-                    <span className="text-xs text-muted-foreground">SKU</span>
-                    <p className="font-semibold">{selectedProduct.sku || 'N/A'}</p>
-                  </div>
-                  <div>
-                    <span className="text-xs text-muted-foreground">Category</span>
-                    <p className="font-semibold">{selectedProduct.category || 'N/A'}</p>
-                  </div>
-                </div>
-              </AlertDescription>
-            </Alert>
-          )}
-
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="quantity">Quantity</Label>
-              <Input 
-                id="quantity" 
-                type="number" 
-                value={quantity} 
-                onChange={(e) => setQuantity(e.target.value === '' ? '' : Number(e.target.value))} 
-                className="h-11" 
-                min="1"
-                placeholder="Enter amount"
-                required
-              />
-            </div>
 
             {(transactionType === "LOAD_TO_VEHICLE" || transactionType === "UNLOAD_FROM_VEHICLE") && (
-              <div className="space-y-2">
-                <Label htmlFor="vehicleId">Select Vehicle</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="selectedVehicleId">Select Vehicle *</Label>
                 <Select value={selectedVehicleId} onValueChange={setSelectedVehicleId}>
-                  <SelectTrigger id="vehicleId" className="h-11">
+                  <SelectTrigger id="selectedVehicleId" className="h-11">
                     <SelectValue placeholder="Choose vehicle" />
                   </SelectTrigger>
                   <SelectContent>
@@ -295,39 +249,144 @@ export function ManageStockForm() {
               </div>
             )}
           </div>
+
+          {/* Product Selection & List */}
+          <Card className="border-dashed border-muted-foreground/30">
+            <CardHeader className="pb-3 pt-4 px-4">
+              <CardTitle className="text-lg font-medium">Products for Transaction</CardTitle>
+              <CardDescription className="text-xs">Add products and specify quantities.</CardDescription>
+            </CardHeader>
+            <CardContent className="p-4 space-y-4">
+              <Popover open={productSearchPopoverOpen} onOpenChange={setProductSearchPopoverOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={productSearchPopoverOpen}
+                    className="w-full justify-between h-11 text-muted-foreground hover:text-foreground"
+                  >
+                    {productSearchValue || "Search and add product..."}
+                    <PackageSearch className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                  <Command
+                    filter={(value, search) => {
+                        const product = allProducts.find(p => p.id === value);
+                        if (!product) return 0;
+                        const nameMatch = product.name.toLowerCase().includes(search.toLowerCase());
+                        const skuMatch = product.sku?.toLowerCase().includes(search.toLowerCase());
+                        return (nameMatch || skuMatch) ? 1 : 0;
+                    }}
+                  >
+                    <CommandInput placeholder="Search product by name or SKU..." />
+                    <CommandList>
+                      <CommandEmpty>No product found.</CommandEmpty>
+                      <CommandGroup heading="Available Products">
+                        <ScrollArea className="h-[200px]">
+                          {availableProductsForSelection.map((product) => (
+                            <CommandItem
+                              key={product.id}
+                              value={product.id}
+                              onSelect={() => handleAddProductToTransaction(product.id)}
+                              className="cursor-pointer"
+                            >
+                              <div className="flex justify-between w-full items-center">
+                                <div>
+                                  {product.name}
+                                  {product.sku && <span className="text-xs text-muted-foreground ml-2">({product.sku})</span>}
+                                </div>
+                                <Badge variant="outline" className="text-xs">Stock: {product.stock}</Badge>
+                              </div>
+                            </CommandItem>
+                          ))}
+                        </ScrollArea>
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+
+              {transactionItems.length > 0 && (
+                <ScrollArea className="max-h-[300px] mt-2 pr-3">
+                  <div className="space-y-3">
+                    {transactionItems.map((item, index) => (
+                      <Card key={item.product.id} className="p-3 bg-muted/20 relative group">
+                        <div className="flex flex-col sm:flex-row gap-3 items-start">
+                          <div className="flex-grow">
+                            <p className="font-medium text-sm">{item.product.name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              SKU: {item.product.sku || 'N/A'} | Current Stock: {item.product.stock}
+                            </p>
+                          </div>
+                          <div className="w-full sm:w-32 shrink-0">
+                            <Label htmlFor={`quantity-${item.product.id}`} className="sr-only">Quantity for {item.product.name}</Label>
+                            <Input
+                              id={`quantity-${item.product.id}`}
+                              type="number"
+                              value={item.quantity}
+                              onChange={(e) => handleTransactionItemQuantityChange(item.product.id, e.target.value)}
+                              placeholder="Qty"
+                              min="1"
+                              required
+                              className="h-9 text-sm"
+                            />
+                          </div>
+                        </div>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="absolute top-1 right-1 h-6 w-6 text-muted-foreground hover:text-destructive opacity-50 group-hover:opacity-100"
+                            onClick={() => handleRemoveProductFromTransaction(item.product.id)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            <span className="sr-only">Remove {item.product.name}</span>
+                        </Button>
+                      </Card>
+                    ))}
+                  </div>
+                </ScrollArea>
+              )}
+               {transactionItems.length === 0 && (
+                 <p className="text-sm text-muted-foreground text-center py-4">No products added to this transaction yet.</p>
+               )}
+            </CardContent>
+          </Card>
           
-          <div className="space-y-2">
-            <Label htmlFor="notes">Notes</Label>
+          {/* Notes */}
+          <div className="space-y-1.5">
+            <Label htmlFor="notes">Notes (Optional)</Label>
             <Textarea 
               id="notes" 
               value={notes} 
               onChange={(e) => setNotes(e.target.value)} 
-              className="min-h-[100px]" 
-              placeholder="Additional information..."
+              className="min-h-[80px]" 
+              placeholder="Additional information about this transaction..."
             />
           </div>
 
-          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end pt-4">
+          {/* Actions */}
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end pt-2 border-t border-border/50">
             <Button 
               type="button" 
-              variant="ghost" 
-              onClick={() => {
-                setSelectedProductId("");
-                setSkuInput("");
-                setQuantity("");
-                setNotes("");
-                setSelectedVehicleId("");
-              }}
+              variant="outline" 
+              onClick={resetForm}
               disabled={isSubmitting}
+              className="h-11"
             >
-              Clear
+              Clear Items & Notes
             </Button>
             <Button 
               type="submit" 
-              disabled={!selectedProductId || quantity === "" || Number(quantity) <= 0 || isSubmitting || ((transactionType === "LOAD_TO_VEHICLE" || transactionType === "UNLOAD_FROM_VEHICLE") && !selectedVehicleId)}
-              className="min-w-[180px]"
+              disabled={isSubmitting || transactionItems.length === 0 || transactionItems.some(item => item.quantity === "" || Number(item.quantity) <= 0)}
+              className="min-w-[200px] h-11"
             >
-              {isSubmitting ? "Processing..." : "Record Transaction"}
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Processing...
+                </>
+              ) : "Record Transactions"}
             </Button>
           </div>
         </form>
@@ -335,3 +394,5 @@ export function ManageStockForm() {
     </Card>
   );
 }
+
+    
