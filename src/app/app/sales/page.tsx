@@ -147,18 +147,19 @@ export default function SalesPage() {
         {isMobile && (
           <div className="fixed bottom-6 right-6 z-20">
             <DrawerTrigger asChild>
-              <Button 
-                size="lg" 
-                className="rounded-full h-14 w-14 shadow-lg relative"
-                // onClick={() => setIsCartOpen(true)} // DrawerTrigger handles this
-              >
-                <ShoppingCart className="h-6 w-6" />
-                {totalItems > 0 && (
-                  <Badge className="absolute -top-2 -right-2 h-6 w-6 rounded-full flex items-center justify-center p-0">
-                    {totalItems}
-                  </Badge>
-                )}
-              </Button>
+              <div onClick={(e) => e.stopPropagation()}> {/* Add this wrapper div with stopPropagation */}
+                <Button 
+                  size="lg" 
+                  className="rounded-full h-14 w-14 shadow-lg relative"
+                >
+                  <ShoppingCart className="h-6 w-6" />
+                  {totalItems > 0 && (
+                    <Badge className="absolute -top-2 -right-2 h-6 w-6 rounded-full flex items-center justify-center p-0">
+                      {totalItems}
+                    </Badge>
+                  )}
+                </Button>
+              </div>
             </DrawerTrigger>
           </div>
         )}
@@ -305,7 +306,7 @@ export default function SalesPage() {
           saleId={`SALE-${Date.now().toString().slice(-6)}`} 
         />
       </div>
-      <footer className="text-center py-4 px-6 border-t bg-background text-sm text-muted-foreground shrink-0">Design, Development & Hosting by Limidora</footer>
     </>
   );
 }
+
