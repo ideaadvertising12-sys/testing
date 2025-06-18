@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -149,7 +150,7 @@ export default function SalesPage() {
               <Button 
                 size="lg" 
                 className="rounded-full h-14 w-14 shadow-lg relative"
-                onClick={() => setIsCartOpen(true)}
+                // onClick={() => setIsCartOpen(true)} // DrawerTrigger handles this
               >
                 <ShoppingCart className="h-6 w-6" />
                 {totalItems > 0 && (
@@ -170,7 +171,7 @@ export default function SalesPage() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                 <Input 
                   placeholder="Search products by name or SKU..." 
-                  className="pl-10 pr-8 h-12 text-base"
+                  className="pl-10 pr-8 h-12 text-sm"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
@@ -284,7 +285,6 @@ export default function SalesPage() {
                   onCheckout={handleCheckout}
                   onCancelOrder={handleCancelOrder}
                   className="flex-1 min-h-0" 
-                  isMobile={true}
                 />
               </div>
             </DrawerContent>
@@ -305,6 +305,7 @@ export default function SalesPage() {
           saleId={`SALE-${Date.now().toString().slice(-6)}`} 
         />
       </div>
+      <footer className="text-center py-4 px-6 border-t bg-background text-sm text-muted-foreground shrink-0">Design, Development & Hosting by Limidora</footer>
     </>
   );
 }
