@@ -1,7 +1,7 @@
 
 "use client";
 
-import type { CartItem, Customer } from "@/lib/types";
+import type { CartItem, Customer, Sale } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,7 +13,10 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { AppLogo } from "@/components/AppLogo";
-import { Printer } from "lucide-react";
+import { CreditCard, Landmark, Printer, Wallet } from "lucide-react"; // Added Landmark for Credit
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+import React, { useState, useEffect } from "react";
 
 interface BillDialogProps {
   isOpen: boolean;
@@ -21,18 +24,43 @@ interface BillDialogProps {
   cartItems: CartItem[];
   customer: Customer | null;
   discountPercentage: number;
-  saleId?: string; 
+  saleId?: string;
+  onConfirmSale: (paymentMethod: Sale["paymentMethod"]) => void;
 }
 
-export function BillDialog({ isOpen, onOpenChange, cartItems, customer, discountPercentage, saleId }: BillDialogProps) {
+export function BillDialog({ 
+  isOpen, 
+  onOpenChange, 
+  cartItems, 
+  customer, 
+  discountPercentage, 
+  saleId,
+  onConfirmSale
+}: BillDialogProps) {
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<Sale["paymentMethod"]>("Cash");
   const subtotal = cartItems.reduce((sum, item) => sum + item.appliedPrice * item.quantity, 0);
   const calculatedDiscountAmount = subtotal * (discountPercentage / 100);
   const totalAmount = Math.max(0, subtotal - calculatedDiscountAmount);
   const transactionDate = new Date();
 
-  const handlePrint = () => {
+  useEffect(() => {
+    if (isOpen) {
+      // Reset to cash when dialog opens, or maintain last selection if preferred
+      setSelectedPaymentMethod("Cash"); 
+    }
+  }, [isOpen]);
+
+  const handlePrintAndConfirm = () => {
+    onConfirmSale(selectedPaymentMethod);
     window.print();
+    onOpenChange(false); // Close dialog after printing and confirming
   };
+
+  const paymentMethods: { value: Sale["paymentMethod"]; label: string; icon: React.ElementType }[] = [
+    { value: "Cash", label: "Cash", icon: Wallet },
+    { value: "Card", label: "Card", icon: CreditCard },
+    { value: "Credit", label: "Credit", icon: Landmark },
+  ];
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -40,7 +68,7 @@ export function BillDialog({ isOpen, onOpenChange, cartItems, customer, discount
         <DialogHeader className="print:hidden">
           <DialogTitle className="font-headline">Transaction Receipt</DialogTitle>
           <DialogDescription>
-            Details of the completed sale. You can print this receipt.
+            Confirm payment method and print the receipt.
           </DialogDescription>
         </DialogHeader>
         
@@ -65,7 +93,7 @@ export function BillDialog({ isOpen, onOpenChange, cartItems, customer, discount
           <Separator className="my-4"/>
           
           <h3 className="font-semibold mb-2 text-sm">Order Summary:</h3>
-          <ScrollArea className="max-h-[200px] print:max-h-none print:overflow-visible">
+          <ScrollArea className="max-h-[150px] print:max-h-none print:overflow-visible"> {/* Adjusted max-h */}
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b">
@@ -90,6 +118,34 @@ export function BillDialog({ isOpen, onOpenChange, cartItems, customer, discount
 
           <Separator className="my-4"/>
 
+          <div className="mb-4">
+            <h3 className="font-semibold mb-2 text-sm">Payment Method:</h3>
+            <RadioGroup 
+              defaultValue="Cash" 
+              value={selectedPaymentMethod}
+              onValueChange={(value: Sale["paymentMethod"]) => setSelectedPaymentMethod(value)}
+              className="grid grid-cols-3 gap-3 print:hidden"
+            >
+              {paymentMethods.map((method) => (
+                <Label
+                  key={method.value}
+                  htmlFor={`payment-${method.value}`}
+                  className={`flex flex-col items-center justify-center rounded-md border-2 p-3 hover:bg-accent hover:text-accent-foreground cursor-pointer
+                    ${selectedPaymentMethod === method.value ? "border-primary bg-primary/10" : "border-muted"}`}
+                >
+                  <RadioGroupItem value={method.value} id={`payment-${method.value}`} className="sr-only" />
+                  <method.icon className={`mb-1.5 h-5 w-5 ${selectedPaymentMethod === method.value ? "text-primary" : "text-muted-foreground"}`} />
+                  <span className={`text-xs font-medium ${selectedPaymentMethod === method.value ? "text-primary" : ""}`}>{method.label}</span>
+                </Label>
+              ))}
+            </RadioGroup>
+            <div className="mt-2 text-xs print:block hidden"> {/* Visible only on print */}
+              Selected: <span className="font-semibold">{selectedPaymentMethod}</span>
+            </div>
+          </div>
+          
+          <Separator className="my-4"/>
+
           <div className="space-y-1 text-xs">
             <div className="flex justify-between">
               <span>Subtotal:</span>
@@ -97,13 +153,13 @@ export function BillDialog({ isOpen, onOpenChange, cartItems, customer, discount
             </div>
             {discountPercentage > 0 && (
               <div className="flex justify-between">
-                <span>Discount:</span>
+                <span>Discount ({discountPercentage.toFixed(2)}%):</span>
                 <span>- Rs. {calculatedDiscountAmount.toFixed(2)}</span>
               </div>
             )}
             <Separator className="my-1"/>
             <div className="flex justify-between font-bold text-sm">
-              <span>Total:</span>
+              <span>Total Amount:</span>
               <span>Rs. {totalAmount.toFixed(2)}</span>
             </div>
           </div>
@@ -115,11 +171,10 @@ export function BillDialog({ isOpen, onOpenChange, cartItems, customer, discount
         </div>
 
         <div className="mt-auto p-6 border-t print:hidden flex justify-end gap-2">
-           <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
-           <Button onClick={handlePrint}><Printer className="mr-2 h-4 w-4" /> Print Receipt</Button>
+           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+           <Button onClick={handlePrintAndConfirm} disabled={cartItems.length === 0}><Printer className="mr-2 h-4 w-4" /> Confirm & Print</Button>
         </div>
       </DialogContent>
     </Dialog>
   );
 }
-

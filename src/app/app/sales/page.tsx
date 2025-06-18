@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Drawer, DrawerContent, DrawerTrigger, DrawerHeader, DrawerTitle, DrawerClose } from "@/components/ui/drawer";
 import { useMediaQuery } from "@/hooks/use-media-query";
-import type { Product, CartItem, Customer } from "@/lib/types";
+import type { Product, CartItem, Customer, Sale } from "@/lib/types";
 import { placeholderProducts, placeholderCustomers } from "@/lib/placeholder-data";
 
 export default function SalesPage() {
@@ -76,7 +76,7 @@ export default function SalesPage() {
       return prevItems;
     });
 
-    if (isMobile && !isCartOpen) { // Only open if not already open, to avoid issues with rapid clicks
+    if (isMobile && !isCartOpen) { 
       setIsCartOpen(true);
     }
   };
@@ -125,7 +125,9 @@ export default function SalesPage() {
     setCurrentSaleType('retail');
   };
 
-  const handleSuccessfulSale = () => {
+  const handleSuccessfulSale = (paymentMethod: Sale["paymentMethod"]) => {
+    // In a real app, you would save the sale details here, including the paymentMethod
+    console.log("Sale successful! Payment Method:", paymentMethod);
     setCartItems([]);
     setSelectedCustomer(null);
     setDiscountPercentage(0);
@@ -142,21 +144,17 @@ export default function SalesPage() {
         icon={ShoppingCart}
       />
 
-      {/* Mobile Cart Button */}
       {isMobile && (
          <DrawerTrigger asChild>
-           {/* Wrap button in a div and stop propagation to prevent main sidebar trigger */}
            <div
              onClick={(e) => {
                e.stopPropagation();
-               // setIsCartOpen(true); // DrawerTrigger handles this
              }}
              className="fixed bottom-6 right-6 z-20"
            >
             <Button
               size="lg"
               className="rounded-full h-14 w-14 shadow-lg relative bg-primary hover:bg-primary/90"
-              // onClick removed, DrawerTrigger handles opening
             >
               <ShoppingCart className="h-6 w-6" />
               {totalItems > 0 && (
@@ -170,7 +168,6 @@ export default function SalesPage() {
       )}
 
       <div className="flex-1 flex flex-col lg:flex-row lg:gap-4 min-h-0">
-        {/* Products Section */}
         <div className="flex-1 lg:w-2/3 flex flex-col min-h-0">
           <div className="p-3 sm:p-4 border-b lg:border-b-0 lg:border-r bg-white dark:bg-transparent">
             <div className="relative mb-3 sm:mb-4">
@@ -250,7 +247,6 @@ export default function SalesPage() {
           </ScrollArea>
         </div>
 
-        {/* Cart Section - Desktop */}
         {!isMobile && (
           <div className="flex-shrink-0 basis-[360px] lg:w-1/3 flex flex-col min-h-0 border-t lg:border-t-0 bg-white dark:bg-gray-800 shadow-left">
             <CartView
@@ -269,7 +265,6 @@ export default function SalesPage() {
         )}
       </div>
 
-      {/* Mobile Cart Drawer */}
       {isMobile && (
         <Drawer open={isCartOpen} onOpenChange={setIsCartOpen}>
           <DrawerContent className="h-[85%]">
@@ -302,16 +297,18 @@ export default function SalesPage() {
 
       <BillDialog
         isOpen={isBillOpen}
-        onOpenChange={(isOpen) => {
-          setIsBillOpen(isOpen);
-          if (!isOpen) {
-             handleSuccessfulSale();
-          }
+        onOpenChange={(isOpenDialog) => {
+          setIsBillOpen(isOpenDialog);
+          // Successful sale reset is now handled by onConfirmSale callback
         }}
         cartItems={cartItems}
         customer={selectedCustomer}
         discountPercentage={discountPercentage}
         saleId={`SALE-${Date.now().toString().slice(-6)}`}
+        onConfirmSale={(paymentMethod) => {
+          handleSuccessfulSale(paymentMethod);
+          // setIsBillOpen(false); // This is handled by BillDialog's internal onOpenChange or button click
+        }}
       />
     </div>
   );

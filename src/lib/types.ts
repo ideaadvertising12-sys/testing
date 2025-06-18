@@ -1,4 +1,3 @@
-
 export interface Product {
   id: string;
   name: string;
@@ -15,6 +14,7 @@ export interface Product {
 
 export interface Customer {
   id: string;
+  avatar?: string;
   name: string;
   phone: string;
   address?: string;
@@ -33,7 +33,7 @@ export interface Sale {
   customerName?: string; // Denormalized for quick display
   items: CartItem[];
   totalAmount: number;
-  paymentMethod: "Cash" | "Card" | "Online";
+  paymentMethod: "Cash" | "Card" | "Credit"; // Updated payment methods
   saleDate: Date;
   staffId: string; // Or staff name
 }

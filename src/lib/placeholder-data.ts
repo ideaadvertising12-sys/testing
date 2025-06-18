@@ -60,7 +60,7 @@ export const placeholderSales: Sale[] = [
       { ...placeholderProducts[5], quantity: 3, appliedPrice: placeholderProducts[5].price, saleType: 'retail' },
     ],
     totalAmount: placeholderProducts[5].price * 3,
-    paymentMethod: "Cash",
+    paymentMethod: "Credit", // Changed from Cash to Credit for variety
     saleDate: new Date(Date.now() - 3600000 * 5), // 5 hours ago
     staffId: "staff001"
   },
