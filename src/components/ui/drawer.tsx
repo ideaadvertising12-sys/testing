@@ -2,7 +2,17 @@
 "use client"
 
 import * as React from "react"
-import { Dialog, DialogContent, DialogTrigger, type DialogProps } from "@radix-ui/react-dialog"
+import {
+  Root as RadixDialogRoot,
+  Content as RadixDialogContent,
+  Trigger as RadixDialogTrigger,
+  Close as RadixDialogClose,
+  Portal as RadixDialogPortal,
+  Overlay as RadixDialogOverlay,
+  Title as RadixDialogTitle,
+  Description as RadixDialogDescription,
+  type DialogProps
+} from "@radix-ui/react-dialog"
 import { Command as CommandPrimitive } from "cmdk"
 
 import { cn } from "@/lib/utils"
@@ -13,43 +23,43 @@ const Drawer = ({
 }: DialogProps & {
   shouldScaleBackground?: boolean
 }) => (
-  <Dialog
+  <RadixDialogRoot // Use aliased RadixDialogRoot
     {...props}
     modal={false} // Drawers are typically non-modal
   />
 )
 Drawer.displayName = "Drawer"
 
-const DrawerTrigger = DialogTrigger
-DrawerTrigger.displayName = DialogTrigger.displayName
+const DrawerTrigger = RadixDialogTrigger // This was okay as DialogTrigger was directly imported
+DrawerTrigger.displayName = RadixDialogTrigger.displayName
 
-const DrawerClose = Dialog.Close
-DrawerClose.displayName = Dialog.Close.displayName
+const DrawerClose = RadixDialogClose // Use aliased RadixDialogClose
+DrawerClose.displayName = RadixDialogClose.displayName
 
-const DrawerPortal = Dialog.Portal
-DrawerPortal.displayName = Dialog.Portal.displayName
+const DrawerPortal = RadixDialogPortal // Use aliased RadixDialogPortal
+DrawerPortal.displayName = RadixDialogPortal.displayName
 
 const DrawerOverlay = React.forwardRef<
-  React.ElementRef<typeof Dialog.Overlay>,
-  React.ComponentPropsWithoutRef<typeof Dialog.Overlay>
+  React.ElementRef<typeof RadixDialogOverlay>, // Use aliased RadixDialogOverlay
+  React.ComponentPropsWithoutRef<typeof RadixDialogOverlay> // Use aliased RadixDialogOverlay
 >(({ className, ...props }, ref) => (
-  <Dialog.Overlay
+  <RadixDialogOverlay // Use aliased RadixDialogOverlay
     ref={ref}
     className={cn("fixed inset-0 z-50 bg-black/60", className)}
     {...props}
   />
 ))
-DrawerOverlay.displayName = Dialog.Overlay.displayName
+DrawerOverlay.displayName = RadixDialogOverlay.displayName
 
 const DrawerContent = React.forwardRef<
-  React.ElementRef<typeof DialogContent>,
-  React.ComponentPropsWithoutRef<typeof DialogContent> & {
+  React.ElementRef<typeof RadixDialogContent>, // RadixDialogContent (originally DialogContent) is fine
+  React.ComponentPropsWithoutRef<typeof RadixDialogContent> & { // RadixDialogContent is fine
     withOverlay?: boolean
   }
 >(({ className, children, withOverlay = true, ...props }, ref) => (
-  <DrawerPortal>
-    {withOverlay && <DrawerOverlay />}
-    <DialogContent
+  <DrawerPortal> {/* Uses correctly defined DrawerPortal */}
+    {withOverlay && <DrawerOverlay />} {/* Uses correctly defined DrawerOverlay */}
+    <RadixDialogContent // Use RadixDialogContent (original DialogContent)
       ref={ref}
       className={cn(
         "fixed inset-x-0 bottom-0 z-50 mt-24 flex h-auto flex-col rounded-t-[10px] border bg-background",
@@ -75,7 +85,7 @@ const DrawerContent = React.forwardRef<
     >
       <div className="mx-auto mt-4 h-2 w-[100px] rounded-full bg-muted" />
       {children}
-    </DialogContent>
+    </RadixDialogContent>
   </DrawerPortal>
 ))
 DrawerContent.displayName = "DrawerContent"
@@ -104,10 +114,10 @@ const DrawerFooter = ({
 DrawerFooter.displayName = "DrawerFooter"
 
 const DrawerTitle = React.forwardRef<
-  React.ElementRef<typeof Dialog.Title>,
-  React.ComponentPropsWithoutRef<typeof Dialog.Title>
+  React.ElementRef<typeof RadixDialogTitle>, // Use aliased RadixDialogTitle
+  React.ComponentPropsWithoutRef<typeof RadixDialogTitle> // Use aliased RadixDialogTitle
 >(({ className, ...props }, ref) => (
-  <Dialog.Title
+  <RadixDialogTitle // Use aliased RadixDialogTitle
     ref={ref}
     className={cn(
       "text-lg font-semibold leading-none tracking-tight",
@@ -116,25 +126,25 @@ const DrawerTitle = React.forwardRef<
     {...props}
   />
 ))
-DrawerTitle.displayName = Dialog.Title.displayName
+DrawerTitle.displayName = RadixDialogTitle.displayName
 
 const DrawerDescription = React.forwardRef<
-  React.ElementRef<typeof Dialog.Description>,
-  React.ComponentPropsWithoutRef<typeof Dialog.Description>
+  React.ElementRef<typeof RadixDialogDescription>, // Use aliased RadixDialogDescription
+  React.ComponentPropsWithoutRef<typeof RadixDialogDescription> // Use aliased RadixDialogDescription
 >(({ className, ...props }, ref) => (
-  <Dialog.Description
+  <RadixDialogDescription // Use aliased RadixDialogDescription
     ref={ref}
     className={cn("text-sm text-muted-foreground", className)}
     {...props}
   />
 ))
-DrawerDescription.displayName = Dialog.Description.displayName
+DrawerDescription.displayName = RadixDialogDescription.displayName
 
 
 // For nested drawers or command palettes inside drawers
 const NestedDrawer = ({ ...props }: DialogProps) => {
   return (
-    <Dialog
+    <RadixDialogRoot // Use aliased RadixDialogRoot
       modal // Nested drawers often behave modally within the parent drawer
       {...props}
     />
@@ -142,18 +152,18 @@ const NestedDrawer = ({ ...props }: DialogProps) => {
 }
 NestedDrawer.displayName = "NestedDrawer"
 
-const NestedDrawerTrigger = DialogTrigger
+const NestedDrawerTrigger = RadixDialogTrigger // Use aliased RadixDialogTrigger
 NestedDrawerTrigger.displayName = "NestedDrawerTrigger"
 
 const NestedDrawerContent = React.forwardRef<
-  React.ElementRef<typeof DialogContent>,
-  React.ComponentPropsWithoutRef<typeof DialogContent>
+  React.ElementRef<typeof RadixDialogContent>, // Use RadixDialogContent
+  React.ComponentPropsWithoutRef<typeof RadixDialogContent> // Use RadixDialogContent
 >(({ className, children, ...props }, ref) => (
-  <Dialog.Portal>
-    <Dialog.Overlay
+  <RadixDialogPortal> {/* Use aliased RadixDialogPortal */}
+    <RadixDialogOverlay // Use aliased RadixDialogOverlay
       className="fixed inset-0 z-50 bg-black/40" // Slightly less dim for nested
     />
-    <DialogContent
+    <RadixDialogContent // Use RadixDialogContent
       ref={ref}
       className={cn(
         "fixed inset-x-0 bottom-0 z-50 mt-24 flex h-auto flex-col rounded-t-lg border bg-background pb-6",
@@ -174,13 +184,13 @@ const NestedDrawerContent = React.forwardRef<
     >
       <div className="mx-auto mt-4 h-2 w-[80px] rounded-full bg-muted" />
       {children}
-      <Dialog.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
+      <RadixDialogClose className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
         {/* Typically an X icon here, but not adding lucide-react dependency here for brevity */}
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
         <span className="sr-only">Close</span>
-      </Dialog.Close>
-    </DialogContent>
-  </Dialog.Portal>
+      </RadixDialogClose>
+    </RadixDialogContent>
+  </RadixDialogPortal>
 ))
 NestedDrawerContent.displayName = "NestedDrawerContent"
 
@@ -297,5 +307,7 @@ export {
   DrawerCommandGroup,
   DrawerCommandItem,
 }
+
+    
 
     
