@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -126,7 +125,6 @@ export default function SalesPage() {
   };
 
   const handleSuccessfulSale = (paymentMethod: Sale["paymentMethod"]) => {
-    // In a real app, you would save the sale details here, including the paymentMethod
     console.log("Sale successful! Payment Method:", paymentMethod);
     setCartItems([]);
     setSelectedCustomer(null);
@@ -144,27 +142,20 @@ export default function SalesPage() {
         icon={ShoppingCart}
       />
 
+      {/* Floating cart button - now properly connected to the cart drawer */}
       {isMobile && (
-         <DrawerTrigger asChild>
-           <div
-             onClick={(e) => {
-               e.stopPropagation();
-             }}
-             className="fixed bottom-6 right-6 z-20"
-           >
-            <Button
-              size="lg"
-              className="rounded-full h-14 w-14 shadow-lg relative bg-primary hover:bg-primary/90"
-            >
-              <ShoppingCart className="h-6 w-6" />
-              {totalItems > 0 && (
-                <Badge className="absolute -top-2 -right-2 h-6 w-6 rounded-full flex items-center justify-center p-0">
-                  {totalItems}
-                </Badge>
-              )}
-            </Button>
-           </div>
-        </DrawerTrigger>
+        <Button
+          onClick={() => setIsCartOpen(true)}
+          size="lg"
+          className="fixed bottom-6 right-6 z-20 rounded-full h-14 w-14 shadow-lg  bg-primary hover:bg-primary/90"
+        >
+          <ShoppingCart className="h-6 w-6" />
+          {totalItems > 0 && (
+            <Badge className="absolute -top-2 -right-2 h-6 w-6 rounded-full flex items-center justify-center p-0">
+              {totalItems}
+            </Badge>
+          )}
+        </Button>
       )}
 
       <div className="flex-1 flex flex-col lg:flex-row lg:gap-4 min-h-0">
@@ -247,6 +238,7 @@ export default function SalesPage() {
           </ScrollArea>
         </div>
 
+        {/* Desktop cart view */}
         {!isMobile && (
           <div className="flex-shrink-0 basis-[360px] lg:w-1/3 flex flex-col min-h-0 border-t lg:border-t-0 bg-white dark:bg-gray-800 shadow-left">
             <CartView
@@ -265,6 +257,7 @@ export default function SalesPage() {
         )}
       </div>
 
+      {/* Mobile cart drawer */}
       {isMobile && (
         <Drawer open={isCartOpen} onOpenChange={setIsCartOpen}>
           <DrawerContent className="h-[85%]">
@@ -299,7 +292,6 @@ export default function SalesPage() {
         isOpen={isBillOpen}
         onOpenChange={(isOpenDialog) => {
           setIsBillOpen(isOpenDialog);
-          // Successful sale reset is now handled by onConfirmSale callback
         }}
         cartItems={cartItems}
         customer={selectedCustomer}
@@ -307,7 +299,6 @@ export default function SalesPage() {
         saleId={`SALE-${Date.now().toString().slice(-6)}`}
         onConfirmSale={(paymentMethod) => {
           handleSuccessfulSale(paymentMethod);
-          // setIsBillOpen(false); // This is handled by BillDialog's internal onOpenChange or button click
         }}
       />
     </div>

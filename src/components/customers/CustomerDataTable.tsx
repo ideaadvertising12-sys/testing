@@ -1,7 +1,7 @@
 
 "use client";
 
-import { MoreHorizontal, Edit, Trash2, PlusCircle, Users2, Search } from "lucide-react";
+import { MoreHorizontal, Edit, Trash2, PlusCircle, Users2, Search, PhoneCall } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -39,6 +39,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/hooks/use-toast";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const getInitials = (name: string) => name.split(" ").map(n => n[0]).join("").toUpperCase();
 
@@ -48,9 +50,10 @@ export function CustomerDataTable() {
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
   const [customerToDeleteId, setCustomerToDeleteId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [isLoading, setIsLoading] = useState(false); // Controls skeleton visibility
+  const [isLoading, setIsLoading] = useState(false);
   const { currentUser } = useAuth();
   const userRole = currentUser?.role;
+  const { toast } = useToast();
 
   const canManageCustomers = userRole === 'admin';
   const canAddCustomers = userRole === 'admin' || userRole === 'cashier';
@@ -60,16 +63,16 @@ export function CustomerDataTable() {
     const hasFirstLoadAnimationBeenDone = localStorage.getItem(firstLoadAnimationDoneKey) === "true";
 
     if (hasFirstLoadAnimationBeenDone) {
-      setIsLoading(false); // Don't show loading animation if already done
+      setIsLoading(false);
     } else {
-      setIsLoading(true); // Show loading animation for the first time
+      setIsLoading(true);
       const timer = setTimeout(() => {
         setIsLoading(false);
         localStorage.setItem(firstLoadAnimationDoneKey, "true");
       }, 800);
       return () => clearTimeout(timer);
     }
-  }, []); // Runs once on mount
+  }, []);
 
   const handleSaveCustomer = (customerToSave: Customer) => {
     if (editingCustomer) {
@@ -104,6 +107,14 @@ export function CustomerDataTable() {
     setEditingCustomer(customer);
   }
 
+  const handleCallCustomer = (customerName: string) => {
+    toast({
+      title: "Premium Feature Locked",
+      description: `Direct calling ${customerName} is a Limidora premium feature. Please upgrade your package to enable this.`,
+      variant: "default", 
+    });
+  };
+
   const filteredCustomers = customers.filter(customer => {
     const term = searchTerm.toLowerCase();
     return (
@@ -114,7 +125,7 @@ export function CustomerDataTable() {
   });
 
   return (
-    <>
+    <TooltipProvider>
       <Card className="shadow-none border-0">
         <CardHeader className="p-4 sm:p-6 pb-0">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -160,7 +171,7 @@ export function CustomerDataTable() {
               {isLoading ? (
                 <div className="space-y-3">
                   {[...Array(5)].map((_, i) => (
-                    <Skeleton key={i} className="h-20 w-full rounded-lg" />
+                    <Skeleton key={i} className="h-24 w-full rounded-lg" /> 
                   ))}
                 </div>
               ) : filteredCustomers.length === 0 ? (
@@ -187,27 +198,39 @@ export function CustomerDataTable() {
                               <p className="font-medium">{customer.name}</p>
                               <p className="text-sm text-muted-foreground">{customer.phone}</p>
                             </div>
-                            {canManageCustomers && (
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8 -mt-1 -mr-1">
-                                    <MoreHorizontal className="h-4 w-4" />
+                            <div className="flex items-center gap-1">
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleCallCustomer(customer.name)}>
+                                    <PhoneCall className="h-4 w-4 text-green-600" />
                                   </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="w-40">
-                                  <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                  <DropdownMenuItem onClick={() => handleEditCustomer(customer)}>
-                                    <Edit className="mr-2 h-4 w-4" /> Edit
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem
-                                    className="text-destructive focus:text-destructive"
-                                    onClick={() => openDeleteConfirmation(customer.id)}
-                                  >
-                                    <Trash2 className="mr-2 h-4 w-4" /> Delete
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            )}
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Call {customer.name}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                              {canManageCustomers && (
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                                      <MoreHorizontal className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end" className="w-40">
+                                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                    <DropdownMenuItem onClick={() => handleEditCustomer(customer)}>
+                                      <Edit className="mr-2 h-4 w-4" /> Edit
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      className="text-destructive focus:text-destructive"
+                                      onClick={() => openDeleteConfirmation(customer.id)}
+                                    >
+                                      <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              )}
+                            </div>
                           </div>
                           {customer.shopName && (
                             <Badge variant="outline" className="mt-2 text-xs">
@@ -233,7 +256,8 @@ export function CustomerDataTable() {
                     <TableHead>Contact</TableHead>
                     <TableHead>Shop</TableHead>
                     <TableHead>Address</TableHead>
-                    {canManageCustomers && <TableHead className="w-[50px]"></TableHead>}
+                    <TableHead className="w-[50px] text-center">Call</TableHead>
+                    {canManageCustomers && <TableHead className="w-[50px] text-center">Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -244,12 +268,13 @@ export function CustomerDataTable() {
                         <TableCell><Skeleton className="h-6 w-full" /></TableCell>
                         <TableCell><Skeleton className="h-6 w-full" /></TableCell>
                         <TableCell><Skeleton className="h-6 w-full" /></TableCell>
-                        {canManageCustomers && <TableCell><Skeleton className="h-6 w-full" /></TableCell>}
+                        <TableCell><Skeleton className="h-6 w-8 mx-auto" /></TableCell>
+                        {canManageCustomers && <TableCell><Skeleton className="h-6 w-8 mx-auto" /></TableCell>}
                       </TableRow>
                     ))
                   ) : filteredCustomers.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={canManageCustomers ? 5 : 4} className="h-24 text-center">
+                      <TableCell colSpan={canManageCustomers ? 6 : 5} className="h-24 text-center">
                         <div className="flex flex-col items-center justify-center text-muted-foreground py-8">
                           <Users2 className="w-12 h-12 mb-4 opacity-50" />
                           <p className="text-lg font-medium">No customers found</p>
@@ -283,8 +308,20 @@ export function CustomerDataTable() {
                         <TableCell className="max-w-[200px] truncate">
                           {customer.address || <span className="text-muted-foreground">N/A</span>}
                         </TableCell>
+                        <TableCell className="text-center">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleCallCustomer(customer.name)}>
+                                <PhoneCall className="h-4 w-4 text-green-600" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Call {customer.name}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TableCell>
                         {canManageCustomers && (
-                          <TableCell>
+                          <TableCell className="text-center">
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -316,7 +353,6 @@ export function CustomerDataTable() {
         </CardContent>
       </Card>
 
-      {/* Edit Customer Dialog */}
       {editingCustomer && (
         <CustomerDialog
           customer={editingCustomer}
@@ -327,7 +363,6 @@ export function CustomerDataTable() {
         />
       )}
 
-      {/* Delete Confirmation Dialog */}
       <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -347,6 +382,6 @@ export function CustomerDataTable() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </>
+    </TooltipProvider>
   );
 }
