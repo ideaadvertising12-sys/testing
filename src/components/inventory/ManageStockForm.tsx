@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -7,8 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { placeholderProducts as initialProducts } from "@/lib/placeholder-data";
-import type { Product, StockTransactionType } from "@/lib/types";
+import { placeholderProducts as initialProducts, placeholderVehicles } from "@/lib/placeholder-data";
+import type { Product, StockTransactionType, Vehicle } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -16,13 +17,14 @@ import { Info } from "lucide-react";
 
 export function ManageStockForm() {
   const [products, setProducts] = useState<Product[]>(initialProducts);
+  const [vehicles, setVehicles] = useState<Vehicle[]>(placeholderVehicles);
   const [selectedProductId, setSelectedProductId] = useState<string>("");
   const [skuInput, setSkuInput] = useState<string>("");
   const [transactionType, setTransactionType] = useState<StockTransactionType>("ADD_STOCK_INVENTORY");
   const [quantity, setQuantity] = useState<number | string>("");
   const [transactionDate, setTransactionDate] = useState<string>("");
   const [notes, setNotes] = useState<string>("");
-  const [vehicleId, setVehicleId] = useState<string>("");
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string>(""); // Changed from vehicleId to selectedVehicleId for clarity
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { toast } = useToast();
@@ -71,7 +73,7 @@ export function ManageStockForm() {
         return;
       }
       
-      if ((transactionType === "LOAD_TO_VEHICLE" || transactionType === "UNLOAD_FROM_VEHICLE") && !vehicleId.trim()) {
+      if ((transactionType === "LOAD_TO_VEHICLE" || transactionType === "UNLOAD_FROM_VEHICLE") && !selectedVehicleId.trim()) {
         toast({
           variant: "destructive",
           title: "Validation Error",
@@ -112,7 +114,7 @@ export function ManageStockForm() {
         quantity: numQuantity,
         transactionDate: new Date(transactionDate),
         notes,
-        vehicleId: (transactionType === "LOAD_TO_VEHICLE" || transactionType === "UNLOAD_FROM_VEHICLE") ? vehicleId : undefined,
+        vehicleId: (transactionType === "LOAD_TO_VEHICLE" || transactionType === "UNLOAD_FROM_VEHICLE") ? selectedVehicleId : undefined,
         previousStock: currentProduct.stock,
         newStock: newStock,
       };
@@ -138,7 +140,7 @@ export function ManageStockForm() {
       setSkuInput("");
       setQuantity("");
       setNotes("");
-      setVehicleId("");
+      setSelectedVehicleId(""); // Reset selected vehicle ID
     } finally {
       setIsSubmitting(false);
     }
@@ -273,15 +275,23 @@ export function ManageStockForm() {
 
             {(transactionType === "LOAD_TO_VEHICLE" || transactionType === "UNLOAD_FROM_VEHICLE") && (
               <div className="space-y-2">
-                <Label htmlFor="vehicleId">Vehicle ID</Label>
-                <Input 
-                  id="vehicleId" 
-                  value={vehicleId} 
-                  onChange={(e) => setVehicleId(e.target.value)} 
-                  className="h-11"
-                  placeholder="e.g., VAN-001" 
-                  required
-                />
+                <Label htmlFor="vehicleId">Select Vehicle</Label>
+                <Select value={selectedVehicleId} onValueChange={setSelectedVehicleId}>
+                  <SelectTrigger id="vehicleId" className="h-11">
+                    <SelectValue placeholder="Choose vehicle" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {vehicles.length > 0 ? (
+                      vehicles.map(vehicle => (
+                        <SelectItem key={vehicle.id} value={vehicle.id} className="text-sm">
+                          {vehicle.vehicleNumber} {vehicle.driverName ? `(${vehicle.driverName})` : ''}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="" disabled>No vehicles available</SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
               </div>
             )}
           </div>
@@ -306,6 +316,7 @@ export function ManageStockForm() {
                 setSkuInput("");
                 setQuantity("");
                 setNotes("");
+                setSelectedVehicleId("");
               }}
               disabled={isSubmitting}
             >
@@ -313,7 +324,7 @@ export function ManageStockForm() {
             </Button>
             <Button 
               type="submit" 
-              disabled={!selectedProductId || quantity === "" || Number(quantity) <= 0 || isSubmitting}
+              disabled={!selectedProductId || quantity === "" || Number(quantity) <= 0 || isSubmitting || ((transactionType === "LOAD_TO_VEHICLE" || transactionType === "UNLOAD_FROM_VEHICLE") && !selectedVehicleId)}
               className="min-w-[180px]"
             >
               {isSubmitting ? "Processing..." : "Record Transaction"}
