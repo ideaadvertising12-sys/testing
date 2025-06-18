@@ -20,7 +20,7 @@ import {
   AccordionItem,
   AccordionTrigger as RadixAccordionTrigger,
 } from "@/components/ui/accordion";
-import { SheetTitle } from "@/components/ui/sheet";
+// Removed SheetTitle import as it's no longer used directly here for mobile header
 import { cn } from "@/lib/utils";
 import type { NavItemConfig, UserRole } from "@/lib/types";
 
@@ -64,10 +64,10 @@ interface SidebarProviderProps {
   setOpenMobile: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-export function SidebarProvider({ 
-  children, 
-  navItems, 
-  userRole, 
+export function SidebarProvider({
+  children,
+  navItems,
+  userRole,
   isMobile,
   openMobile,
   setOpenMobile
@@ -76,11 +76,11 @@ export function SidebarProvider({
   const pathname = usePathname();
 
   const toggleCollapse = () => {
-    if (!isMobile) { 
+    if (!isMobile) {
       setIsCollapsed(!isCollapsed);
     }
   };
-  
+
   const currentNavItemsForUser = userRole
     ? navItems.filter(item => item.allowedRoles.includes(userRole))
     : [];
@@ -90,7 +90,7 @@ export function SidebarProvider({
   return (
     <SidebarContext.Provider
       value={{
-        isCollapsed: isMobile ? false : isCollapsed, 
+        isCollapsed: isMobile ? false : isCollapsed,
         toggleCollapse,
         isMobile,
         activePath: pathname,
@@ -110,7 +110,7 @@ export function Sidebar({ children, className }: { children: React.ReactNode, cl
   return (
     <div className={cn(
       "flex flex-col h-full bg-sidebar text-sidebar-foreground",
-      className 
+      className
     )}>
       {children}
     </div>
@@ -120,12 +120,14 @@ export function Sidebar({ children, className }: { children: React.ReactNode, cl
 export function SidebarHeader({ children, className }: { children: React.ReactNode, className?: string }) {
   const { isCollapsed, isMobile } = useSidebarContext();
 
-  const HeaderContent = isMobile ? <SheetTitle asChild>{children}</SheetTitle> : children;
+  // Removed conditional SheetTitle rendering for mobile.
+  // The SheetContent in AppShell will use aria-label for its accessible name.
+  const HeaderContent = children;
 
   return (
     <div className={cn(
         "h-16 flex items-center border-b border-sidebar-border",
-        isCollapsed && !isMobile ? "justify-center px-2" : "px-4 justify-start", 
+        isCollapsed && !isMobile ? "justify-center px-2" : "px-4 justify-start",
         className
       )}
     >
@@ -136,10 +138,10 @@ export function SidebarHeader({ children, className }: { children: React.ReactNo
 
 export function SidebarContent({ className }: { className?: string }) {
   const { navItems } = useSidebarContext();
-  
+
   return (
     <ScrollArea className={cn("flex-1", className)}>
-      <nav className="px-2 py-4 space-y-1"> 
+      <nav className="px-2 py-4 space-y-1">
         {navItems.map((item) => (
           <SidebarNavItem key={item.id} item={item} />
         ))}
@@ -161,7 +163,7 @@ function SidebarNavItem({ item }: SidebarNavItemProps) {
     if (navHref === "/app/dashboard") return path === navHref;
     return path === navHref || (navHref !== "/" && path.startsWith(navHref + '/'));
   };
-  
+
   const isActive = item.href
     ? checkIsActive(activePath, item.href)
     : (item.children && userRole ? item.children.filter(c => c.allowedRoles.includes(userRole)).some(child => child.href && checkIsActive(activePath, child.href)) : false);
@@ -174,7 +176,7 @@ function SidebarNavItem({ item }: SidebarNavItemProps) {
 
   const handleAccordionTriggerClick = () => {
     if (isCollapsed && !isMobile) {
-      toggleCollapse(); 
+      toggleCollapse();
     }
   };
 
@@ -209,8 +211,8 @@ function SidebarNavItem({ item }: SidebarNavItemProps) {
             {isCollapsed && !isMobile && <TooltipContent side="right">{item.label}</TooltipContent>}
           </Tooltip>
           {(!isCollapsed || isMobile) && (
-            <AccordionContent className="pl-6 pt-1 pb-0"> 
-              <ul className="space-y-0.5 border-l border-sidebar-border ml-3 pl-3"> 
+            <AccordionContent className="pl-6 pt-1 pb-0">
+              <ul className="space-y-0.5 border-l border-sidebar-border ml-3 pl-3">
                 {filteredChildren.map(child => (
                   <li key={child.id}>
                     <Link
@@ -258,11 +260,11 @@ function SidebarNavItem({ item }: SidebarNavItemProps) {
 }
 
 export function SidebarFooter({ children, className }: { children: React.ReactNode, className?: string }) {
-   const { isCollapsed, isMobile } = useSidebarContext(); 
+   const { isCollapsed, isMobile } = useSidebarContext();
   return (
     <div className={cn(
-        "p-4 border-t border-sidebar-border mt-auto", 
-        isCollapsed && !isMobile ? "text-center" : "px-4", 
+        "p-4 border-t border-sidebar-border mt-auto",
+        isCollapsed && !isMobile ? "text-center" : "px-4",
         className
       )}
     >

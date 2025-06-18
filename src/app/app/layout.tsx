@@ -39,7 +39,7 @@ import type { NavItemConfig, UserRole } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { GlobalPreloaderScreen } from "@/components/GlobalPreloaderScreen";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Sheet, SheetContent, SheetHeader as OriginalSheetHeader, SheetTitle as OriginalSheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent } from "@/components/ui/sheet"; // Removed SheetHeader, SheetTitle imports as they are not directly used here for aria-label fix
 import { Button } from "@/components/ui/button";
 import { useFullscreen } from "@/contexts/FullscreenContext";
 
@@ -178,7 +178,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
           <SheetContent
             side="left"
             className="p-0 w-[280px] flex flex-col data-[state=closed]:duration-200 data-[state=open]:duration-300 bg-sidebar text-sidebar-foreground border-r-0"
-            aria-label="Main navigation menu"
+            aria-label="Main navigation menu" // Ensures accessible name for the sheet
           >
             <AppNewSidebar className="flex-1 overflow-y-auto">
               {sidebarActualContent}
@@ -188,12 +188,10 @@ function AppShell({ children }: { children: React.ReactNode }) {
           <div className="flex-1 flex flex-col overflow-x-hidden">
             <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-card/95 px-4 backdrop-blur-sm sm:px-6">
               <div className="flex items-center gap-2">
-                <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setOpenMobile(true)}>
-                    <PanelLeft className="h-5 w-5" />
-                    <span className="sr-only">Open sidebar</span>
-                  </Button>
-                </SheetTrigger>
+                <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setOpenMobile(true)}>
+                  <PanelLeft className="h-5 w-5" />
+                  <span className="sr-only">Open sidebar</span>
+                </Button>
                 <h1 className="text-xl font-semibold font-headline hidden sm:block">
                   {currentPageLabel}
                 </h1>
@@ -236,7 +234,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
 
       <div
         className={cn(
-          "flex-1 flex flex-col overflow-auto", 
+          "flex-1 flex flex-col overflow-auto",
           "transition-all duration-300 ease-in-out"
         )}
       >
@@ -255,7 +253,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
               variant="ghost"
               size="icon"
               onClick={toggleAppFullScreen}
-              className="h-9 w-9 inline-flex" 
+              className="h-9 w-9 inline-flex"
               title={isAppFullScreen ? "Exit Fullscreen" : "Enter Fullscreen"}
             >
               {isAppFullScreen ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
@@ -264,7 +262,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
             <UserProfile />
           </div>
         </header>
-        <main className="flex-1 p-4 sm:p-6 bg-muted/30"> 
+        <main className="flex-1 p-4 sm:p-6 bg-muted/30">
           {children}
         </main>
       </div>
@@ -312,4 +310,3 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     </NewSidebarProvider>
   );
 }
-
