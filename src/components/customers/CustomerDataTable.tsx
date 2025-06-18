@@ -22,7 +22,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { Customer } from "@/lib/types";
 import { CustomerDialog } from "./CustomerDialog";
-import { useState, useEffect } from "react"; // Added useEffect here
+import { useState, useEffect } from "react";
 import { placeholderCustomers } from "@/lib/placeholder-data";
 import { useAuth } from "@/contexts/AuthContext";
 import { Input } from "@/components/ui/input";
@@ -48,19 +48,28 @@ export function CustomerDataTable() {
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
   const [customerToDeleteId, setCustomerToDeleteId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false); // Controls skeleton visibility
   const { currentUser } = useAuth();
   const userRole = currentUser?.role;
 
   const canManageCustomers = userRole === 'admin';
   const canAddCustomers = userRole === 'admin' || userRole === 'cashier';
 
-  // Simulate loading
   useEffect(() => {
-    setIsLoading(true);
-    const timer = setTimeout(() => setIsLoading(false), 800);
-    return () => clearTimeout(timer);
-  }, []);
+    const firstLoadAnimationDoneKey = "customerDataTableFirstLoadDone";
+    const hasFirstLoadAnimationBeenDone = localStorage.getItem(firstLoadAnimationDoneKey) === "true";
+
+    if (hasFirstLoadAnimationBeenDone) {
+      setIsLoading(false); // Don't show loading animation if already done
+    } else {
+      setIsLoading(true); // Show loading animation for the first time
+      const timer = setTimeout(() => {
+        setIsLoading(false);
+        localStorage.setItem(firstLoadAnimationDoneKey, "true");
+      }, 800);
+      return () => clearTimeout(timer);
+    }
+  }, []); // Runs once on mount
 
   const handleSaveCustomer = (customerToSave: Customer) => {
     if (editingCustomer) {
