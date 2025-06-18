@@ -1,14 +1,13 @@
 
 "use client";
 
-import { MoreHorizontal, Edit, Trash2, PlusCircle, Users2 } from "lucide-react";
+import { MoreHorizontal, Edit, Trash2, PlusCircle, Users2, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -19,11 +18,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"; 
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { Customer } from "@/lib/types";
 import { CustomerDialog } from "./CustomerDialog";
-import { useState } from "react";
+import { useState, useEffect } from "react"; // Added useEffect here
 import { placeholderCustomers } from "@/lib/placeholder-data";
 import { useAuth } from "@/contexts/AuthContext";
 import { Input } from "@/components/ui/input";
@@ -35,8 +34,11 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
-  AlertDialogTitle as AlertDialogTitleComponent, 
+  AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const getInitials = (name: string) => name.split(" ").map(n => n[0]).join("").toUpperCase();
 
@@ -46,19 +48,31 @@ export function CustomerDataTable() {
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
   const [customerToDeleteId, setCustomerToDeleteId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const { currentUser } = useAuth();
   const userRole = currentUser?.role;
-  
-  const canManageCustomers = userRole === 'admin'; 
+
+  const canManageCustomers = userRole === 'admin';
   const canAddCustomers = userRole === 'admin' || userRole === 'cashier';
 
+  // Simulate loading
+  useEffect(() => {
+    setIsLoading(true);
+    const timer = setTimeout(() => setIsLoading(false), 800);
+    return () => clearTimeout(timer);
+  }, []);
+
   const handleSaveCustomer = (customerToSave: Customer) => {
-    if (editingCustomer) { 
+    if (editingCustomer) {
       if (!canManageCustomers) return;
       setCustomers(customers.map(c => c.id === customerToSave.id ? customerToSave : c));
-    } else { 
+    } else {
       if (!canAddCustomers) return;
-      setCustomers([...customers, { ...customerToSave, id: Date.now().toString() }]);
+      setCustomers([...customers, {
+        ...customerToSave,
+        id: Date.now().toString(),
+        avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${customerToSave.name}`
+      }]);
     }
     setEditingCustomer(null);
   };
@@ -75,7 +89,7 @@ export function CustomerDataTable() {
     setIsDeleteAlertOpen(false);
     setCustomerToDeleteId(null);
   };
-  
+
   const handleEditCustomer = (customer: Customer) => {
     if (!canManageCustomers) return;
     setEditingCustomer(customer);
@@ -92,139 +106,191 @@ export function CustomerDataTable() {
 
   return (
     <>
-      <Card className="shadow-lg flex-1 flex flex-col min-h-0"> {/* Allow card to grow and manage internal scrolling */}
-        <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4">
-          <CardTitle className="font-headline shrink-0">Customer List</CardTitle>
-          <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
-            <div className="relative w-full sm:w-64">
-              <Users2 className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-              <Input
-                placeholder="Search customers..."
-                className="pl-10 w-full"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+      <Card className="shadow-none border-0">
+        <CardHeader className="p-4 sm:p-6 pb-0">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <CardTitle className="text-2xl font-bold">Customers</CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">
+                {filteredCustomers.length} {filteredCustomers.length === 1 ? 'customer' : 'customers'}
+              </p>
             </div>
-            {canAddCustomers && (
-              <CustomerDialog
-                customer={null} 
-                onSave={handleSaveCustomer}
-                isEditMode={false} 
-                trigger={
-                  <Button size="sm" className="w-full sm:w-auto shrink-0">
-                    <PlusCircle className="mr-2 h-4 w-4" /> Add Customer
-                  </Button>
-                }
-              />
-            )}
-          </div>
-        </CardHeader>
-        <CardContent className="flex-1 overflow-y-auto"> {/* Make CardContent scrollable */}
-          {filteredCustomers.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-muted-foreground"> {/* Use h-full for empty state */}
-              <Users2 className="w-16 h-16 mb-4" />
-              <p className="text-xl">No customers found.</p>
-              {searchTerm && <p>Try adjusting your search term.</p>}
-            </div>
-          ) : (
-            <>
-              {/* Mobile Card View - hidden on md and larger screens */}
-              <div className="md:hidden space-y-4 overflow-auto h-[450px] "> 
-                {filteredCustomers.map((customer) => (
-                  <Card key={customer.id} className="w-full">
-                    <CardHeader className="p-4 flex flex-row justify-between items-start">
-                      <div>
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-9 w-9">
-                            <AvatarFallback>{getInitials(customer.name)}</AvatarFallback>
-                          </Avatar>
-                          <CardTitle className="text-lg font-semibold">{customer.name}</CardTitle>
-                        </div>
-                        {customer.shopName && <p className="text-sm text-muted-foreground mt-1 ml-12">{customer.shopName}</p>}
-                      </div>
-                      {canManageCustomers && (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button aria-haspopup="true" size="icon" variant="ghost" className="h-8 w-8 -mt-1 -mr-1">
-                              <MoreHorizontal className="h-4 w-4" />
-                              <span className="sr-only">Toggle menu</span>
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            <DropdownMenuItem onClick={() => handleEditCustomer(customer)}>
-                              <Edit className="mr-2 h-4 w-4" /> Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className="text-destructive focus:text-destructive focus:bg-destructive/10" onClick={() => openDeleteConfirmation(customer.id)}>
-                              <Trash2 className="mr-2 h-4 w-4" /> Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      )}
-                    </CardHeader>
-                    <CardContent className="p-4 pt-0">
-                      <div className="space-y-2 text-sm">
-                        <div className="flex">
-                          <span className="font-medium w-20 shrink-0">Phone:</span>
-                          <span className="text-muted-foreground truncate">{customer.phone}</span>
-                        </div>
-                        {customer.address && (
-                          <div className="flex">
-                            <span className="font-medium w-20 shrink-0">Address:</span>
-                            <span className="text-muted-foreground">{customer.address}</span>
-                          </div>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+
+            <div className="flex flex-col sm:flex-row w-full sm:w-auto gap-3">
+              <div className="relative w-full sm:w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search customers..."
+                  className="pl-9 h-10"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
               </div>
 
-              {/* Desktop Table View - hidden on screens smaller than md */}
-              <div className="hidden md:block">
-                <Table>
-                  <TableHeader>
+              {canAddCustomers && (
+                <CustomerDialog
+                  customer={null}
+                  onSave={handleSaveCustomer}
+                  trigger={
+                    <Button className="h-10 gap-1">
+                      <PlusCircle className="h-4 w-4" />
+                      <span className="hidden sm:inline">Add Customer</span>
+                      <span className="inline sm:hidden">Add</span>
+                    </Button>
+                  }
+                />
+              )}
+            </div>
+          </div>
+        </CardHeader>
+
+        <CardContent className="p-4 sm:p-6 pt-0">
+          {/* Mobile View */}
+          <div className="md:hidden">
+            <ScrollArea className="h-[calc(100vh-220px)] w-full rounded-lg">
+              {isLoading ? (
+                <div className="space-y-3">
+                  {[...Array(5)].map((_, i) => (
+                    <Skeleton key={i} className="h-20 w-full rounded-lg" />
+                  ))}
+                </div>
+              ) : filteredCustomers.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
+                  <Users2 className="w-12 h-12 mb-4 opacity-50" />
+                  <p className="text-lg font-medium">No customers found</p>
+                  {searchTerm && <p className="text-sm">Try a different search term</p>}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {filteredCustomers.map((customer) => (
+                    <Card key={customer.id} className="hover:shadow-sm transition-shadow">
+                      <div className="flex items-start p-4">
+                        <Avatar className="h-10 w-10 mr-3">
+                          {customer.avatar ? (
+                            <AvatarImage src={customer.avatar} alt={customer.name} />
+                          ) : (
+                            <AvatarFallback>{getInitials(customer.name)}</AvatarFallback>
+                          )}
+                        </Avatar>
+                        <div className="flex-1">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <p className="font-medium">{customer.name}</p>
+                              <p className="text-sm text-muted-foreground">{customer.phone}</p>
+                            </div>
+                            {canManageCustomers && (
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 -mt-1 -mr-1">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-40">
+                                  <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                  <DropdownMenuItem onClick={() => handleEditCustomer(customer)}>
+                                    <Edit className="mr-2 h-4 w-4" /> Edit
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    className="text-destructive focus:text-destructive"
+                                    onClick={() => openDeleteConfirmation(customer.id)}
+                                  >
+                                    <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            )}
+                          </div>
+                          {customer.shopName && (
+                            <Badge variant="outline" className="mt-2 text-xs">
+                              {customer.shopName}
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </ScrollArea>
+          </div>
+
+          {/* Desktop View */}
+          <div className="hidden md:block">
+            <div className="rounded-lg border">
+              <Table>
+                <TableHeader className="bg-muted/50">
+                  <TableRow>
+                    <TableHead className="w-[200px]">Customer</TableHead>
+                    <TableHead>Contact</TableHead>
+                    <TableHead>Shop</TableHead>
+                    <TableHead>Address</TableHead>
+                    {canManageCustomers && <TableHead className="w-[50px]"></TableHead>}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {isLoading ? (
+                    [...Array(5)].map((_, i) => (
+                      <TableRow key={i}>
+                        <TableCell><Skeleton className="h-6 w-full" /></TableCell>
+                        <TableCell><Skeleton className="h-6 w-full" /></TableCell>
+                        <TableCell><Skeleton className="h-6 w-full" /></TableCell>
+                        <TableCell><Skeleton className="h-6 w-full" /></TableCell>
+                        {canManageCustomers && <TableCell><Skeleton className="h-6 w-full" /></TableCell>}
+                      </TableRow>
+                    ))
+                  ) : filteredCustomers.length === 0 ? (
                     <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Phone</TableHead>
-                      <TableHead>Address</TableHead>
-                      <TableHead>Shop Name</TableHead>
-                      {canManageCustomers && (
-                        <TableHead className="text-right">
-                          <span className="sr-only">Actions</span>
-                        </TableHead>
-                      )}
+                      <TableCell colSpan={canManageCustomers ? 5 : 4} className="h-24 text-center">
+                        <div className="flex flex-col items-center justify-center text-muted-foreground py-8">
+                          <Users2 className="w-12 h-12 mb-4 opacity-50" />
+                          <p className="text-lg font-medium">No customers found</p>
+                          {searchTerm && <p className="text-sm">Try a different search term</p>}
+                        </div>
+                      </TableCell>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredCustomers.map((customer) => (
-                      <TableRow key={customer.id}>
+                  ) : (
+                    filteredCustomers.map((customer) => (
+                      <TableRow key={customer.id} className="hover:bg-muted/50">
                         <TableCell>
                           <div className="flex items-center gap-3">
-                            <Avatar className="h-9 w-9 hidden sm:flex">
-                              <AvatarFallback>{getInitials(customer.name)}</AvatarFallback>
+                            <Avatar className="h-8 w-8">
+                              {customer.avatar ? (
+                                <AvatarImage src={customer.avatar} alt={customer.name} />
+                              ) : (
+                                <AvatarFallback>{getInitials(customer.name)}</AvatarFallback>
+                              )}
                             </Avatar>
                             <span className="font-medium">{customer.name}</span>
                           </div>
                         </TableCell>
                         <TableCell>{customer.phone}</TableCell>
-                        <TableCell>{customer.address || "N/A"}</TableCell>
-                        <TableCell>{customer.shopName || "N/A"}</TableCell>
+                        <TableCell>
+                          {customer.shopName ? (
+                            <Badge variant="outline">{customer.shopName}</Badge>
+                          ) : (
+                            <span className="text-muted-foreground">N/A</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="max-w-[200px] truncate">
+                          {customer.address || <span className="text-muted-foreground">N/A</span>}
+                        </TableCell>
                         {canManageCustomers && (
-                          <TableCell className="text-right">
+                          <TableCell>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button aria-haspopup="true" size="icon" variant="ghost">
+                                <Button variant="ghost" size="icon" className="h-8 w-8">
                                   <MoreHorizontal className="h-4 w-4" />
-                                  <span className="sr-only">Toggle menu</span>
                                 </Button>
                               </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
+                              <DropdownMenuContent align="end" className="w-40">
                                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
                                 <DropdownMenuItem onClick={() => handleEditCustomer(customer)}>
                                   <Edit className="mr-2 h-4 w-4" /> Edit
                                 </DropdownMenuItem>
-                                <DropdownMenuItem className="text-destructive focus:text-destructive focus:bg-destructive/10" onClick={() => openDeleteConfirmation(customer.id)}>
+                                <DropdownMenuItem
+                                  className="text-destructive focus:text-destructive"
+                                  onClick={() => openDeleteConfirmation(customer.id)}
+                                >
                                   <Trash2 className="mr-2 h-4 w-4" /> Delete
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
@@ -232,38 +298,42 @@ export function CustomerDataTable() {
                           </TableCell>
                         )}
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </>
-          )}
-          {canManageCustomers && editingCustomer && (
-            <CustomerDialog
-              customer={editingCustomer}
-              onSave={handleSaveCustomer}
-              isEditMode={true} 
-              onOpenChange={(isOpen) => { if (!isOpen) setEditingCustomer(null); }}
-              open={!!editingCustomer} 
-              trigger={<></>} 
-            />
-          )}
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
+      {/* Edit Customer Dialog */}
+      {editingCustomer && (
+        <CustomerDialog
+          customer={editingCustomer}
+          onSave={handleSaveCustomer}
+          open={!!editingCustomer}
+          onOpenChange={(open) => !open && setEditingCustomer(null)}
+          isEditMode={true}
+        />
+      )}
+
+      {/* Delete Confirmation Dialog */}
       <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitleComponent>Are you absolutely sure?</AlertDialogTitleComponent>
+            <AlertDialogTitle>Delete Customer</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the customer
-              and remove their data from our servers.
+              This will permanently delete this customer and all associated data. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setCustomerToDeleteId(null)}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteCustomer} className="bg-destructive hover:bg-destructive/90">
-              Yes, delete customer
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteCustomer}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              Delete Customer
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -92,6 +92,10 @@
   body{
     overflow:hidden;
   }
+  [data-radix-scroll-area-viewport] {
+    max-height: 470px !important;
+    overflow-y: auto !important;
+  }
 
  
 }
