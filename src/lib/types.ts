@@ -121,3 +121,15 @@ export interface ActivityItem {
   avatarFallback?: string;
   aiHint?: string; // Added for product images
 }
+
+export interface DayEndReportSummary {
+  reportDate: Date;
+  cashSales: { count: number; amount: number; cashReceived: number; balanceReturned: number };
+  cardSales: { count: number; amount: number };
+  creditSales: { count: number; amount: number; amountPaidOnCredit: number; remainingCreditBalance: number };
+  overallTotalSales: number;
+  overallTotalCashReceived: number; // Cash from Cash Sales + Amount Paid on Credit Sales
+  overallTotalBalanceReturned: number;
+  overallTotalCreditOutstanding: number;
+  totalTransactions: number;
+}
