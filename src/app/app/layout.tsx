@@ -86,7 +86,7 @@ const ALL_NAV_ITEMS: NavItemConfig[] = [
     icon: FileText,
     allowedRoles: ["admin"],
     children: [
-      { id: "day-end-report", href: "/app/app/reports/day-end-report", label: "Day End Report", icon: CalendarClock, allowedRoles: ["admin"] },
+      { id: "day-end-report", href: "/app/reports/day-end-report", label: "Day End Report", icon: CalendarClock, allowedRoles: ["admin"] },
       { id: "full-report", href: "/app/reports/full-report", label: "Full Report", icon: ClipboardList, allowedRoles: ["admin"] },
       { id: "stock-report", href: "/app/reports/stock-report", label: "Stock Report", icon: Warehouse, allowedRoles: ["admin"] },
       { id: "customer-report", href: "/app/reports/customer-report", label: "Customer Report", icon: UserCheck, allowedRoles: ["admin"] },
