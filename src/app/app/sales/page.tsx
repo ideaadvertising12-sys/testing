@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { PackageSearch, ShoppingCart, Tag, X, Search, Maximize, Minimize } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { POSProductCard } from "@/components/sales/POSProductCard";
@@ -17,11 +17,14 @@ import { Badge } from "@/components/ui/badge";
 import { Drawer, DrawerContent, DrawerTrigger, DrawerHeader, DrawerTitle, DrawerClose } from "@/components/ui/drawer";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import type { Product, CartItem, Customer, Sale } from "@/lib/types";
-import { placeholderProducts, placeholderCustomers } from "@/lib/placeholder-data";
+import { placeholderProducts, placeholderCustomers, placeholderSales } from "@/lib/placeholder-data";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
+
 
 export default function SalesPage() {
   const [allProducts] = useState<Product[]>(placeholderProducts);
+  const [allSales, setAllSales] = useState<Sale[]>(placeholderSales);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>(placeholderProducts);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -32,6 +35,7 @@ export default function SalesPage() {
   const [currentSaleType, setCurrentSaleType] = useState<'retail' | 'wholesale'>('retail');
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isSalesPageFullScreen, setIsSalesPageFullScreen] = useState(false);
+  const { toast } = useToast();
 
   const isMobile = useMediaQuery("(max-width: 768px)");
   const categories: (Product["category"] | "All")[] = ["All", ...new Set(allProducts.map(p => p.category))];
@@ -68,19 +72,19 @@ export default function SalesPage() {
         if (existingItem.quantity < product.stock) {
           return prevItems.map(item =>
             item.id === product.id && item.saleType === currentSaleType
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
+              ? { ...item, quantity: item.quantity + 1 }
+              : item
           );
         }
         return prevItems;
       }
       if (product.stock > 0) {
-         return [...prevItems, { ...product, quantity: 1, appliedPrice: priceToUse, saleType: currentSaleType }];
+        return [...prevItems, { ...product, quantity: 1, appliedPrice: priceToUse, saleType: currentSaleType }];
       }
       return prevItems;
     });
 
-    if (isMobile && !isCartOpen) { 
+    if (isMobile && !isCartOpen) {
       setIsCartOpen(true);
     }
   };
@@ -116,6 +120,14 @@ export default function SalesPage() {
   };
 
   const handleCheckout = () => {
+    if (cartItems.length === 0) {
+        toast({
+            variant: "destructive",
+            title: "Empty Cart",
+            description: "Please add items to the cart before checkout.",
+        });
+        return;
+    }
     setIsBillOpen(true);
     if (isMobile) {
       setIsCartOpen(false);
@@ -129,8 +141,38 @@ export default function SalesPage() {
     setCurrentSaleType('retail');
   };
 
-  const handleSuccessfulSale = (paymentMethod: Sale["paymentMethod"]) => {
-    console.log("Sale successful! Payment Method:", paymentMethod);
+  const currentSubtotal = useMemo(() => cartItems.reduce((sum, item) => sum + item.appliedPrice * item.quantity, 0), [cartItems]);
+  const currentDiscountAmount = useMemo(() => currentSubtotal * (discountPercentage / 100), [currentSubtotal, discountPercentage]);
+  const currentTotalAmount = useMemo(() => Math.max(0, currentSubtotal - currentDiscountAmount), [currentSubtotal, currentDiscountAmount]);
+
+  const handleSuccessfulSale = (saleDetails: Omit<Sale, 'id' | 'saleDate' | 'staffId' | 'items'>) => {
+    const newSale: Sale = {
+      ...saleDetails,
+      id: `SALE-${Date.now().toString().slice(-6)}`,
+      items: [...cartItems], // Make a copy of cart items for the sale record
+      saleDate: new Date(),
+      staffId: "staff001", // Replace with actual staff ID
+    };
+    
+    setAllSales(prevSales => [newSale, ...prevSales]); // Add to global sales list (for invoicing page)
+    
+    // Update product stock (simplified for now)
+    // In a real app, this would be an API call and more robust
+    const updatedProducts = allProducts.map(p => {
+      const itemInCart = cartItems.find(ci => ci.id === p.id);
+      if (itemInCart) {
+        return { ...p, stock: p.stock - itemInCart.quantity };
+      }
+      return p;
+    });
+    // setAllProducts(updatedProducts); // This would need to be passed down or managed globally
+
+    toast({
+        title: "Sale Successful!",
+        description: `Payment Method: ${newSale.paymentMethod}. Total: Rs. ${newSale.totalAmount.toFixed(2)}`,
+    });
+
+    // Reset cart and related state
     setCartItems([]);
     setSelectedCustomer(null);
     setDiscountPercentage(0);
@@ -166,27 +208,9 @@ export default function SalesPage() {
         action={fullscreenButton}
       />
 
-      {isMobile && !isSalesPageFullScreen && (
-        <DrawerTrigger asChild>
-          <div onClick={(e) => e.stopPropagation()}>
-            <Button
-              size="lg"
-              className="fixed bottom-6 right-6 z-20 rounded-full h-14 w-14 shadow-lg bg-primary hover:bg-primary/90"
-            >
-              <ShoppingCart className="h-6 w-6" />
-              {totalItems > 0 && (
-                <Badge className="absolute -top-2 -right-2 h-6 w-6 rounded-full flex items-center justify-center p-0">
-                  {totalItems}
-                </Badge>
-              )}
-            </Button>
-          </div>
-        </DrawerTrigger>
-      )}
-
       <div className={cn(
         "flex-1 flex flex-col lg:flex-row lg:gap-4 min-h-0",
-        isSalesPageFullScreen && "mt-0" // Adjust margin if PageHeader has mb-6 and it's too much in fullscreen
+        isSalesPageFullScreen && "mt-0"
       )}>
         <div className="flex-1 lg:w-2/3 flex flex-col min-h-0">
           <div className="p-3 sm:p-4 border-b lg:border-b-0 lg:border-r bg-white dark:bg-transparent">
@@ -285,35 +309,51 @@ export default function SalesPage() {
         )}
       </div>
 
-      {isMobile && (
-        <Drawer open={isCartOpen} onOpenChange={setIsCartOpen}>
-          <DrawerContent className="h-[85%]">
-            <DrawerHeader className="flex justify-between items-center p-4 border-b">
-              <DrawerTitle className="text-lg font-semibold">Order Summary</DrawerTitle>
-              <DrawerClose asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <X className="h-5 w-5" />
-                  <span className="sr-only">Close</span>
-                </Button>
-              </DrawerClose>
-            </DrawerHeader>
-            <div className="flex-1 overflow-hidden flex flex-col">
-              <CartView
-                cartItems={cartItems}
-                selectedCustomer={selectedCustomer}
-                discountPercentage={discountPercentage}
-                onUpdateQuantity={handleUpdateQuantity}
-                onRemoveItem={handleRemoveItem}
-                onSelectCustomer={handleSelectCustomer}
-                onUpdateDiscountPercentage={setDiscountPercentage}
-                onCheckout={handleCheckout}
-                onCancelOrder={handleCancelOrder}
-                className="flex-1 min-h-0"
-              />
+      {/* Mobile Cart Drawer */}
+      <Drawer open={isCartOpen} onOpenChange={setIsCartOpen}>
+        {isMobile && !isSalesPageFullScreen && (
+         <DrawerTrigger asChild>
+            <div onClick={(e) => e.stopPropagation()}> {/* Stop propagation here */}
+              <Button
+                size="lg"
+                className="fixed bottom-6 right-6 z-20 rounded-full h-14 w-14 shadow-lg bg-primary hover:bg-primary/90"
+              >
+                <ShoppingCart className="h-6 w-6" />
+                {totalItems > 0 && (
+                  <Badge className="absolute -top-2 -right-2 h-6 w-6 rounded-full flex items-center justify-center p-0">
+                    {totalItems}
+                  </Badge>
+                )}
+              </Button>
             </div>
-          </DrawerContent>
-        </Drawer>
-      )}
+          </DrawerTrigger>
+        )}
+        <DrawerContent className="h-[85%]">
+           <DrawerHeader className="flex justify-between items-center p-4 border-b">
+            <DrawerTitle className="text-lg font-semibold">Order Summary</DrawerTitle>
+            <DrawerClose asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <X className="h-5 w-5" />
+                <span className="sr-only">Close</span>
+              </Button>
+            </DrawerClose>
+          </DrawerHeader>
+          <div className="flex-1 overflow-hidden flex flex-col">
+            <CartView
+              cartItems={cartItems}
+              selectedCustomer={selectedCustomer}
+              discountPercentage={discountPercentage}
+              onUpdateQuantity={handleUpdateQuantity}
+              onRemoveItem={handleRemoveItem}
+              onSelectCustomer={handleSelectCustomer}
+              onUpdateDiscountPercentage={setDiscountPercentage}
+              onCheckout={handleCheckout}
+              onCancelOrder={handleCancelOrder}
+              className="flex-1 min-h-0"
+            />
+          </div>
+        </DrawerContent>
+      </Drawer>
 
       <BillDialog
         isOpen={isBillOpen}
@@ -323,13 +363,12 @@ export default function SalesPage() {
         cartItems={cartItems}
         customer={selectedCustomer}
         discountPercentage={discountPercentage}
+        currentSubtotal={currentSubtotal}
+        currentDiscountAmount={currentDiscountAmount}
+        currentTotalAmount={currentTotalAmount}
         saleId={`SALE-${Date.now().toString().slice(-6)}`}
-        onConfirmSale={(paymentMethod) => {
-          handleSuccessfulSale(paymentMethod);
-        }}
+        onConfirmSale={handleSuccessfulSale}
       />
     </div>
   );
 }
-
-

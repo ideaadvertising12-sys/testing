@@ -20,6 +20,7 @@ import {
   Maximize,
   Minimize,
   Settings,
+  ReceiptText, // Added for Invoicing
 } from "lucide-react";
 
 import {
@@ -39,7 +40,7 @@ import type { NavItemConfig, UserRole } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { GlobalPreloaderScreen } from "@/components/GlobalPreloaderScreen";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Sheet, SheetContent } from "@/components/ui/sheet"; // Removed SheetHeader, SheetTitle imports as they are not directly used here for aria-label fix
+import { Sheet, SheetContent } from "@/components/ui/sheet"; 
 import { Button } from "@/components/ui/button";
 import { useFullscreen } from "@/contexts/FullscreenContext";
 
@@ -67,6 +68,7 @@ const ALL_NAV_ITEMS: NavItemConfig[] = [
   { id: "products", href: "/app/products", label: "Products", icon: Package, allowedRoles: ["admin"] },
   { id: "customers", href: "/app/customers", label: "Customers", icon: Users, allowedRoles: ["admin", "cashier"] },
   { id: "sales", href: "/app/sales", label: "Sales (POS)", icon: ShoppingCart, allowedRoles: ["admin", "cashier"] },
+  { id: "invoicing", href: "/app/invoicing", label: "Invoicing", icon: ReceiptText, allowedRoles: ["admin", "cashier"] },
   {
     id: "inventory",
     label: "Inventory",
@@ -178,7 +180,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
           <SheetContent
             side="left"
             className="p-0 w-[280px] flex flex-col data-[state=closed]:duration-200 data-[state=open]:duration-300 bg-sidebar text-sidebar-foreground border-r-0"
-            aria-label="Main navigation menu" // Ensures accessible name for the sheet
+            aria-label="Main navigation menu" 
           >
             <AppNewSidebar className="flex-1 overflow-y-auto">
               {sidebarActualContent}
@@ -295,7 +297,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   const userRole = currentUser?.role;
   const currentNavItemsForUser = userRole
-    ? ALL_NAV_ITEMS.filter(item => item.allowedRoles.includes(userRole))
+    ? ALL_NAV_ITEMS.filter(item => {
+        const hasAllowedRole = item.allowedRoles.includes(userRole);
+        if (item.children) {
+          item.children = item.children.filter(child => child.allowedRoles.includes(userRole));
+          return hasAllowedRole && item.children.length > 0;
+        }
+        return hasAllowedRole;
+      })
     : [];
 
   return (

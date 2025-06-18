@@ -1,3 +1,4 @@
+
 export interface Product {
   id: string;
   name: string;
@@ -29,11 +30,18 @@ export interface CartItem extends Product {
 
 export interface Sale {
   id:string;
-  customerId?: string;
-  customerName?: string; // Denormalized for quick display
+  customerId?: string; // Mandatory for credit sales
+  customerName?: string; // Denormalized for quick display, mandatory for credit
   items: CartItem[];
-  totalAmount: number;
-  paymentMethod: "Cash" | "Card" | "Credit"; // Updated payment methods
+  subTotal: number; // Subtotal before discount
+  discountPercentage: number; // Discount applied
+  discountAmount: number; // Calculated discount amount
+  totalAmount: number; // Final amount after discount
+  paymentMethod: "Cash" | "Card" | "Credit";
+  cashGiven?: number; // For cash payment
+  balanceReturned?: number; // For cash payment
+  amountPaidOnCredit?: number; // For credit payment
+  remainingCreditBalance?: number; // For credit payment
   saleDate: Date;
   staffId: string; // Or staff name
 }

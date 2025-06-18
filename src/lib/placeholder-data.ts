@@ -19,51 +19,89 @@ export const placeholderProducts: Product[] = [
 ];
 
 export const placeholderCustomers: Customer[] = [
-  { id: "1", name: "Retail LK", phone: "077-1234567", address: "12 Galle Rd, Colombo", shopName: "Colombo Super" },
-  { id: "2", name: "Kandy Foods", phone: "071-7654321", address: "34 Temple St, Kandy", shopName: "Kandy Central Mart" },
-  { id: "3", name: "Nuwara Eliya Grocers", phone: "070-5558888", shopName: "Highland Grocers" },
-  { id: "4", name: "Jaffna Traders", phone: "076-9990000", address: "7 Market Sq, Jaffna" },
+  { id: "1", name: "Retail LK", phone: "077-1234567", address: "12 Galle Rd, Colombo", shopName: "Colombo Super", avatar: `https://api.dicebear.com/7.x/initials/svg?seed=Retail%20LK` },
+  { id: "2", name: "Kandy Foods", phone: "071-7654321", address: "34 Temple St, Kandy", shopName: "Kandy Central Mart", avatar: `https://api.dicebear.com/7.x/initials/svg?seed=Kandy%20Foods` },
+  { id: "3", name: "Nuwara Eliya Grocers", phone: "070-5558888", shopName: "Highland Grocers", avatar: `https://api.dicebear.com/7.x/initials/svg?seed=Nuwara%20Eliya%20Grocers` },
+  { id: "4", name: "Jaffna Traders", phone: "076-9990000", address: "7 Market Sq, Jaffna", avatar: `https://api.dicebear.com/7.x/initials/svg?seed=Jaffna%20Traders` },
 ];
 
+const calculateSaleDetails = (items: CartItem[], discountPercentage: number): Pick<Sale, 'subTotal' | 'discountAmount' | 'totalAmount'> => {
+  const subTotal = items.reduce((sum, item) => sum + item.appliedPrice * item.quantity, 0);
+  const discountAmount = subTotal * (discountPercentage / 100);
+  const totalAmount = subTotal - discountAmount;
+  return { subTotal, discountAmount, totalAmount };
+};
+
 export const placeholderSales: Sale[] = [
-  {
-    id: "SALE-001",
-    customerId: "1",
-    customerName: "Retail LK",
-    items: [
+  (() => {
+    const items: CartItem[] = [
       { ...placeholderProducts[0], quantity: 2, appliedPrice: placeholderProducts[0].price, saleType: 'retail' },
       { ...placeholderProducts[1], quantity: 1, appliedPrice: placeholderProducts[1].price, saleType: 'retail' },
       { ...placeholderProducts[4], quantity: 5, appliedPrice: placeholderProducts[4].wholesalePrice || placeholderProducts[4].price, saleType: 'wholesale' },
-    ],
-    totalAmount: (placeholderProducts[0].price * 2) + placeholderProducts[1].price + ((placeholderProducts[4].wholesalePrice || placeholderProducts[4].price) * 5),
-    paymentMethod: "Card",
-    saleDate: new Date(Date.now() - 86400000 * 2.5), // 2.5 days ago
-    staffId: "staff001"
-  },
-  {
-    id: "SALE-002",
-    customerId: "2",
-    customerName: "Kandy Foods",
-    items: [
+    ];
+    const discountPercentage = 5; // 5% discount
+    const { subTotal, discountAmount, totalAmount } = calculateSaleDetails(items, discountPercentage);
+    return {
+      id: "SALE-001",
+      customerId: "1",
+      customerName: "Retail LK",
+      items,
+      subTotal,
+      discountPercentage,
+      discountAmount,
+      totalAmount,
+      paymentMethod: "Card",
+      saleDate: new Date(Date.now() - 86400000 * 2.5), // 2.5 days ago
+      staffId: "staff001"
+    };
+  })(),
+  (() => {
+    const items: CartItem[] = [
       { ...placeholderProducts[7], quantity: 1, appliedPrice: placeholderProducts[7].price, saleType: 'retail' },
       { ...placeholderProducts[11], quantity: 1, appliedPrice: placeholderProducts[11].price, saleType: 'retail' },
-    ],
-    totalAmount: placeholderProducts[7].price + placeholderProducts[11].price,
-    paymentMethod: "Cash",
-    saleDate: new Date(Date.now() - 86400000 * 1.2), // 1.2 days ago
-    staffId: "staff002"
-  },
-  {
-    id: "SALE-003",
-    customerName: "Walk-in Customer", // No customerId for walk-in
-    items: [
+    ];
+    const discountPercentage = 0;
+    const { subTotal, discountAmount, totalAmount } = calculateSaleDetails(items, discountPercentage);
+    const cashGiven = Math.ceil(totalAmount / 10) * 10; // Example: round up to nearest 10
+    return {
+      id: "SALE-002",
+      customerId: "2",
+      customerName: "Kandy Foods",
+      items,
+      subTotal,
+      discountPercentage,
+      discountAmount,
+      totalAmount,
+      paymentMethod: "Cash",
+      cashGiven: cashGiven,
+      balanceReturned: cashGiven - totalAmount,
+      saleDate: new Date(Date.now() - 86400000 * 1.2), // 1.2 days ago
+      staffId: "staff002"
+    };
+  })(),
+  (() => {
+    const items: CartItem[] = [
       { ...placeholderProducts[5], quantity: 3, appliedPrice: placeholderProducts[5].price, saleType: 'retail' },
-    ],
-    totalAmount: placeholderProducts[5].price * 3,
-    paymentMethod: "Credit", // Changed from Cash to Credit for variety
-    saleDate: new Date(Date.now() - 3600000 * 5), // 5 hours ago
-    staffId: "staff001"
-  },
+    ];
+    const discountPercentage = 10; // 10% discount
+    const { subTotal, discountAmount, totalAmount } = calculateSaleDetails(items, discountPercentage);
+    const amountPaidOnCredit = totalAmount / 2; // Paid half
+    return {
+      id: "SALE-003",
+      customerId: "3", // Assuming credit sale needs a customer
+      customerName: "Nuwara Eliya Grocers",
+      items,
+      subTotal,
+      discountPercentage,
+      discountAmount,
+      totalAmount,
+      paymentMethod: "Credit",
+      amountPaidOnCredit: amountPaidOnCredit,
+      remainingCreditBalance: totalAmount - amountPaidOnCredit,
+      saleDate: new Date(Date.now() - 3600000 * 5), // 5 hours ago
+      staffId: "staff001"
+    };
+  })(),
 ];
 
 export function generatePlaceholderStats(): StatsData {
@@ -163,7 +201,3 @@ export const recentActivities: ActivityItem[] = [
     avatarFallback: getInitials(placeholderCustomers[2].name),
   },
 ].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-
-// Import Package and ShoppingCart icons if not already imported in RecentActivity.tsx
-// import { Package, ShoppingCart, UserPlus } from "lucide-react";
-
