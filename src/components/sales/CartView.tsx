@@ -9,12 +9,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { MinusCircle, PlusCircle, Trash2, Users, XCircle, Check, ChevronsUpDown, Tag } from "lucide-react";
+import { MinusCircle, PlusCircle, Trash2, Users, XCircle, Check, ChevronsUpDown, ShoppingCart } from "lucide-react";
 import Image from "next/image";
 import { placeholderCustomers } from "@/lib/placeholder-data";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
+
 
 interface CartViewProps {
   cartItems: CartItem[];
@@ -26,7 +27,7 @@ interface CartViewProps {
   onUpdateDiscountPercentage: (percentage: number) => void;
   onCheckout: () => void;
   onCancelOrder: () => void;
-  className?: string;
+  className?: string; // Added className for parent styling
 }
 
 export function CartView({
@@ -68,28 +69,23 @@ export function CartView({
     : "Walk-in / Guest";
 
   return (
-    <Card className={cn(
-      "flex flex-col h-full w-full",
-      "lg:rounded-lg lg:border lg:shadow-md",
-      "rounded-none border-0 shadow-none",
-      className
-    )}>
-      <CardHeader className="p-3 lg:p-4 shrink-0 border-b">
-        <CardTitle className="font-semibold tracking-tight font-headline text-base lg:text-lg">Current Order</CardTitle>
-        <div className="flex items-center gap-2 pt-1">
-          <Users className="h-4 w-4 lg:h-5 lg:w-5 text-muted-foreground" />
+    <Card className={cn("rounded-lg border bg-card text-card-foreground shadow-sm flex flex-col h-full overflow-hidden", className)}>
+      <CardHeader className="p-4 border-b">
+        <CardTitle className="font-semibold tracking-tight font-headline text-lg">Current Order</CardTitle>
+        <div className="flex items-center gap-2 pt-2">
+          <Users className="h-5 w-5 text-muted-foreground flex-shrink-0" />
           <Popover open={openCustomerPopover} onOpenChange={setOpenCustomerPopover}>
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
                 role="combobox"
                 aria-expanded={openCustomerPopover}
-                className="w-full justify-between flex-1 h-8 lg:h-9 text-xs sm:text-sm"
+                className="w-full justify-between flex-1 h-9 text-sm"
               >
                 <span className="truncate">
                   {currentCustomerLabel || "Select Customer..."}
                 </span>
-                <ChevronsUpDown className="ml-2 h-3 w-3 lg:h-4 lg:w-4 shrink-0 opacity-50" />
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
@@ -98,16 +94,12 @@ export function CartView({
                   const option = customerOptions.find(opt => opt.value === value);
                   if (!option) return 0;
                   let searchableString = option.label.toLowerCase();
-                  if ('name' in option && option.name) {
-                    searchableString += ` ${option.name.toLowerCase()}`;
-                  }
-                  if ('shopName' in option && option.shopName) {
-                    searchableString += ` ${option.shopName.toLowerCase()}`;
-                  }
+                  if ('name' in option && option.name) searchableString += ` ${option.name.toLowerCase()}`;
+                  if ('shopName' in option && option.shopName) searchableString += ` ${option.shopName.toLowerCase()}`;
                   return searchableString.includes(search.toLowerCase()) ? 1 : 0;
                 }}
               >
-                <CommandInput placeholder="Search customer..." />
+                <CommandInput placeholder="Search customer..." className="h-9"/>
                 <CommandEmpty>No customer found.</CommandEmpty>
                 <CommandList>
                   <CommandGroup>
@@ -138,85 +130,97 @@ export function CartView({
           </Popover>
         </div>
       </CardHeader>
-
-      <CardContent className="flex-1 p-0 min-h-0"> {/* Ensures content takes available space and handles overflow */}
+      
+      <CardContent className="flex-grow p-0 overflow-hidden">
         <ScrollArea className="h-full">
           {cartItems.length === 0 ? (
-            <p className="p-4 text-center text-sm text-muted-foreground">Your cart is empty.</p>
+            <div className="flex flex-col items-center justify-center h-full p-6 text-center">
+              <ShoppingCart className="w-12 h-12 text-muted-foreground mb-3" />
+              <p className="text-sm text-muted-foreground">Your cart is empty.</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Add products from the list to get started.</p>
+            </div>
           ) : (
             <div className="divide-y divide-border">
               {cartItems.map((item, index) => (
-                <div key={`${item.id}-${item.saleType}-${index}`} className="flex items-center p-2 sm:p-3 gap-2">
+                <div key={`${item.id}-${item.saleType}-${index}`} className="flex items-start p-3 gap-3">
                   <Image
-                    src={item.imageUrl || "https://placehold.co/40x40.png"}
+                    src={item.imageUrl || "https://placehold.co/48x48.png"}
                     alt={item.name}
-                    width={32}
-                    height={32}
-                    className="rounded-md aspect-square object-cover flex-shrink-0 hidden sm:block"
-                    data-ai-hint={item.aiHint || `${item.category.toLowerCase()} product`}
+                    width={48}
+                    height={48}
+                    className="rounded-md aspect-square object-cover flex-shrink-0 mt-0.5"
+                    data-ai-hint={`${item.category.toLowerCase()} product`}
                   />
-                  <div className="flex-grow min-w-0"> {/* min-w-0 for proper truncation */}
-                    <p className="text-xs sm:text-sm font-medium truncate">{item.name}</p>
-                    <div className="flex items-center text-xs text-muted-foreground">
-                      <span>Rs. {item.appliedPrice.toFixed(2)}</span>
-                      {item.saleType === 'wholesale' && <Tag className="h-3 w-3 text-blue-500 ml-1" />}
+                  <div className="flex-grow min-w-0">
+                    <div className="flex justify-between items-start">
+                      <div className="flex-grow min-w-0 pr-2">
+                        <p className="text-sm font-medium truncate" title={item.name}>{item.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Rs. {item.appliedPrice.toFixed(2)}
+                          {item.saleType === 'wholesale' && <span className="text-blue-500 ml-1 font-semibold">(W)</span>}
+                        </p>
+                      </div>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:bg-destructive/10 rounded-full -mr-1 -mt-0.5 flex-shrink-0" onClick={() => onRemoveItem(item.id, item.saleType)}>
+                        <Trash2 className="h-4 w-4" />
+                        <span className="sr-only">Remove {item.name}</span>
+                      </Button>
+                    </div>
+                    <div className="flex items-center justify-between mt-1.5 gap-2">
+                      <div className="flex items-center space-x-1.5">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-7 w-7 rounded-full"
+                          onClick={() => onUpdateQuantity(item.id, item.quantity - 1, item.saleType)}
+                          disabled={item.quantity <= 1}
+                        >
+                          <MinusCircle className="h-3.5 w-3.5" />
+                        </Button>
+                        <Input
+                          type="number"
+                          value={item.quantity}
+                          onChange={(e) => onUpdateQuantity(item.id, parseInt(e.target.value) || 1, item.saleType)}
+                          className="h-7 w-10 text-center px-1 text-sm"
+                          min="1"
+                          max={item.stock}
+                          aria-label={`Quantity for ${item.name}`}
+                        />
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-7 w-7 rounded-full"
+                          onClick={() => onUpdateQuantity(item.id, item.quantity + 1, item.saleType)}
+                          disabled={item.quantity >= item.stock}
+                        >
+                          <PlusCircle className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                      <p className="text-sm font-semibold text-right">
+                        Rs. {(item.appliedPrice * item.quantity).toFixed(2)}
+                      </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="h-6 w-6 sm:h-7 sm:w-7"
-                      onClick={() => onUpdateQuantity(item.id, item.quantity - 1, item.saleType)}
-                      disabled={item.quantity <= 1}
-                    >
-                      <MinusCircle className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-                    </Button>
-                    <Input
-                      type="number"
-                      value={item.quantity}
-                      onChange={(e) => onUpdateQuantity(item.id, parseInt(e.target.value) || 1, item.saleType)}
-                      className="h-6 w-8 sm:h-7 sm:w-10 text-center px-1 text-xs"
-                      min="1"
-                      max={item.stock}
-                    />
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="h-6 w-6 sm:h-7 sm:w-7"
-                      onClick={() => onUpdateQuantity(item.id, item.quantity + 1, item.saleType)}
-                      disabled={item.quantity >= item.stock}
-                    >
-                      <PlusCircle className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-                    </Button>
-                  </div>
-                  <p className="text-xs sm:text-sm font-semibold w-12 sm:w-16 text-right shrink-0 min-w-0 truncate"> {/* min-w-0 for price */}
-                    Rs. {(item.appliedPrice * item.quantity).toFixed(2)}
-                  </p>
-                  <Button variant="ghost" size="icon" className="h-6 w-6 sm:h-7 sm:w-7 text-destructive shrink-0">
-                    <Trash2 className="h-3 w-3 sm:h-3.5 sm:w-3.5" onClick={() => onRemoveItem(item.id, item.saleType)}/>
-                  </Button>
                 </div>
               ))}
             </div>
           )}
         </ScrollArea>
       </CardContent>
-
+      
       {cartItems.length > 0 && (
-        <CardFooter className="flex flex-col space-y-2 p-3 lg:p-4 border-t shrink-0">
-          <div className="w-full flex justify-between text-xs sm:text-sm">
-            <span>Subtotal:</span>
+        <CardFooter className="flex flex-col gap-2.5 p-4 border-t">
+          <div className="w-full flex justify-between items-center text-sm">
+            <span className="text-muted-foreground">Subtotal:</span>
             <span>Rs. {subtotal.toFixed(2)}</span>
           </div>
-          <div className="w-full flex items-center justify-between text-xs sm:text-sm">
-            <Label htmlFor="discountPercentage" className="text-xs sm:text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 shrink-0">Discount (%):</Label>
+          <div className="w-full flex items-center justify-between text-sm">
+            <Label htmlFor="discountPercentage" className="text-sm text-muted-foreground shrink-0">Discount (%):</Label>
             <Input
               id="discountPercentage"
               type="number"
               value={discountPercentage.toString()}
               onChange={handleDiscountChange}
-              className="flex h-8 w-20 sm:w-24 rounded-md border border-input bg-background px-2 sm:px-3 py-1 sm:py-2 text-xs sm:text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 text-right ml-2"
+              className="h-8 w-20 text-sm text-right ml-2"
               placeholder="0"
               min="0"
               max="100"
@@ -224,27 +228,29 @@ export function CartView({
             />
           </div>
           {discountPercentage > 0 && (
-            <div className="w-full flex justify-between text-xs sm:text-sm text-muted-foreground">
+            <div className="w-full flex justify-between text-sm text-muted-foreground">
                 <span>Discount Amount:</span>
                 <span>- Rs. {calculatedDiscountAmount.toFixed(2)}</span>
             </div>
           )}
           <Separator className="my-1" />
-          <div className="w-full flex justify-between text-sm sm:text-base font-bold">
+          <div className="w-full flex justify-between text-base font-bold">
             <span>Total:</span>
             <span>Rs. {totalAmount.toFixed(2)}</span>
           </div>
-          <div className="w-full grid grid-cols-2 gap-2 mt-1">
+          <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1.5">
             <Button
               variant="outline"
-              className="text-xs sm:text-sm py-2 h-auto"
+              size="lg" 
+              className="py-2.5"
               onClick={onCancelOrder}
             >
-              <XCircle className="mr-1 sm:mr-2 h-3.5 w-3.5" />
+              <XCircle className="mr-1.5 h-4.5 w-4.5" />
               Cancel
             </Button>
             <Button
-              className="text-xs sm:text-sm py-2 h-auto"
+              size="lg" 
+              className="py-2.5"
               onClick={onCheckout}
               disabled={cartItems.length === 0}
             >

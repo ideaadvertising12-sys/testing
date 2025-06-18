@@ -142,7 +142,7 @@ export function ProductDataTable() {
           ) : (
             <>
               {/* Mobile Card View - hidden on md and larger screens */}
-              <div className="md:hidden space-y-3">
+              <div className="md:hidden space-y-3 overflow-auto h-[450px]">
                 {filteredDisplayProducts.map((product) => (
                   <Card key={product.id} className="w-full overflow-hidden">
                     <CardContent className="p-3">
@@ -210,7 +210,7 @@ export function ProductDataTable() {
               </div>
 
               {/* Desktop Table View - hidden on screens smaller than md */}
-              <div className="hidden md:block">
+              <div className="hidden md:block overflow-auto h-[450px] ">
                 <Table>
                   <TableHeader className="md:sticky md:top-0 md:z-10 md:bg-card">
                     <TableRow>
