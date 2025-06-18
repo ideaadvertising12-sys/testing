@@ -66,7 +66,7 @@ export function POSProductCard({ product, onAddToCart, currentSaleType }: POSPro
       {/* Price and Add Button */}
       <CardFooter className="p-4 border-t border-gray-100 dark:border-[hsl(0,0%,50%)] flex justify-between items-center">
         <div className="space-y-1">
-          <p className="text-lg font-bold text-primary dark:text-[hsl(0,0%,20%)]">
+          <p className="text-lg font-bold text-primary ">
             Rs. {displayPrice.toFixed(2)}
           </p>
           {currentSaleType === 'wholesale' && product.wholesalePrice && (
