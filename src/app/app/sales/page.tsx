@@ -131,8 +131,6 @@ export default function SalesPage() {
 
   const handleSuccessfulSale = (paymentMethod: Sale["paymentMethod"]) => {
     console.log("Sale successful! Payment Method:", paymentMethod);
-    // Future: Here you would typically save the sale to a database
-    // For now, just reset the state
     setCartItems([]);
     setSelectedCustomer(null);
     setDiscountPercentage(0);
@@ -141,7 +139,7 @@ export default function SalesPage() {
 
   const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
-  const fullscreenToggleAction = (
+  const fullscreenButton = (
     <Button
       variant="outline"
       size="icon"
@@ -158,35 +156,38 @@ export default function SalesPage() {
     <div className={cn(
       "flex flex-col",
       isSalesPageFullScreen 
-        ? "fixed inset-0 z-40 bg-background p-3 sm:p-4 overflow-hidden" 
+        ? "fixed inset-0 z-50 bg-background p-4 sm:p-6 overflow-auto" 
         : "h-full bg-gray-50 dark:bg-transparent"
     )}>
       <PageHeader
         title="Point of Sale"
         description="Create new sales transactions quickly."
         icon={ShoppingCart}
-        action={fullscreenToggleAction}
+        action={fullscreenButton}
       />
-      
-      {isMobile && (
-         <DrawerTrigger asChild>
-            <div onClick={(e) => e.stopPropagation()}>
-              <Button
-                size="lg"
-                className="fixed bottom-6 right-6 z-30 rounded-full h-14 w-14 shadow-lg bg-primary hover:bg-primary/90"
-              >
-                <ShoppingCart className="h-6 w-6" />
-                {totalItems > 0 && (
-                  <Badge className="absolute -top-2 -right-2 h-6 w-6 rounded-full flex items-center justify-center p-0">
-                    {totalItems}
-                  </Badge>
-                )}
-              </Button>
-            </div>
+
+      {isMobile && !isSalesPageFullScreen && (
+        <DrawerTrigger asChild>
+          <div onClick={(e) => e.stopPropagation()}>
+            <Button
+              size="lg"
+              className="fixed bottom-6 right-6 z-20 rounded-full h-14 w-14 shadow-lg bg-primary hover:bg-primary/90"
+            >
+              <ShoppingCart className="h-6 w-6" />
+              {totalItems > 0 && (
+                <Badge className="absolute -top-2 -right-2 h-6 w-6 rounded-full flex items-center justify-center p-0">
+                  {totalItems}
+                </Badge>
+              )}
+            </Button>
+          </div>
         </DrawerTrigger>
       )}
 
-      <div className="flex-1 flex flex-col lg:flex-row lg:gap-4 min-h-0">
+      <div className={cn(
+        "flex-1 flex flex-col lg:flex-row lg:gap-4 min-h-0",
+        isSalesPageFullScreen && "mt-0" // Adjust margin if PageHeader has mb-6 and it's too much in fullscreen
+      )}>
         <div className="flex-1 lg:w-2/3 flex flex-col min-h-0">
           <div className="p-3 sm:p-4 border-b lg:border-b-0 lg:border-r bg-white dark:bg-transparent">
             <div className="relative mb-3 sm:mb-4">
@@ -287,7 +288,7 @@ export default function SalesPage() {
       {isMobile && (
         <Drawer open={isCartOpen} onOpenChange={setIsCartOpen}>
           <DrawerContent className="h-[85%]">
-           <DrawerHeader className="flex justify-between items-center p-4 border-b">
+            <DrawerHeader className="flex justify-between items-center p-4 border-b">
               <DrawerTitle className="text-lg font-semibold">Order Summary</DrawerTitle>
               <DrawerClose asChild>
                 <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -331,4 +332,4 @@ export default function SalesPage() {
   );
 }
 
-    
+
