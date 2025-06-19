@@ -23,11 +23,13 @@ import { AccessDenied } from "@/components/AccessDenied";
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { GlobalPreloaderScreen } from "@/components/GlobalPreloaderScreen";
+import { useCustomers } from "@/hooks/useCustomers"; // Import the useCustomers hook
 
 export default function DashboardPage() {
   const { currentUser } = useAuth();
   const router = useRouter();
   const [dashboardStats, setDashboardStats] = useState<StatsData | null>(null);
+  const { customers, isLoading: isLoadingCustomers, error: customersError } = useCustomers(); // Use the hook
 
   useEffect(() => {
     if (!currentUser) {
@@ -37,10 +39,10 @@ export default function DashboardPage() {
     if (currentUser.role === "cashier") {
       router.replace("/app/sales"); 
     } else {
-      // Simulate fetching data
+      // Simulate fetching other stats
       setTimeout(() => {
         setDashboardStats(generatePlaceholderStats());
-      }, 1000); // Simulate 1 second delay
+      }, 1000); 
     }
   }, [currentUser, router]);
 
@@ -64,8 +66,50 @@ export default function DashboardPage() {
     .sort((a,b) => (b.price * (150 - b.stock)) - (a.price * (150 - a.stock)) ) 
     .slice(0,5);
   
-  const renderStatsCard = (title: string, valueKey: keyof StatsData | 'totalSalesFormatted' | 'revenueTodayFormatted', icon: LucideIcon, iconColor: string, description?: string) => {
-    if (dashboardStats === null && (valueKey === "totalSalesFormatted" || valueKey === "totalCustomers" || valueKey === "lowStockItems" || valueKey === "revenueTodayFormatted")) {
+  const renderStatsCard = (title: string, valueKey: keyof StatsData | 'totalSalesFormatted' | 'revenueTodayFormatted' | 'liveTotalCustomers', icon: LucideIcon, iconColor: string, description?: string) => {
+    
+    if (valueKey === "liveTotalCustomers") {
+      if (isLoadingCustomers) {
+        return (
+          <Card className="shadow-lg">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
+              <Loader2 className={iconColor + " h-5 w-5 animate-spin"} />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold font-headline text-foreground">Loading...</div>
+              {description && <p className="text-xs text-muted-foreground pt-1">{description}</p>}
+            </CardContent>
+          </Card>
+        );
+      }
+      if (customersError) {
+         return (
+          <Card className="shadow-lg">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
+              <AlertTriangle className={iconColor + " h-5 w-5"} />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold font-headline text-destructive">Error</div>
+              {description && <p className="text-xs text-muted-foreground pt-1">{description}</p>}
+            </CardContent>
+          </Card>
+        );
+      }
+      return (
+        <StatsCard
+          title={title}
+          value={customers.length}
+          icon={icon}
+          iconColor={iconColor}
+          description={description}
+        />
+      );
+    }
+    
+    // Original logic for other stats cards
+    if (dashboardStats === null && (valueKey === "totalSalesFormatted" || valueKey === "lowStockItems" || valueKey === "revenueTodayFormatted")) {
       return (
         <Card className="shadow-lg">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -86,7 +130,7 @@ export default function DashboardPage() {
         displayValue = `Rs. ${dashboardStats.totalSales.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
       } else if (valueKey === "revenueTodayFormatted") {
          displayValue = `Rs. ${dashboardStats.revenueToday.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-      } else {
+      } else if (valueKey !== "liveTotalCustomers") { // Ensure we don't fall through for liveTotalCustomers
         displayValue = dashboardStats[valueKey as keyof StatsData] ?? 'N/A';
       }
     }
@@ -116,7 +160,7 @@ export default function DashboardPage() {
         )}
         {renderStatsCard(
           "Total Customers",
-          "totalCustomers",
+          "liveTotalCustomers", // Changed to use live customer count
           Users,
           "text-blue-600"
         )}
@@ -176,3 +220,4 @@ export default function DashboardPage() {
     </>
   );
 }
+
