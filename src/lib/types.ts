@@ -1,4 +1,6 @@
 
+import type { Timestamp } from "firebase/firestore";
+
 export interface Product {
   id: string;
   name: string;
@@ -11,6 +13,8 @@ export interface Product {
   sku?: string;
   reorderLevel?: number;
   aiHint?: string; // Added for specific AI hints
+  createdAt?: Date; // For FirestoreProduct fromFirestore conversion
+  updatedAt?: Date; // For FirestoreProduct fromFirestore conversion
 }
 
 export interface Customer {
@@ -20,6 +24,7 @@ export interface Customer {
   phone: string;
   address?: string;
   shopName?: string;
+  createdAt?: Date; // For FirestoreCustomer fromFirestore conversion
 }
 
 export interface CartItem extends Product {
@@ -44,6 +49,7 @@ export interface Sale {
   remainingCreditBalance?: number; // For credit payment
   saleDate: Date;
   staffId: string; // Or staff name
+  createdAt?: Date; // For FirestoreSale fromFirestore conversion
 }
 
 export interface StatsData {
@@ -148,3 +154,109 @@ export interface ManagedUser extends User {
   id: string; // Typically the username
   password?: string; // Used in forms, not directly stored
 }
+
+// Firestore-specific types
+export interface FirestoreProduct extends Omit<Product, 'id' | 'createdAt' | 'updatedAt'> {
+  createdAt?: Timestamp;
+  updatedAt?: Timestamp;
+}
+
+export interface FirestoreSale extends Omit<Sale, 'id' | 'saleDate' | 'createdAt' | 'items'> {
+  saleDate: Timestamp;
+  createdAt?: Timestamp;
+  items: Omit<CartItem, 'createdAt' | 'updatedAt'>[]; // Cart items in FirestoreSale won't have timestamps from Product directly
+}
+
+export interface FirestoreCustomer extends Omit<Customer, 'id' | 'createdAt'> {
+  createdAt?: Timestamp;
+}
+
+// Firestore converters for type safety
+export const productConverter = {
+  toFirestore: (product: Omit<Product, 'id' | 'createdAt' | 'updatedAt'> & { createdAt?: Timestamp, updatedAt?: Timestamp }) => {
+    const { ...data } = product; // Destructure to remove id and specific Date fields if they exist
+    return {
+      ...data,
+      name: product.name,
+      category: product.category,
+      price: product.price,
+      wholesalePrice: product.wholesalePrice,
+      stock: product.stock,
+      imageUrl: product.imageUrl,
+      description: product.description,
+      sku: product.sku,
+      reorderLevel: product.reorderLevel,
+      aiHint: product.aiHint,
+      createdAt: product.createdAt instanceof Date ? Timestamp.fromDate(product.createdAt) : (product.createdAt || Timestamp.now()),
+      updatedAt: Timestamp.now()
+    };
+  },
+  fromFirestore: (snapshot: any, options: any): Product => {
+    const data = snapshot.data(options);
+    return {
+      id: snapshot.id,
+      name: data.name,
+      category: data.category,
+      price: data.price,
+      wholesalePrice: data.wholesalePrice,
+      stock: data.stock,
+      imageUrl: data.imageUrl,
+      description: data.description,
+      sku: data.sku,
+      reorderLevel: data.reorderLevel,
+      aiHint: data.aiHint,
+      createdAt: data.createdAt?.toDate(),
+      updatedAt: data.updatedAt?.toDate()
+    } as Product; // Cast to Product type
+  }
+};
+
+export const saleConverter = {
+  toFirestore: (sale: Omit<Sale, 'id' | 'createdAt' | 'items'> & { createdAt?: Timestamp, items: Omit<CartItem, 'createdAt' | 'updatedAt'>[] }) => {
+    const { ...data } = sale;
+    return {
+      ...data,
+      saleDate: sale.saleDate instanceof Date ? Timestamp.fromDate(sale.saleDate) : sale.saleDate,
+      createdAt: sale.createdAt instanceof Date ? Timestamp.fromDate(sale.createdAt) : (sale.createdAt || Timestamp.now()),
+      items: sale.items.map(item => { // Ensure items are plain objects
+        const {...itemData} = item;
+        return itemData;
+      })
+    };
+  },
+  fromFirestore: (snapshot: any, options: any): Sale => {
+    const data = snapshot.data(options);
+    return {
+      id: snapshot.id,
+      ...data,
+      saleDate: data.saleDate.toDate(),
+      createdAt: data.createdAt?.toDate(),
+      items: data.items.map((item: any) => ({ // Ensure items are mapped correctly
+        ...item
+      }))
+    } as Sale;
+  }
+};
+
+export const customerConverter = {
+  toFirestore: (customer: Omit<Customer, 'id' | 'createdAt'> & { createdAt?: Timestamp }) => {
+    const { ...data } = customer;
+    return {
+      ...data,
+      name: customer.name,
+      phone: customer.phone,
+      address: customer.address,
+      shopName: customer.shopName,
+      avatar: customer.avatar,
+      createdAt: customer.createdAt instanceof Date ? Timestamp.fromDate(customer.createdAt) : (customer.createdAt || Timestamp.now())
+    };
+  },
+  fromFirestore: (snapshot: any, options: any): Customer => {
+    const data = snapshot.data(options);
+    return {
+      id: snapshot.id,
+      ...data,
+      createdAt: data.createdAt?.toDate()
+    } as Customer;
+  }
+};
