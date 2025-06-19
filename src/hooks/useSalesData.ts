@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -23,7 +22,10 @@ export function useSalesData() {
         throw new Error(errorData.message || "Failed to fetch sales data");
       }
       const data = await response.json();
-      // Ensure saleDate is a Date object and totalAmount is a number
+      
+      // Debug: Log raw API response
+      console.log("Raw API response:", data);
+      
       const formattedData = data.map((sale: any) => ({
         ...sale,
         saleDate: new Date(sale.saleDate),
@@ -36,13 +38,15 @@ export function useSalesData() {
         amountPaidOnCredit: sale.amountPaidOnCredit !== undefined ? Number(sale.amountPaidOnCredit) : undefined,
         remainingCreditBalance: sale.remainingCreditBalance !== undefined ? Number(sale.remainingCreditBalance) : undefined,
       }));
+
+      // Debug: Log formatted data
+      console.log("Formatted sales data:", formattedData);
+      
       setSales(formattedData);
     } catch (err: any) {
       console.error("Error fetching sales data:", err);
       const errorMessage = err.message || "An unknown error occurred while fetching sales data.";
       setError(errorMessage);
-      // Only show toast if it's a new error or loading state changes, to avoid spamming
-      // For simplicity, we'll keep the toast here, but a more advanced setup might gate it.
       toast({
         variant: "destructive",
         title: "Error Fetching Sales",
@@ -51,10 +55,10 @@ export function useSalesData() {
     } finally {
       setIsLoading(false);
     }
-  }, [toast]); // Removed setIsLoading, setError, setSales from deps as they are stable state setters
+  }, [toast]);
 
   useEffect(() => {
-    fetchSales(); // Initial fetch
+    fetchSales();
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
@@ -62,7 +66,6 @@ export function useSalesData() {
       }
     };
 
-    // Refetch when the tab/window gains focus or becomes visible
     window.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('focus', fetchSales);
 
@@ -72,10 +75,14 @@ export function useSalesData() {
     };
   }, [fetchSales]);
 
+  // Calculate total revenue
+  const totalRevenue = sales.reduce((sum, sale) => sum + (sale.totalAmount || 0), 0);
+
   return {
     sales,
     isLoading,
     error,
+    totalRevenue, // Add this to the returned object
     refetchSales: fetchSales,
   };
 }

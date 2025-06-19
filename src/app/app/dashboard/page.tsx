@@ -1,13 +1,13 @@
 
 "use client";
 
-import { Banknote, Package, Users, TrendingDown, TrendingUp, Activity, AlertTriangle, Loader2, type LucideIcon } from "lucide-react";
+import { Banknote, Users, TrendingUp, Activity, AlertTriangle, Loader2, type LucideIcon } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { SalesChart } from "@/components/dashboard/SalesChart";
 import { AlertQuantityTable } from "@/components/dashboard/AlertQuantityTable";
-import { generatePlaceholderStats, placeholderMonthlySalesData } from "@/lib/placeholder-data";
-import type { StatsData, Sale } from "@/lib/types"; // Added Sale
+import { generatePlaceholderStats, placeholderMonthlySalesData, placeholderProducts } from "@/lib/placeholder-data";
+import type { StatsData, Sale } from "@/lib/types";
 import {
   Table,
   TableBody,
@@ -17,26 +17,37 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { placeholderProducts } from "@/lib/placeholder-data";
 import { useAuth } from "@/contexts/AuthContext";
 import { AccessDenied } from "@/components/AccessDenied";
-import React, { useEffect, useState, useMemo } from "react"; // Added useMemo
+import React, { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { GlobalPreloaderScreen } from "@/components/GlobalPreloaderScreen";
 import { useCustomers } from "@/hooks/useCustomers";
-import { useSalesData } from "@/hooks/useSalesData"; // Import the useSalesData hook
+import { useSalesData } from "@/hooks/useSalesData";
 
 export default function DashboardPage() {
   const { currentUser } = useAuth();
   const router = useRouter();
   const [dashboardStats, setDashboardStats] = useState<StatsData | null>(null);
   const { customers, isLoading: isLoadingCustomers, error: customersError } = useCustomers();
-  const { sales, isLoading: isLoadingSales, error: salesError } = useSalesData(); // Use the sales data hook
+  const { sales, isLoading: isLoadingSales, error: salesError } = useSalesData();
 
   const totalRevenue = useMemo(() => {
-    if (isLoadingSales || salesError || !sales) return null;
-    return sales.reduce((sum, sale) => sum + sale.totalAmount, 0);
-  }, [sales, isLoadingSales, salesError]);
+    if (isLoadingSales || !sales || sales.length === 0) return 0;
+    return sales.reduce((sum, sale) => sum + (Number(sale.totalAmount) || 0), 0);
+  }, [sales, isLoadingSales]);
+
+  const revenueToday = useMemo(() => {
+    if (isLoadingSales || !sales || sales.length === 0) return 0;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return sales
+      .filter(sale => {
+        const saleDate = new Date(sale.saleDate);
+        return saleDate >= today;
+      })
+      .reduce((sum, sale) => sum + (Number(sale.totalAmount) || 0), 0);
+  }, [sales, isLoadingSales]);
 
   useEffect(() => {
     if (!currentUser) {
@@ -44,124 +55,87 @@ export default function DashboardPage() {
       return;
     }
     if (currentUser.role === "cashier") {
-      router.replace("/app/sales"); 
+      router.replace("/app/sales");
     } else {
-      // Simulate fetching other stats (low stock, revenue today - these could also be live)
-      setTimeout(() => {
-        setDashboardStats(generatePlaceholderStats()); 
-      }, 1000); 
+      if (!dashboardStats) {
+        setDashboardStats(generatePlaceholderStats());
+      }
     }
-  }, [currentUser, router]);
+  }, [currentUser, router, dashboardStats]);
 
   if (!currentUser) {
-    return (
-      <>
-        <GlobalPreloaderScreen message="Loading dashboard..." />
-      </>
-    );
+    return <GlobalPreloaderScreen message="Loading dashboard..." />;
   }
 
   if (currentUser.role === "cashier") {
-    return (
-      <>
-        <AccessDenied message="Dashboard is not available for your role. Redirecting..." />
-      </>
-    );
+    return <AccessDenied message="Dashboard is not available for your role. Redirecting..." />;
   }
-  
+
   const topSellingProducts = [...placeholderProducts]
-    .sort((a,b) => (b.price * (150 - b.stock)) - (a.price * (150 - a.stock)) ) 
+    .sort((a,b) => (b.price * (150 - b.stock)) - (a.price * (150 - a.stock)))
     .slice(0,5);
-  
-  const renderStatsCard = (title: string, valueKey: keyof StatsData | 'liveTotalCustomers' | 'liveTotalRevenue', icon: LucideIcon, iconColor: string, description?: string) => {
-    
-    if (valueKey === "liveTotalCustomers") {
-      if (isLoadingCustomers) {
-        return (
-          <Card className="shadow-lg">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
-              <Loader2 className={iconColor + " h-5 w-5 animate-spin"} />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold font-headline text-foreground">Loading...</div>
-              {description && <p className="text-xs text-muted-foreground pt-1">{description}</p>}
-            </CardContent>
-          </Card>
-        );
-      }
-      if (customersError) {
-         return (
-          <Card className="shadow-lg">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
-              <AlertTriangle className={iconColor + " h-5 w-5"} />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold font-headline text-destructive">Error</div>
-              {description && <p className="text-xs text-muted-foreground pt-1">{description}</p>}
-            </CardContent>
-          </Card>
-        );
-      }
-      return (
-        <StatsCard
-          title={title}
-          value={customers.length}
-          icon={icon}
-          iconColor={iconColor}
-          description={description}
-        />
-      );
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(value);
+  };
+
+  const renderStatsCard = (
+    title: string,
+    valueKey: keyof StatsData | 'liveTotalCustomers' | 'liveTotalRevenue' | 'liveRevenueToday',
+    icon: LucideIcon,
+    iconColor: string,
+    description?: string
+  ) => {
+    let isLoadingValue = false;
+    let hasError: string | null = null;
+    let displayValue: string | number = 'N/A';
+
+    switch (valueKey) {
+      case 'liveTotalCustomers':
+        isLoadingValue = isLoadingCustomers;
+        hasError = customersError;
+        if (!isLoadingValue && !hasError && customers) {
+          displayValue = customers.length.toLocaleString();
+        }
+        break;
+      case 'liveTotalRevenue':
+        isLoadingValue = isLoadingSales;
+        hasError = salesError;
+        if (!isLoadingValue && !hasError && sales) {
+          displayValue = formatCurrency(totalRevenue);
+        }
+        break;
+      case 'liveRevenueToday':
+        isLoadingValue = isLoadingSales;
+        hasError = salesError;
+        if (!isLoadingValue && !hasError && sales) {
+          displayValue = formatCurrency(revenueToday);
+        }
+        break;
+      case 'lowStockItems':
+        isLoadingValue = dashboardStats === null;
+        if (!isLoadingValue && dashboardStats) {
+          displayValue = dashboardStats.lowStockItems?.toString() ?? 'N/A';
+        }
+        break;
+      default:
+        if (dashboardStats && valueKey in dashboardStats) {
+          const val = dashboardStats[valueKey as keyof StatsData];
+          displayValue = typeof val === 'number' ? val.toString() : (val ?? 'N/A');
+        }
     }
 
-    if (valueKey === "liveTotalRevenue") {
-      if (isLoadingSales) {
-        return (
-          <Card className="shadow-lg">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
-              <Loader2 className={iconColor + " h-5 w-5 animate-spin"} />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold font-headline text-foreground">Loading...</div>
-              {description && <p className="text-xs text-muted-foreground pt-1">{description}</p>}
-            </CardContent>
-          </Card>
-        );
-      }
-      if (salesError || totalRevenue === null) {
-         return (
-          <Card className="shadow-lg">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
-              <AlertTriangle className={iconColor + " h-5 w-5"} />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold font-headline text-destructive">Error</div>
-              {description && <p className="text-xs text-muted-foreground pt-1">{description}</p>}
-            </CardContent>
-          </Card>
-        );
-      }
-      return (
-        <StatsCard
-          title={title}
-          value={`Rs. ${totalRevenue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`}
-          icon={icon}
-          iconColor={iconColor}
-          description={description}
-        />
-      );
-    }
-    
-    // Original logic for other stats cards (lowStockItems, revenueTodayFormatted)
-    if (dashboardStats === null && (valueKey === "lowStockItems" || valueKey === "revenueTodayFormatted")) {
+    if (isLoadingValue) {
       return (
         <Card className="shadow-lg">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
-            <Loader2 className={iconColor + " h-5 w-5 animate-spin"} />
+            <Loader2 className={`${iconColor} h-5 w-5 animate-spin`} />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold font-headline text-foreground">Loading...</div>
@@ -171,15 +145,20 @@ export default function DashboardPage() {
       );
     }
 
-    let displayValue: string | number = 'N/A';
-    if (dashboardStats) {
-       if (valueKey === "revenueTodayFormatted") { // Keep existing logic for Revenue Today if desired
-         displayValue = `Rs. ${dashboardStats.revenueToday.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-      } else if (valueKey !== "liveTotalCustomers" && valueKey !== "liveTotalRevenue") {
-        displayValue = dashboardStats[valueKey as keyof StatsData] ?? 'N/A';
-      }
+    if (hasError) {
+      return (
+        <Card className="shadow-lg">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
+            <AlertTriangle className={`${iconColor} h-5 w-5`} />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold font-headline text-destructive">Error</div>
+            {description && <p className="text-xs text-muted-foreground pt-1">{description}</p>}
+          </CardContent>
+        </Card>
+      );
     }
-
 
     return (
       <StatsCard
@@ -194,31 +173,35 @@ export default function DashboardPage() {
 
   return (
     <>
-      <PageHeader title="Dashboard Overview" description="Welcome back! Here's what's happening with NGroup Products." icon={Activity} />
+      <PageHeader
+        title="Dashboard Overview"
+        description="Welcome back! Here's what's happening with NGroup Products."
+        icon={Activity}
+      />
       
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-6">
         {renderStatsCard(
           "Total Revenue",
-          "liveTotalRevenue", // Changed to use live total revenue
+          "liveTotalRevenue",
           Banknote,
           "text-green-600"
         )}
         {renderStatsCard(
           "Total Customers",
-          "liveTotalCustomers", 
+          "liveTotalCustomers",
           Users,
           "text-blue-600"
         )}
         {renderStatsCard(
           "Low Stock Items",
-          "lowStockItems", // This still uses placeholder data
+          "lowStockItems", 
           AlertTriangle,
           "text-destructive",
           "Needs reordering soon"
         )}
         {renderStatsCard(
           "Revenue Today",
-          "revenueTodayFormatted", // This still uses placeholder data
+          "liveRevenueToday",
           TrendingUp,
           "text-emerald-600"
         )}
@@ -226,8 +209,8 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
         <div className="lg:col-span-2">
-          <SalesChart 
-            data={placeholderMonthlySalesData} // This still uses placeholder data
+        <SalesChart
+            data={placeholderMonthlySalesData} 
             title="Monthly Sales Performance"
             description="Sales figures for the current year."
           />
@@ -235,7 +218,7 @@ export default function DashboardPage() {
         <Card className="shadow-lg">
           <CardHeader>
             <CardTitle className="font-headline">Top Selling Products</CardTitle>
-            <CardDescription>Most popular items this month.</CardDescription>
+            <CardDescription>Most popular items this month (placeholder data).</CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
@@ -250,8 +233,8 @@ export default function DashboardPage() {
                 {topSellingProducts.map((product) => (
                   <TableRow key={product.id}>
                     <TableCell className="font-medium">{product.name}</TableCell>
-                    <TableCell className="text-right">Rs. {product.price.toFixed(2)}</TableCell>
-                    <TableCell className="text-right">{150 - product.stock}</TableCell> 
+                    <TableCell className="text-right">{formatCurrency(product.price)}</TableCell>
+                    <TableCell className="text-right">{150 - product.stock}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -260,8 +243,7 @@ export default function DashboardPage() {
         </Card>
       </div>
       
-      <AlertQuantityTable /> {/* This uses placeholderProducts directly */}
-      
+      <AlertQuantityTable />
     </>
   );
 }
