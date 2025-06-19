@@ -14,7 +14,7 @@ import Image from "next/image";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
-import { useCustomers } from "@/hooks/useCustomers"; // Import useCustomers hook
+import { useCustomers } from "@/hooks/useCustomers";
 
 interface CartViewProps {
   cartItems: CartItem[];
@@ -22,7 +22,7 @@ interface CartViewProps {
   discountPercentage: number;
   onUpdateQuantity: (productId: string, quantity: number, saleType: 'retail' | 'wholesale') => void;
   onRemoveItem: (productId: string, saleType: 'retail' | 'wholesale') => void;
-  onSelectCustomer: (customerId: string | null) => void;
+  onSelectCustomer: (customer: Customer | null) => void; // Changed to accept Customer object or null
   onUpdateDiscountPercentage: (percentage: number) => void;
   onCheckout: () => void;
   onCancelOrder: () => void;
@@ -55,14 +55,13 @@ export function CartView({
   const totalAmount = Math.max(0, subtotal - calculatedDiscountAmount);
 
   const customerOptions = React.useMemo(() => {
-    const options = [{ value: "guest", label: "Walk-in / Guest", name: "Walk-in / Guest", shopName: "" }];
+    const options = [{ value: "guest", label: "Walk-in / Guest", customerObject: null as Customer | null }];
     if (allCustomers) {
       allCustomers.forEach(customer => {
         options.push({
           value: customer.id,
           label: `${customer.name} (${customer.phone || 'N/A'})${customer.shopName ? ` - ${customer.shopName}` : ''}`,
-          name: customer.name,
-          shopName: customer.shopName || ""
+          customerObject: customer
         });
       });
     }
@@ -70,7 +69,7 @@ export function CartView({
   }, [allCustomers]);
 
   const currentCustomerLabel = selectedCustomer
-    ? customerOptions.find(opt => opt.value === selectedCustomer.id)?.label
+    ? `${selectedCustomer.name} (${selectedCustomer.phone || 'N/A'})${selectedCustomer.shopName ? ` - ${selectedCustomer.shopName}` : ''}`
     : "Walk-in / Guest";
 
   return (
@@ -96,12 +95,14 @@ export function CartView({
             </PopoverTrigger>
             <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
               <Command
-                filter={(value, search) => {
+                 filter={(value, search) => {
                   const option = customerOptions.find(opt => opt.value === value);
                   if (!option) return 0;
-                  let searchableString = option.label.toLowerCase();
-                  if (option.name) searchableString += ` ${option.name.toLowerCase()}`;
-                  if (option.shopName) searchableString += ` ${option.shopName.toLowerCase()}`;
+                  // Make sure option.label is always a string
+                  const label = typeof option.label === 'string' ? option.label.toLowerCase() : '';
+                  const name = option.customerObject?.name ? option.customerObject.name.toLowerCase() : '';
+                  const shopName = option.customerObject?.shopName ? option.customerObject.shopName.toLowerCase() : '';
+                  const searchableString = `${label} ${name} ${shopName}`;
                   return searchableString.includes(search.toLowerCase()) ? 1 : 0;
                 }}
               >
@@ -115,16 +116,16 @@ export function CartView({
                       {customerOptions.map((option) => (
                         <CommandItem
                           key={option.value}
-                          value={option.value}
-                          onSelect={(currentValue) => {
-                            onSelectCustomer(currentValue === "guest" ? null : currentValue);
+                          value={option.value} // Keep using ID for CommandItem value
+                          onSelect={() => {
+                            onSelectCustomer(option.customerObject); // Pass the full Customer object or null
                             setOpenCustomerPopover(false);
                           }}
                         >
                           <Check
                             className={cn(
                               "mr-2 h-4 w-4",
-                              (selectedCustomer?.id === option.value || (!selectedCustomer && option.value === "guest"))
+                              (selectedCustomer?.id === option.value && option.value !== "guest") || (!selectedCustomer && option.value === "guest")
                                 ? "opacity-100"
                                 : "opacity-0"
                             )}

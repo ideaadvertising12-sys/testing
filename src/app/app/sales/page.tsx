@@ -17,7 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Drawer, DrawerContent, DrawerTrigger, DrawerHeader, DrawerTitle, DrawerClose } from "@/components/ui/drawer";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import type { Product, CartItem, Customer, Sale } from "@/lib/types";
-import { placeholderSales } from "@/lib/placeholder-data"; // placeholderSales for invoicing link
+import { placeholderSales } from "@/lib/placeholder-data";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useProducts } from "@/hooks/useProducts";
@@ -33,10 +33,12 @@ export default function SalesPage() {
     refetch: refetchProducts 
   } = useProducts();
 
+  // SalesPage also needs useCustomers to potentially get customer details if needed elsewhere,
+  // but primary selection object comes from CartView.
   const { 
-    customers: allCustomersFromHook, // Renamed to avoid conflict if any other `customers` variable exists
-    isLoading: isLoadingHookCustomers, // Renamed for clarity
-    error: hookCustomersError // Renamed for clarity
+    customers: allCustomersFromHook, 
+    isLoading: isLoadingHookCustomers, 
+    error: hookCustomersError 
   } = useCustomers();
   
   const [localSalesHistory, setLocalSalesHistory] = useState<Sale[]>(placeholderSales); 
@@ -46,7 +48,7 @@ export default function SalesPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<Product["category"] | "All">("All");
   const [isBillOpen, setIsBillOpen] = useState(false);
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null); // State for the selected customer object
   const [discountPercentage, setDiscountPercentage] = useState(0);
   const [currentSaleType, setCurrentSaleType] = useState<'retail' | 'wholesale'>('retail');
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -136,14 +138,9 @@ export default function SalesPage() {
     setCartItems(prevItems => prevItems.filter(item => !(item.id === productId && item.saleType === saleType)));
   };
 
-  const handleSelectCustomer = (customerId: string | null) => {
-    if (customerId === null) {
-      setSelectedCustomer(null);
-    } else {
-      // Use allCustomersFromHook (from useCustomers hook) to find the customer
-      const customer = allCustomersFromHook.find(c => c.id === customerId);
-      setSelectedCustomer(customer || null);
-    }
+  // Updated to accept a Customer object or null
+  const handleSelectCustomer = (customer: Customer | null) => {
+    setSelectedCustomer(customer);
   };
 
   const handleCheckout = () => {
@@ -383,7 +380,7 @@ export default function SalesPage() {
               discountPercentage={discountPercentage}
               onUpdateQuantity={handleUpdateQuantity}
               onRemoveItem={handleRemoveItem}
-              onSelectCustomer={handleSelectCustomer}
+              onSelectCustomer={handleSelectCustomer} 
               onUpdateDiscountPercentage={setDiscountPercentage}
               onCheckout={handleCheckout}
               onCancelOrder={handleCancelOrder}
@@ -429,7 +426,7 @@ export default function SalesPage() {
               discountPercentage={discountPercentage}
               onUpdateQuantity={handleUpdateQuantity}
               onRemoveItem={handleRemoveItem}
-              onSelectCustomer={handleSelectCustomer}
+              onSelectCustomer={handleSelectCustomer} 
               onUpdateDiscountPercentage={setDiscountPercentage}
               onCheckout={handleCheckout}
               onCancelOrder={handleCancelOrder}
@@ -456,6 +453,3 @@ export default function SalesPage() {
     </div>
   );
 }
-
-
-    
