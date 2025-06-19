@@ -32,31 +32,37 @@ export const ProductService = {
   },
 
   async createProduct(productData: Omit<Product, 'id'>): Promise<Product> {
-    // For create, we expect a more complete productData, so using the converter makes sense.
-    // The converter should ensure all necessary fields for FirestoreProduct are present.
-    const dataToCreate = productConverter.toFirestore(productData as FirestoreProduct); // Cast is okay if ProductDialog sends all needed fields
+    const dataToCreate = productConverter.toFirestore(productData as FirestoreProduct); 
     const docRef = await addDoc(
-      collection(db, 'products'), // .withConverter(productConverter) might be redundant if dataToCreate is already Firestore-ready
+      collection(db, 'products'), 
       dataToCreate
     );
-    return { id: docRef.id, ...productData }; // Return the app-level Product type
+    return { id: docRef.id, ...productData }; 
   },
 
   async updateProduct(id: string, productData: Partial<Omit<Product, 'id'>>): Promise<void> {
     try {
-      const docRef = doc(db, 'products', id); // Get a simple DocumentReference
+      const docRef = doc(db, 'products', id);
       
-      // Construct the update object directly.
-      // Firestore's updateDoc handles partial objects.
-      // We only need to ensure `updatedAt` is included.
+      // Filter out undefined values from productData
+      const cleanProductData: Partial<Omit<Product, 'id'>> = {};
+      for (const key in productData) {
+        if (Object.prototype.hasOwnProperty.call(productData, key)) {
+          const value = productData[key as keyof typeof productData];
+          if (value !== undefined) {
+            (cleanProductData as any)[key] = value;
+          }
+        }
+      }
+      
       const dataToUpdate: Partial<FirestoreProduct> = {
-        ...productData, // Spread the fields to be updated
-        updatedAt: Timestamp.now(), // Always set/update the updatedAt timestamp
+        ...(cleanProductData as Partial<FirestoreProduct>), // Cast after cleaning
+        updatedAt: Timestamp.now(),
       };
       
-      // Optional: remove any keys that might have explicit undefined values if productData could have them
-      // Object.keys(dataToUpdate).forEach(key => (dataToUpdate as any)[key] === undefined && delete (dataToUpdate as any)[key]);
-      // For { stock: newStock }, this cleanup isn't strictly necessary as 'stock' will have a value.
+      // If cleanProductData is empty (e.g. only undefined values were passed), 
+      // we still update `updatedAt`. updateDoc handles empty updates gracefully.
+      // Firestore's updateDoc will only update fields present in dataToUpdate.
 
       console.log("Updating product with ID:", id);
       console.log("Update data for Firestore:", dataToUpdate);
@@ -95,3 +101,4 @@ export const ProductService = {
     return unsubscribe;
   }
 };
+

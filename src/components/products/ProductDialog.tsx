@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -33,12 +34,11 @@ interface ProductDialogProps {
   loading?: boolean;
 }
 
-const defaultProduct: Product = {
-  id: "",
+const defaultProductData: Omit<Product, "id"> = {
   name: "",
   category: "Other",
   price: 0,
-  wholesalePrice: 0,
+  wholesalePrice: undefined, // Initialize as undefined for optional field
   stock: 0,
   description: "",
   sku: "",
@@ -46,6 +46,7 @@ const defaultProduct: Product = {
   imageUrl: "https://images.unsplash.com/photo-1685967836586-aaefdda7b517?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHx5b2d1cnQlMjBwcm9kdWN0fGVufDB8fHx8MTc1MDA5Mjk4MXww&ixlib=rb-4.1.0&q=80&w=1080",
   aiHint: "product image"
 };
+
 
 export function ProductDialog({
   product,
@@ -59,25 +60,34 @@ export function ProductDialog({
   const isOpen = controlledOpen !== undefined ? controlledOpen : internalOpen;
   const setIsOpen = controlledOnOpenChange !== undefined ? controlledOnOpenChange : setInternalOpen;
 
-  const [formData, setFormData] = useState<Product>(defaultProduct);
-  const [previewImage, setPreviewImage] = useState(defaultProduct.imageUrl);
+  const [formData, setFormData] = useState<Omit<Product, "id">>(defaultProductData);
+  const [previewImage, setPreviewImage] = useState(defaultProductData.imageUrl);
 
   useEffect(() => {
     if (isOpen) {
-      const initialData = product || defaultProduct;
+      // Ensure defaultProductData is spread for new products to get `wholesalePrice: undefined`
+      const initialData = product ? { ...product } : { ...defaultProductData };
+      // If editing and product.wholesalePrice is null/undefined from DB, keep it as undefined
+      if (product && product.wholesalePrice == null) {
+        initialData.wholesalePrice = undefined;
+      }
       setFormData(initialData);
-      setPreviewImage(initialData.imageUrl || defaultProduct.imageUrl);
+      setPreviewImage(initialData.imageUrl || defaultProductData.imageUrl);
     }
   }, [isOpen, product]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ 
-      ...prev, 
-      [name]: name === 'price' || name === 'stock' || name === 'reorderLevel' || name === 'wholesalePrice' 
-        ? parseFloat(value) || 0 
-        : value 
-    }));
+    
+    if (name === "price" || name === "stock" || name === "reorderLevel") {
+      setFormData(prev => ({ ...prev, [name]: parseFloat(value) || 0 }));
+    } else if (name === "wholesalePrice") {
+      // Allow empty string to represent 'not set' or 'undefined'
+      // parseFloat('') is NaN, so `|| 0` would make it 0. We want undefined.
+      setFormData(prev => ({ ...prev, [name]: value === "" ? undefined : (parseFloat(value) || 0) }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleCategoryChange = (value: Product["category"]) => {
@@ -95,22 +105,42 @@ export function ProductDialog({
       };
       reader.readAsDataURL(file);
     } else {
-      const currentImageUrl = product?.imageUrl || defaultProduct.imageUrl;
+      const currentImageUrl = product?.imageUrl || defaultProductData.imageUrl;
       setPreviewImage(currentImageUrl);
       setFormData(prev => ({...prev, imageUrl: currentImageUrl}));
     }
   };
 
   const handleSubmit = async () => {
-    if (!formData.name || formData.price < 0 || (formData.wholesalePrice !== undefined && formData.wholesalePrice < 0)) {
+    if (!formData.name || formData.price < 0) { 
+      // Add toast for validation errors here if desired
       return;
     }
-    await onSave({ 
-      ...formData, 
-      id: product?.id || Date.now().toString(),
-      wholesalePrice: formData.wholesalePrice || undefined
-    });
-    setIsOpen(false);
+
+    const productToSave: Product = {
+      id: product?.id || Date.now().toString(), // Generate temp ID if new
+      name: formData.name,
+      category: formData.category,
+      price: formData.price,
+      stock: formData.stock,
+      description: formData.description,
+      sku: formData.sku,
+      reorderLevel: formData.reorderLevel,
+      imageUrl: formData.imageUrl,
+      aiHint: formData.aiHint,
+    };
+    
+    // Only add wholesalePrice to the object if it's a valid number (including 0)
+    if (typeof formData.wholesalePrice === 'number' && !isNaN(formData.wholesalePrice)) {
+      productToSave.wholesalePrice = formData.wholesalePrice;
+    }
+    // If formData.wholesalePrice is undefined, it won't be included in productToSave,
+    // which is correct behavior for ProductService.updateProduct to not send `undefined`.
+    
+    await onSave(productToSave);
+    if (isOpen && setIsOpen) { 
+      setIsOpen(false);
+    }
   };
 
   return (
@@ -187,7 +217,8 @@ export function ProductDialog({
                 onChange={handleChange} 
                 className="mt-1" 
                 min="0" 
-                step="0.01" 
+                step="0.01"
+                placeholder="Optional" 
               />
             </div>
           </div>
@@ -289,7 +320,7 @@ export function ProductDialog({
           </Button>
           <Button 
             onClick={handleSubmit}
-            disabled={loading || !formData.name || formData.price <= 0}
+            disabled={loading || !formData.name || formData.price < 0}
           >
             {loading ? "Saving..." : "Save Product"}
           </Button>
