@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { PackageSearch, ShoppingCart, Tag, X, Search, Maximize, Minimize } from "lucide-react";
+import { PackageSearch, ShoppingCart, Tag, X, Search, Maximize, Minimize, Loader2 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { POSProductCard } from "@/components/sales/POSProductCard";
 import { CartView } from "@/components/sales/CartView";
@@ -17,15 +17,27 @@ import { Badge } from "@/components/ui/badge";
 import { Drawer, DrawerContent, DrawerTrigger, DrawerHeader, DrawerTitle, DrawerClose } from "@/components/ui/drawer";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import type { Product, CartItem, Customer, Sale } from "@/lib/types";
-import { placeholderProducts, placeholderCustomers, placeholderSales } from "@/lib/placeholder-data";
+import { placeholderCustomers, placeholderSales } from "@/lib/placeholder-data"; // placeholderSales for invoicing link, not main POS
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-
+import { useProducts } from "@/hooks/useProducts"; // Import useProducts
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertTriangle } from "lucide-react";
 
 export default function SalesPage() {
-  const [allProducts] = useState<Product[]>(placeholderProducts);
-  const [allSales, setAllSales] = useState<Sale[]>(placeholderSales);
-  const [filteredProducts, setFilteredProducts] = useState<Product[]>(placeholderProducts);
+  const { 
+    products: allProducts, 
+    isLoading: isLoadingProducts, 
+    error: productsError,
+    refetch: refetchProducts 
+  } = useProducts();
+  
+  // placeholderSales is for the invoicing page, not for current POS sales.
+  // For managing current POS sales before they are saved, this state is fine if needed,
+  // but actual "past sales" would typically be fetched for an invoicing/history view.
+  const [localSalesHistory, setLocalSalesHistory] = useState<Sale[]>(placeholderSales); 
+
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<Product["category"] | "All">("All");
@@ -35,30 +47,36 @@ export default function SalesPage() {
   const [currentSaleType, setCurrentSaleType] = useState<'retail' | 'wholesale'>('retail');
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isSalesPageFullScreen, setIsSalesPageFullScreen] = useState(false);
+  const [isProcessingSale, setIsProcessingSale] = useState(false);
   const { toast } = useToast();
 
   const isMobile = useMediaQuery("(max-width: 768px)");
-  const categories: (Product["category"] | "All")[] = ["All", ...new Set(allProducts.map(p => p.category))];
+  
+  const categories: (Product["category"] | "All")[] = useMemo(() => {
+    if (isLoadingProducts || !allProducts) return ["All"];
+    return ["All", ...new Set(allProducts.map(p => p.category))];
+  }, [allProducts, isLoadingProducts]);
+
 
   const toggleSalesPageFullScreen = () => setIsSalesPageFullScreen(!isSalesPageFullScreen);
 
-  const filterAndCategorizeProducts = (term: string, category: Product["category"] | "All") => {
-    let tempProducts = allProducts;
-    if (category !== "All") {
-      tempProducts = tempProducts.filter(p => p.category === category);
-    }
-    if (term) {
-      tempProducts = tempProducts.filter(p =>
-        p.name.toLowerCase().includes(term.toLowerCase()) ||
-        (p.sku && p.sku.toLowerCase().includes(term.toLowerCase()))
-      );
-    }
-    setFilteredProducts(tempProducts);
-  };
-
   useEffect(() => {
-    filterAndCategorizeProducts(searchTerm, selectedCategory);
-  }, [searchTerm, selectedCategory, allProducts]);
+    if (!isLoadingProducts && allProducts) {
+      let tempProducts = [...allProducts];
+      if (selectedCategory !== "All") {
+        tempProducts = tempProducts.filter(p => p.category === selectedCategory);
+      }
+      if (searchTerm) {
+        tempProducts = tempProducts.filter(p =>
+          p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (p.sku && p.sku.toLowerCase().includes(searchTerm.toLowerCase()))
+        );
+      }
+      setFilteredProducts(tempProducts);
+    } else if (!isLoadingProducts && !allProducts) {
+      setFilteredProducts([]); // Handle case where products array is null/undefined after loading
+    }
+  }, [searchTerm, selectedCategory, allProducts, isLoadingProducts]);
 
   const handleAddToCart = (product: Product) => {
     setCartItems(prevItems => {
@@ -69,19 +87,23 @@ export default function SalesPage() {
         : product.price;
 
       if (existingItem) {
-        if (existingItem.quantity < product.stock) {
+        if (product.stock > existingItem.quantity) { // Check against live stock
           return prevItems.map(item =>
             item.id === product.id && item.saleType === currentSaleType
               ? { ...item, quantity: item.quantity + 1 }
               : item
           );
+        } else {
+          toast({ variant: "destructive", title: "Out of Stock", description: `Cannot add more ${product.name}. Maximum stock reached.`});
+          return prevItems;
         }
-        return prevItems;
       }
-      if (product.stock > 0) {
+      if (product.stock > 0) { // Check against live stock
         return [...prevItems, { ...product, quantity: 1, appliedPrice: priceToUse, saleType: currentSaleType }];
+      } else {
+         toast({ variant: "destructive", title: "Out of Stock", description: `${product.name} is currently out of stock.`});
+         return prevItems;
       }
-      return prevItems;
     });
 
     if (isMobile && !isCartOpen) {
@@ -145,38 +167,67 @@ export default function SalesPage() {
   const currentDiscountAmount = useMemo(() => currentSubtotal * (discountPercentage / 100), [currentSubtotal, discountPercentage]);
   const currentTotalAmount = useMemo(() => Math.max(0, currentSubtotal - currentDiscountAmount), [currentSubtotal, currentDiscountAmount]);
 
-  const handleSuccessfulSale = (saleDetails: Omit<Sale, 'id' | 'saleDate' | 'staffId' | 'items'>) => {
-    const newSale: Sale = {
+  const handleSuccessfulSale = async (saleDetails: Omit<Sale, 'id' | 'saleDate' | 'staffId' | 'items'>) => {
+    setIsProcessingSale(true);
+    const salePayload = {
       ...saleDetails,
-      id: `SALE-${Date.now().toString().slice(-6)}`,
-      items: [...cartItems], // Make a copy of cart items for the sale record
-      saleDate: new Date(),
-      staffId: "staff001", // Replace with actual staff ID
+      items: cartItems.map(item => ({ // Ensure only necessary fields from CartItem are sent
+        id: item.id,
+        name: item.name,
+        category: item.category,
+        price: item.price, // Original price, appliedPrice is also good
+        quantity: item.quantity,
+        appliedPrice: item.appliedPrice,
+        saleType: item.saleType,
+        sku: item.sku, // include sku if available and needed by backend/invoice
+        imageUrl: item.imageUrl, // include imageUrl if needed
+      })),
+      saleDate: new Date().toISOString(), // API will convert to Timestamp
+      staffId: "staff001", // Replace with actual staff ID from auth context
     };
-    
-    setAllSales(prevSales => [newSale, ...prevSales]); // Add to global sales list (for invoicing page)
-    
-    // Update product stock (simplified for now)
-    // In a real app, this would be an API call and more robust
-    const updatedProducts = allProducts.map(p => {
-      const itemInCart = cartItems.find(ci => ci.id === p.id);
-      if (itemInCart) {
-        return { ...p, stock: p.stock - itemInCart.quantity };
+
+    try {
+      const response = await fetch('/api/sales', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(salePayload),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Sale failed with status ${response.status}`);
       }
-      return p;
-    });
-    // setAllProducts(updatedProducts); // This would need to be passed down or managed globally
 
-    toast({
-        title: "Sale Successful!",
-        description: `Payment Method: ${newSale.paymentMethod}. Total: Rs. ${newSale.totalAmount.toFixed(2)}`,
-    });
+      const newSaleResponse = await response.json();
+      
+      // Add to local sales history (for potential immediate display, though invoicing page should fetch)
+      setLocalSalesHistory(prevSales => [
+        { ...newSaleResponse, saleDate: new Date(newSaleResponse.saleDate) }, 
+        ...prevSales
+      ]); 
+      
+      toast({
+          title: "Sale Successful!",
+          description: `Payment Method: ${newSaleResponse.paymentMethod}. Total: Rs. ${newSaleResponse.totalAmount.toFixed(2)}`,
+      });
 
-    // Reset cart and related state
-    setCartItems([]);
-    setSelectedCustomer(null);
-    setDiscountPercentage(0);
-    setCurrentSaleType('retail');
+      // Reset cart and related state
+      setCartItems([]);
+      setSelectedCustomer(null);
+      setDiscountPercentage(0);
+      setCurrentSaleType('retail');
+      await refetchProducts(); // Refetch products to update stock levels
+
+    } catch (error: any) {
+      console.error("Sale processing error:", error);
+      toast({
+          variant: "destructive",
+          title: "Sale Failed",
+          description: error.message || "An unexpected error occurred while processing the sale.",
+      });
+    } finally {
+      setIsProcessingSale(false);
+    }
   };
 
   const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
@@ -193,6 +244,31 @@ export default function SalesPage() {
       <span className="sr-only">{isSalesPageFullScreen ? "Exit Fullscreen" : "Enter Fullscreen"}</span>
     </Button>
   );
+
+  if (isLoadingProducts && !allProducts?.length) { // Show full page loader only on initial load without any products
+    return (
+        <div className="flex flex-col items-center justify-center h-screen">
+            <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+            <p className="text-lg text-muted-foreground">Loading products for Point of Sale...</p>
+        </div>
+    );
+  }
+
+  if (productsError) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen p-4">
+        <Alert variant="destructive" className="max-w-md">
+          <AlertTriangle className="h-5 w-5" />
+          <AlertTitle>Error Loading Products</AlertTitle>
+          <AlertDescription>
+            Could not load product data for the POS system. Please try refreshing the page or contact support.
+            <p className="text-xs mt-1">Details: {productsError}</p>
+          </AlertDescription>
+        </Alert>
+         <Button onClick={() => refetchProducts()} className="mt-4">Try Again</Button>
+      </div>
+    );
+  }
 
   return (
     <div className={cn(
@@ -270,7 +346,12 @@ export default function SalesPage() {
           </div>
 
           <ScrollArea className="flex-1 p-3 sm:p-4 bg-white dark:bg-transparent">
-            {filteredProducts.length === 0 ? (
+            {isLoadingProducts && filteredProducts.length === 0 ? (
+                <div className="flex flex-col items-center justify-center text-muted-foreground pt-10 h-full">
+                    <Loader2 className="w-12 h-12 animate-spin text-primary mb-4" />
+                    <p className="text-lg">Loading products...</p>
+                </div>
+            ) : !isLoadingProducts && filteredProducts.length === 0 ? (
               <div className="flex flex-col items-center justify-center text-muted-foreground pt-10 h-full">
                 <PackageSearch className="w-16 h-16 mb-4 text-gray-300 dark:text-gray-600" />
                 <p className="text-xl font-medium text-gray-500 dark:text-gray-400">No products found</p>
@@ -366,9 +447,10 @@ export default function SalesPage() {
         currentSubtotal={currentSubtotal}
         currentDiscountAmount={currentDiscountAmount}
         currentTotalAmount={currentTotalAmount}
-        saleId={`SALE-${Date.now().toString().slice(-6)}`}
+        saleId={`SALE-${Date.now().toString().slice(-6)}`} // This is a display ID, actual ID from backend
         onConfirmSale={handleSuccessfulSale}
       />
     </div>
   );
 }
+
