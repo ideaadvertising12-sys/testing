@@ -54,11 +54,17 @@ export default function LoginPage() {
       setShowFooter(isScrolledToBottom || isContentTooShortToScroll);
     };
     
+    // Initial check
     const animationFrameId = requestAnimationFrame(handleScrollInteraction);
     
+    // Listeners
     mainElement.addEventListener('scroll', handleScrollInteraction);
     const resizeObserver = new ResizeObserver(handleScrollInteraction);
     resizeObserver.observe(mainElement);
+    if (document.body) { // Observe body for full page resizes affecting viewport calculations
+      resizeObserver.observe(document.body);
+    }
+
 
     return () => {
       cancelAnimationFrame(animationFrameId);
@@ -82,19 +88,20 @@ export default function LoginPage() {
     }
   };
   
-  if (currentUser) {
-      return (
-        <>
-          <GlobalPreloaderScreen message="Redirecting..." />
-        </>
-      );
+  if (currentUser === undefined) { // Still determining auth state
+    return <GlobalPreloaderScreen message="Initializing..." />;
+  }
+  
+  if (currentUser) { // Logged in, redirecting
+      return <GlobalPreloaderScreen message="Redirecting..." />;
   }
 
+  // Not logged in, show login page
   return (
     <>
       <div 
         ref={loginPageContentRef}
-        className="flex min-h-screen flex-col items-center justify-center bg-background p-4 pb-20 overflow-y-auto"
+        className="flex min-h-screen flex-col items-center justify-center bg-background p-4 pb-20 overflow-y-auto" // Added pb-20 for footer space
       >
         <Card className="w-full max-w-sm shadow-2xl">
           <CardHeader className="space-y-1 text-center">
