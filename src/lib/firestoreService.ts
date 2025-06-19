@@ -18,7 +18,7 @@ import {
   WriteBatch,
   writeBatch
 } from 'firebase/firestore';
-import { db } from './firebase'; // Your Firebase config file
+import { db, firebaseInitializationError } from './firebase'; // Your Firebase config file
 import {
   type Product,
   type Customer,
@@ -31,147 +31,156 @@ import {
   saleConverter
 } from './types';
 
+function checkFirestoreInitialization() {
+  if (firebaseInitializationError) {
+    console.error("Firestore Initialization Error in service:", firebaseInitializationError.message);
+    throw new Error(`Firestore is not initialized: ${firebaseInitializationError.message}`);
+  }
+  if (!db) {
+    console.error("Firestore database instance is not available in service.");
+    throw new Error("Firestore database instance is not available. Initialization might have failed.");
+  }
+}
+
 // --- Product Services ---
 
-const productsCollection = collection(db, 'products').withConverter(productConverter);
+const productsCollection = collection(db!, 'products').withConverter(productConverter); // Added non-null assertion assuming checkFirestoreInitialization handles null db
 
 export const addProduct = async (productData: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> => {
+  checkFirestoreInitialization();
   try {
-    // The productConverter.toFirestore will add createdAt and updatedAt
     const docRef = await addDoc(productsCollection, productData);
     return docRef.id;
   } catch (error) {
-    console.error("Error adding product: ", error);
-    throw new Error("Failed to add product.");
+    console.error("Error adding product in service: ", error);
+    throw new Error("Failed to add product in service.");
   }
 };
 
 export const getProduct = async (productId: string): Promise<Product | null> => {
+  checkFirestoreInitialization();
   try {
-    const docRef = doc(db, 'products', productId).withConverter(productConverter);
+    const docRef = doc(db!, 'products', productId).withConverter(productConverter);
     const docSnap = await getDoc(docRef);
     return docSnap.exists() ? docSnap.data() : null;
   } catch (error) {
-    console.error("Error getting product: ", error);
-    throw new Error("Failed to get product.");
+    console.error("Error getting product in service: ", error);
+    throw new Error("Failed to get product in service.");
   }
 };
 
 export const getProducts = async (): Promise<Product[]> => {
+  checkFirestoreInitialization();
   try {
     const q = query(productsCollection, orderBy('name'));
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => doc.data());
   } catch (error) {
-    console.error("Error getting products: ", error);
-    throw new Error("Failed to get products.");
+    console.error("Error getting products in service: ", error);
+    throw new Error("Failed to get products in service.");
   }
 };
 
 export const updateProduct = async (productId: string, productData: Partial<Omit<Product, 'id' | 'createdAt' | 'updatedAt'>>): Promise<void> => {
+  checkFirestoreInitialization();
   try {
-    const docRef = doc(db, 'products', productId).withConverter(productConverter);
-    // For partial updates, ensure `updatedAt` is always set.
-    // The data passed to updateDoc should be fields of FirestoreProduct.
-    // Fields in productData are from Product, but productConverter isn't automatically called on each field for updates.
-    // So, ensure that if productData contains any Date objects, they are converted to Timestamps if needed by Firestore schema.
-    // However, Product type's createdAt/updatedAt are Dates, but they are OMITTED from productData type.
-    // So we only need to worry about updatedAt.
+    const docRef = doc(db!, 'products', productId).withConverter(productConverter);
     const dataToUpdate: Partial<FirestoreProduct> = {
       ...productData,
       updatedAt: Timestamp.now()
     };
     await updateDoc(docRef, dataToUpdate);
   } catch (error) {
-    console.error("Error updating product: ", error);
-    throw new Error("Failed to update product.");
+    console.error("Error updating product in service: ", error);
+    throw new Error("Failed to update product in service.");
   }
 };
 
 export const deleteProduct = async (productId: string): Promise<void> => {
+  checkFirestoreInitialization();
   try {
-    const docRef = doc(db, 'products', productId);
+    const docRef = doc(db!, 'products', productId);
     await deleteDoc(docRef);
   } catch (error) {
-    console.error("Error deleting product: ", error);
-    throw new Error("Failed to delete product.");
+    console.error("Error deleting product in service: ", error);
+    throw new Error("Failed to delete product in service.");
   }
 };
 
 // --- Customer Services ---
 
-const customersCollection = collection(db, 'customers').withConverter(customerConverter);
+const customersCollection = collection(db!, 'customers').withConverter(customerConverter);
 
 export const addCustomer = async (customerData: Omit<Customer, 'id' | 'createdAt'>): Promise<string> => {
+  checkFirestoreInitialization();
   try {
-    // customerConverter.toFirestore will add createdAt
     const docRef = await addDoc(customersCollection, customerData);
     return docRef.id;
   } catch (error) {
-    console.error("Error adding customer: ", error);
-    throw new Error("Failed to add customer.");
+    console.error("Error adding customer in service: ", error);
+    throw new Error("Failed to add customer in service.");
   }
 };
 
 export const getCustomer = async (customerId: string): Promise<Customer | null> => {
+  checkFirestoreInitialization();
   try {
-    const docRef = doc(db, 'customers', customerId).withConverter(customerConverter);
+    const docRef = doc(db!, 'customers', customerId).withConverter(customerConverter);
     const docSnap = await getDoc(docRef);
     return docSnap.exists() ? docSnap.data() : null;
   } catch (error) {
-    console.error("Error getting customer: ", error);
-    throw new Error("Failed to get customer.");
+    console.error("Error getting customer in service: ", error);
+    throw new Error("Failed to get customer in service.");
   }
 };
 
 export const getCustomers = async (): Promise<Customer[]> => {
+  checkFirestoreInitialization();
   try {
     const q = query(customersCollection, orderBy('name'));
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => doc.data());
   } catch (error) {
-    console.error("Error getting customers: ", error);
-    throw new Error("Failed to get customers.");
+    console.error("Error getting customers in service: ", error);
+    throw new Error("Failed to get customers in service.");
   }
 };
 
 export const updateCustomer = async (customerId: string, customerData: Partial<Omit<Customer, 'id' | 'createdAt'>>): Promise<void> => {
+  checkFirestoreInitialization();
   try {
-    const docRef = doc(db, 'customers', customerId).withConverter(customerConverter);
-    // If Customer type had an updatedAt, we'd add it here as Timestamp.now()
-    // const dataToUpdate: Partial<FirestoreCustomer> = {...customerData, updatedAt: Timestamp.now()};
-    await updateDoc(docRef, customerData as Partial<FirestoreCustomer>); // Casting because customerData is Partial<Customer>
+    const docRef = doc(db!, 'customers', customerId).withConverter(customerConverter);
+    await updateDoc(docRef, customerData as Partial<FirestoreCustomer>);
   } catch (error) {
-    console.error("Error updating customer: ", error);
-    throw new Error("Failed to update customer.");
+    console.error("Error updating customer in service: ", error);
+    throw new Error("Failed to update customer in service.");
   }
 };
 
 export const deleteCustomer = async (customerId: string): Promise<void> => {
+  checkFirestoreInitialization();
   try {
-    const docRef = doc(db, 'customers', customerId);
+    const docRef = doc(db!, 'customers', customerId);
     await deleteDoc(docRef);
   } catch (error) {
-    console.error("Error deleting customer: ", error);
-    throw new Error("Failed to delete customer.");
+    console.error("Error deleting customer in service: ", error);
+    throw new Error("Failed to delete customer in service.");
   }
 };
 
 // --- Sale Services ---
 
-const salesCollection = collection(db, 'sales').withConverter(saleConverter);
+const salesCollection = collection(db!, 'sales').withConverter(saleConverter);
 
 export const addSale = async (saleData: Omit<Sale, 'id' | 'createdAt'>): Promise<string> => {
-  const batch = writeBatch(db);
+  checkFirestoreInitialization();
+  const batch = writeBatch(db!);
 
-  // 1. Create the sale document
-  const saleDocRef = doc(salesCollection); // Auto-generate ID for the sale
-  // Pass saleData directly, saleConverter.toFirestore will handle saleDate (Date -> Timestamp) and items.
+  const saleDocRef = doc(salesCollection);
   batch.set(saleDocRef, saleData);
 
-  // 2. Update product stock for each item in the sale
   for (const item of saleData.items) {
-    const productRef = doc(db, 'products', item.id).withConverter(productConverter); // item.id is the product ID
+    const productRef = doc(db!, 'products', item.id).withConverter(productConverter);
     const productSnap = await getDoc(productRef);
 
     if (productSnap.exists()) {
@@ -181,9 +190,7 @@ export const addSale = async (saleData: Omit<Sale, 'id' | 'createdAt'>): Promise
         console.error(`Not enough stock for product ${item.name} (ID: ${item.id}). Available: ${currentStock}, Required: ${item.quantity}`);
         throw new Error(`Not enough stock for product ${item.name}. Transaction rolled back.`);
       }
-      // Prepare update data for product. updateProduct expects Partial<Omit<Product, 'id' | 'createdAt' | 'updatedAt'>>
       const productUpdateData = { stock: newStock };
-      // The updateDoc call in updateProduct function will handle setting updatedAt
       batch.update(productRef, { ...productUpdateData, updatedAt: Timestamp.now() } as Partial<FirestoreProduct>);
     } else {
       console.error(`Product with ID ${item.id} not found during sale processing.`);
@@ -195,41 +202,44 @@ export const addSale = async (saleData: Omit<Sale, 'id' | 'createdAt'>): Promise
     await batch.commit();
     return saleDocRef.id;
   } catch (error) {
-    console.error("Error adding sale and updating stock: ", error);
-    throw new Error("Failed to add sale. Transaction rolled back.");
+    console.error("Error adding sale and updating stock in service: ", error);
+    throw new Error("Failed to add sale in service. Transaction rolled back.");
   }
 };
 
 
 export const getSale = async (saleId: string): Promise<Sale | null> => {
+  checkFirestoreInitialization();
   try {
-    const docRef = doc(db, 'sales', saleId).withConverter(saleConverter);
+    const docRef = doc(db!, 'sales', saleId).withConverter(saleConverter);
     const docSnap = await getDoc(docRef);
     return docSnap.exists() ? docSnap.data() : null;
   } catch (error) {
-    console.error("Error getting sale: ", error);
-    throw new Error("Failed to get sale.");
+    console.error("Error getting sale in service: ", error);
+    throw new Error("Failed to get sale in service.");
   }
 };
 
 export const getSales = async (count = 20): Promise<Sale[]> => {
+  checkFirestoreInitialization();
   try {
     const q = query(salesCollection, orderBy('saleDate', 'desc'), limit(count));
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => doc.data());
   } catch (error) {
-    console.error("Error getting sales: ", error);
-    throw new Error("Failed to get sales.");
+    console.error("Error getting sales in service: ", error);
+    throw new Error("Failed to get sales in service.");
   }
 };
 
 // --- Stock Transaction Services ---
 export const updateProductStock = async (productId: string, newStockLevel: number): Promise<void> => {
+  checkFirestoreInitialization();
   try {
-    const productRef = doc(db, 'products', productId).withConverter(productConverter);
+    const productRef = doc(db!, 'products', productId).withConverter(productConverter);
     await updateDoc(productRef, { stock: newStockLevel, updatedAt: Timestamp.now() } as Partial<FirestoreProduct>);
   } catch (error) {
-    console.error(`Error updating stock for product ${productId}: `, error);
-    throw new Error("Failed to update product stock.");
+    console.error(`Error updating stock for product ${productId} in service: `, error);
+    throw new Error("Failed to update product stock in service.");
   }
 };
