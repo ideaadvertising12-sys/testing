@@ -115,18 +115,14 @@ export const deleteCustomer = async (id: string): Promise<void> => {
 
 
 // Sale Services
-// Adjusted saleData to explicitly expect CartItem[] for items, and convert them.
 export const addSale = async (saleData: Omit<Sale, 'id' | 'saleDate' | 'items'> & { saleDate: Date, items: CartItem[] }): Promise<string> => {
   checkFirebase();
   const batch = writeBatch(db);
-
-  // 1. Add the sale document
-  const salesCol = collection(db, "sales"); // Not using converter directly for batch.set
-  const saleDocRef = doc(salesCol); // Create a new doc ref for the sale
+  const salesCol = collection(db, "sales");
+  const saleDocRef = doc(salesCol);
   
-  // Manually construct the FirestoreSale object, converting CartItem[] to FirestoreCartItem[]
   const firestoreSaleItems: FirestoreCartItem[] = saleData.items.map(item => ({
-    productRef: doc(db, "products", item.id).path, // Store the full path as reference
+    productRef: doc(db, "products", item.id).path,
     quantity: item.quantity,
     appliedPrice: item.appliedPrice,
     saleType: item.saleType,
@@ -135,43 +131,43 @@ export const addSale = async (saleData: Omit<Sale, 'id' | 'saleDate' | 'items'> 
     productPrice: item.price 
   }));
 
+  // Explicitly construct FirestoreSale to avoid spreading undefined optional fields
   const firestoreSaleData: FirestoreSale = {
-    ...saleData, // Spreads other sale properties (customerId, customerName, totals, paymentMethod, staffId)
     items: firestoreSaleItems,
-    saleDate: Timestamp.fromDate(saleData.saleDate),
-    createdAt: Timestamp.now(),
-    updatedAt: Timestamp.now()
+    subTotal: saleData.subTotal,
+    discountPercentage: saleData.discountPercentage,
+    discountAmount: saleData.discountAmount,
+    totalAmount: saleData.totalAmount,
+    paymentMethod: saleData.paymentMethod,
+    saleDate: Timestamp.fromDate(saleData.saleDate), // Convert Date to Timestamp
+    staffId: saleData.staffId,
+    createdAt: Timestamp.now(), // Add createdAt
+    updatedAt: Timestamp.now()  // Add updatedAt
   };
+
+  // Conditionally add optional fields if they exist (are not undefined)
+  if (saleData.customerId !== undefined) firestoreSaleData.customerId = saleData.customerId;
+  if (saleData.customerName !== undefined) firestoreSaleData.customerName = saleData.customerName;
+  if (saleData.cashGiven !== undefined) firestoreSaleData.cashGiven = saleData.cashGiven;
+  if (saleData.balanceReturned !== undefined) firestoreSaleData.balanceReturned = saleData.balanceReturned;
+  if (saleData.amountPaidOnCredit !== undefined) firestoreSaleData.amountPaidOnCredit = saleData.amountPaidOnCredit;
+  if (saleData.remainingCreditBalance !== undefined) firestoreSaleData.remainingCreditBalance = saleData.remainingCreditBalance;
+
   batch.set(saleDocRef, firestoreSaleData);
 
-  // 2. Update stock for each product in the sale
   for (const item of saleData.items) {
     const productDocRef = doc(db, "products", item.id);
-    // To ensure atomicity and avoid race conditions, it's best to use a transaction
-    // for stock updates, or rely on server-side increment/decrement.
-    // For this batch operation, we're doing a "read-then-write" which isn't perfectly atomic
-    // but is often acceptable for simpler cases if client-side checks prevent overselling.
-    // A more robust solution might involve Cloud Functions.
-
-    // The following is a simplified update. For true atomicity, a transaction is needed
-    // or use Firestore's FieldValue.increment(-item.quantity)
-    // However, FieldValue.increment cannot be used with converters directly in a batch if other fields are also updated.
-    // So, we'll fetch the product, calculate new stock, and update.
-    // This part is tricky in a batch without transactions for each product.
-    // A better approach would be to fetch current stock in the API route before calling addSale
-    // or use a transaction for the entire sale + stock updates.
-
-    // For now, we'll proceed with direct update, assuming client checks stock.
-    // This is a point of potential improvement for more robust stock management.
-    const productSnap = await getDoc(productDocRef.withConverter(productConverter));
+    const productSnap = await getDoc(productDocRef.withConverter(productConverter)); // Ensure converter is used for reading
     if (productSnap.exists()) {
       const currentProduct = productSnap.data();
       const newStock = currentProduct.stock - item.quantity;
+      if (newStock < 0) {
+        // This check should ideally be done before attempting the batch commit,
+        // or the API route should pre-validate stock.
+        throw new Error(`Insufficient stock for ${item.name} (ID: ${item.id}).`);
+      }
       batch.update(productDocRef, { stock: newStock, updatedAt: Timestamp.now() });
     } else {
-      console.error(`Product with ID ${item.id} not found during sale stock update.`);
-      // This could cause the batch to fail or lead to data inconsistency.
-      // Handle this error appropriately in a production app.
       throw new Error(`Product ${item.name} (ID: ${item.id}) not found for stock update.`);
     }
   }
@@ -220,3 +216,4 @@ export const updateProductStockTransactional = async (productId: string, quantit
     throw e; 
   }
 };
+
