@@ -17,10 +17,11 @@ import { Badge } from "@/components/ui/badge";
 import { Drawer, DrawerContent, DrawerTrigger, DrawerHeader, DrawerTitle, DrawerClose } from "@/components/ui/drawer";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import type { Product, CartItem, Customer, Sale } from "@/lib/types";
-import { placeholderCustomers, placeholderSales } from "@/lib/placeholder-data"; // placeholderSales for invoicing link, not main POS
+import { placeholderSales } from "@/lib/placeholder-data"; // placeholderSales for invoicing link
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { useProducts } from "@/hooks/useProducts"; // Import useProducts
+import { useProducts } from "@/hooks/useProducts";
+import { useCustomers } from "@/hooks/useCustomers"; // Import useCustomers
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertTriangle } from "lucide-react";
 
@@ -31,10 +32,13 @@ export default function SalesPage() {
     error: productsError,
     refetch: refetchProducts 
   } = useProducts();
+
+  const { 
+    customers: allCustomersFromHook, // Renamed to avoid conflict if any other `customers` variable exists
+    isLoading: isLoadingHookCustomers, // Renamed for clarity
+    error: hookCustomersError // Renamed for clarity
+  } = useCustomers();
   
-  // placeholderSales is for the invoicing page, not for current POS sales.
-  // For managing current POS sales before they are saved, this state is fine if needed,
-  // but actual "past sales" would typically be fetched for an invoicing/history view.
   const [localSalesHistory, setLocalSalesHistory] = useState<Sale[]>(placeholderSales); 
 
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
@@ -74,7 +78,7 @@ export default function SalesPage() {
       }
       setFilteredProducts(tempProducts);
     } else if (!isLoadingProducts && !allProducts) {
-      setFilteredProducts([]); // Handle case where products array is null/undefined after loading
+      setFilteredProducts([]); 
     }
   }, [searchTerm, selectedCategory, allProducts, isLoadingProducts]);
 
@@ -87,7 +91,7 @@ export default function SalesPage() {
         : product.price;
 
       if (existingItem) {
-        if (product.stock > existingItem.quantity) { // Check against live stock
+        if (product.stock > existingItem.quantity) { 
           return prevItems.map(item =>
             item.id === product.id && item.saleType === currentSaleType
               ? { ...item, quantity: item.quantity + 1 }
@@ -98,7 +102,7 @@ export default function SalesPage() {
           return prevItems;
         }
       }
-      if (product.stock > 0) { // Check against live stock
+      if (product.stock > 0) { 
         return [...prevItems, { ...product, quantity: 1, appliedPrice: priceToUse, saleType: currentSaleType }];
       } else {
          toast({ variant: "destructive", title: "Out of Stock", description: `${product.name} is currently out of stock.`});
@@ -136,7 +140,8 @@ export default function SalesPage() {
     if (customerId === null) {
       setSelectedCustomer(null);
     } else {
-      const customer = placeholderCustomers.find(c => c.id === customerId);
+      // Use allCustomersFromHook (from useCustomers hook) to find the customer
+      const customer = allCustomersFromHook.find(c => c.id === customerId);
       setSelectedCustomer(customer || null);
     }
   };
@@ -171,19 +176,19 @@ export default function SalesPage() {
     setIsProcessingSale(true);
     const salePayload = {
       ...saleDetails,
-      items: cartItems.map(item => ({ // Ensure only necessary fields from CartItem are sent
+      items: cartItems.map(item => ({ 
         id: item.id,
         name: item.name,
         category: item.category,
-        price: item.price, // Original price, appliedPrice is also good
+        price: item.price,
         quantity: item.quantity,
         appliedPrice: item.appliedPrice,
         saleType: item.saleType,
-        sku: item.sku, // include sku if available and needed by backend/invoice
-        imageUrl: item.imageUrl, // include imageUrl if needed
+        sku: item.sku, 
+        imageUrl: item.imageUrl, 
       })),
-      saleDate: new Date().toISOString(), // API will convert to Timestamp
-      staffId: "staff001", // Replace with actual staff ID from auth context
+      saleDate: new Date().toISOString(), 
+      staffId: "staff001", 
     };
 
     try {
@@ -200,7 +205,6 @@ export default function SalesPage() {
 
       const newSaleResponse = await response.json();
       
-      // Add to local sales history (for potential immediate display, though invoicing page should fetch)
       setLocalSalesHistory(prevSales => [
         { ...newSaleResponse, saleDate: new Date(newSaleResponse.saleDate) }, 
         ...prevSales
@@ -211,12 +215,11 @@ export default function SalesPage() {
           description: `Payment Method: ${newSaleResponse.paymentMethod}. Total: Rs. ${newSaleResponse.totalAmount.toFixed(2)}`,
       });
 
-      // Reset cart and related state
       setCartItems([]);
       setSelectedCustomer(null);
       setDiscountPercentage(0);
       setCurrentSaleType('retail');
-      await refetchProducts(); // Refetch products to update stock levels
+      await refetchProducts(); 
 
     } catch (error: any) {
       console.error("Sale processing error:", error);
@@ -245,7 +248,7 @@ export default function SalesPage() {
     </Button>
   );
 
-  if (isLoadingProducts && !allProducts?.length) { // Show full page loader only on initial load without any products
+  if (isLoadingProducts && !allProducts?.length) { 
     return (
         <div className="flex flex-col items-center justify-center h-screen">
             <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
@@ -394,7 +397,7 @@ export default function SalesPage() {
       <Drawer open={isCartOpen} onOpenChange={setIsCartOpen}>
         {isMobile && !isSalesPageFullScreen && (
          <DrawerTrigger asChild>
-            <div onClick={(e) => e.stopPropagation()}> {/* Stop propagation here */}
+            <div onClick={(e) => e.stopPropagation()}> 
               <Button
                 size="lg"
                 className="fixed bottom-6 right-6 z-20 rounded-full h-14 w-14 shadow-lg bg-primary hover:bg-primary/90"
@@ -447,10 +450,12 @@ export default function SalesPage() {
         currentSubtotal={currentSubtotal}
         currentDiscountAmount={currentDiscountAmount}
         currentTotalAmount={currentTotalAmount}
-        saleId={`SALE-${Date.now().toString().slice(-6)}`} // This is a display ID, actual ID from backend
+        saleId={`SALE-${Date.now().toString().slice(-6)}`} 
         onConfirmSale={handleSuccessfulSale}
       />
     </div>
   );
 }
 
+
+    
