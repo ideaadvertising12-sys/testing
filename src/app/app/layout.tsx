@@ -25,7 +25,7 @@ import {
   Truck, 
   ListPlus, 
   MapPin, 
-  UsersCog, // Added for User Management
+  UserCog, 
 } from "lucide-react";
 
 import {
@@ -106,7 +106,7 @@ const ALL_NAV_ITEMS: NavItemConfig[] = [
       { id: "customer-report", href: "/app/reports/customer-report", label: "Customer Report", icon: UserCheck, allowedRoles: ["admin"] },
     ]
   },
-  { id: "user-management", href: "/app/user-management", label: "User Management", icon: UsersCog, allowedRoles: ["admin"] },
+  { id: "user-management", href: "/app/user-management", label: "User Management", icon: UserCog, allowedRoles: ["admin"] },
   { id: "settings", href: "/app/settings", label: "Settings", icon: Settings, allowedRoles: ["admin", "cashier"] },
 ];
 

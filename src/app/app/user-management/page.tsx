@@ -8,7 +8,7 @@ import { UserTable } from "@/components/user-management/UserTable";
 import { UserDialog } from "@/components/user-management/UserDialog";
 import type { ManagedUser, UserRole } from "@/lib/types";
 import { useAuth, mockUsersCredentials, availableRoles as allRoles } from "@/contexts/AuthContext"; // Import mock data
-import { PlusCircle, UsersCog, ShieldAlert } from "lucide-react";
+import { PlusCircle, UserCog, ShieldAlert } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { GlobalPreloaderScreen } from "@/components/GlobalPreloaderScreen";
 import { useRouter } from "next/navigation";
@@ -127,7 +127,7 @@ export default function UserManagementPage() {
       <PageHeader
         title="User Management"
         description="Add, edit, or remove user accounts."
-        icon={UsersCog}
+        icon={UserCog}
         action={
           <Button onClick={handleAddUser}>
             <PlusCircle className="mr-2 h-4 w-4" /> Add New User
