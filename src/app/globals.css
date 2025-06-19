@@ -120,6 +120,11 @@
     display: none !important;
   }
   
+  /* Hide Dialog Overlay during print */
+  [data-radix-dialog-overlay] {
+    display: none !important;
+  }
+  
   /* Ensure Radix Dialog Content expands for printing */
   [data-radix-dialog-content] {
     position: static !important; /* Override fixed positioning */
@@ -129,16 +134,19 @@
     max-height: none !important;
     border: none !important;
     box-shadow: none !important;
-    padding: 0 !important;
+    padding: 0 !important; /* Content padding is on #bill-content or similar */
     margin: 0 !important;
     overflow: visible !important; /* Crucial for content flow */
     transform: none !important; /* Reset any transforms */
+    display: block !important; /* Ensure it's not a flex container interfering */
   }
   
   /* Ensure Radix ScrollArea Viewport also expands */
   [data-radix-scroll-area-viewport] {
       max-height: none !important;
       overflow-y: visible !important;
+      height: auto !important;
+      display: block !important; /* Ensure it's not a flex container interfering */
   }
 
 
@@ -149,8 +157,11 @@
     box-shadow: none !important;
     border: none !important;
     padding: 0.5in !important; /* Add some padding for print margins */
-    margin: 0 !important;
-    width: 100% !important;
+    margin: 0 auto !important; /* Center the bill content on the page */
+    width: 100% !important; /* Or a fixed width like '72mm' for thermal printers */
+    max-width: 210mm; /* Approx A4 width, adjust if needed */
+    background-color: white !important;
+    color: black !important;
   }
   
   /* Ensure printable containers are visible and take up space */
@@ -160,7 +171,7 @@
     visibility: visible;
   }
   .printable-report-container {
-    position: absolute;
+    position: static !important; /* Changed from absolute for better flow */
     left: 0;
     top: 0;
     width: 100%;
@@ -213,3 +224,6 @@
   .font-bold { font-weight: 700 !important; }
 
 }
+
+
+    
