@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { FullReportEntry } from "@/lib/types";
@@ -17,6 +18,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { FileText } from "lucide-react"; // Added import
 
 interface FullReportTableProps {
   data: FullReportEntry[];
