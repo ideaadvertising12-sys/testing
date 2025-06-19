@@ -21,6 +21,7 @@ import { Label } from "@/components/ui/label";
 import React, { useState, useEffect, useMemo } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { placeholderCustomers } from "@/lib/placeholder-data"; // For finding customer details in reprint
+import { cn } from "@/lib/utils";
 
 interface BillDialogProps {
   isOpen: boolean;
@@ -178,7 +179,13 @@ export function BillDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] flex flex-col print:shadow-none print:border-none print:max-w-full print:max-h-full print:m-0 print:p-0">
+      <DialogContent 
+        className={cn(
+          "sm:max-w-lg flex flex-col",
+          "print:shadow-none print:border-none print:max-w-full print:max-h-full print:m-0 print:p-0 print:h-auto print:overflow-visible",
+          isOpen ? "max-h-[90vh]" : "" // Apply max-h only when dialog is open for screen view
+        )}
+      >
         <DialogHeader className="print:hidden px-6 pt-6">
           <DialogTitle className="font-headline text-xl">
             {isReprintMode ? "View Invoice" : "Transaction Receipt & Payment"}
@@ -188,8 +195,14 @@ export function BillDialog({
           </DialogDescription>
         </DialogHeader>
         
-        <ScrollArea className="flex-grow">
-          <div id="bill-content" className="p-6 bg-card text-card-foreground rounded-md print:p-0 print:bg-transparent print:text-black">
+        <ScrollArea className="flex-grow print:overflow-visible print:flex-grow-0 print:h-auto">
+          <div 
+            id="bill-content" 
+            className={cn(
+                "p-6 bg-card text-card-foreground rounded-md",
+                "print:p-0 print:bg-transparent print:text-black print:max-h-none print:overflow-visible"
+            )}
+          >
             <div className="text-center mb-6">
               <div className="flex justify-center mb-2">
                  <AppLogo size="md"/>

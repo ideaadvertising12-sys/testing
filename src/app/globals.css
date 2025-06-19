@@ -101,16 +101,62 @@
 }
 
 @media print {
+  body, html {
+    background: white !important;
+    color: black !important;
+    height: auto !important; /* Allow content to determine height */
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important; /* Ensure all content is printable */
+    font-size: 10pt; /* Adjust base font size for print */
+  }
+
   .app-layout-sidebar,
   .app-layout-header,
   .app-layout-main-footer,
   .report-action-buttons,
-  .page-header-non-printable { /* Generic class for page headers not meant for printing */
+  .page-header-non-printable, /* Generic class for page headers not meant for printing */
+  .print\:hidden { /* Utility class from Tailwind, explicitly reinforce */
     display: none !important;
   }
+  
+  /* Ensure Radix Dialog Content expands for printing */
+  [data-radix-dialog-content] {
+    position: static !important; /* Override fixed positioning */
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important; /* Crucial for content flow */
+    transform: none !important; /* Reset any transforms */
+  }
+  
+  /* Ensure Radix ScrollArea Viewport also expands */
+  [data-radix-scroll-area-viewport] {
+      max-height: none !important;
+      overflow-y: visible !important;
+  }
 
+
+  /* Specific to BillDialog content for printing */
+  #bill-content {
+    max-height: none !important;
+    overflow: visible !important;
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0.5in !important; /* Add some padding for print margins */
+    margin: 0 !important;
+    width: 100% !important;
+  }
+  
+  /* Ensure printable containers are visible and take up space */
   .printable-report-container,
-  .printable-report-container * {
+  .printable-report-container *,
+  #bill-content * { /* Ensure all children of bill-content are visible */
     visibility: visible;
   }
   .printable-report-container {
@@ -127,32 +173,43 @@
   main {
     padding: 0 !important;
     margin: 0 !important;
-  }
-
-  body, html {
-    background: white !important;
-    height: auto;
-    margin: 0;
-    padding: 0;
-    overflow: visible !important; /* Allow printing to show all content */
+    overflow: visible !important; /* Allow main to expand */
   }
 
   /* Ensure table takes full width and looks decent */
   table {
     width: 100% !important;
     border-collapse: collapse !important;
+    table-layout: auto; /* Let table decide column widths */
   }
   th, td {
     border: 1px solid #ccc !important; /* Basic border for table cells */
     padding: 4px !important;
     font-size: 9pt !important;
+    word-break: break-word; /* Break long words to prevent overflow */
   }
   thead {
     background-color: #f0f0f0 !important; /* Light grey for header */
     -webkit-print-color-adjust: exact; /* Chrome, Safari */
     color-adjust: exact; /* Firefox, Edge */
+    display: table-header-group; /* Ensure thead repeats on each page if table breaks */
   }
-  .print\:hidden { /* Utility class from Tailwind, explicitly reinforce for safety */
-    display: none !important;
+  
+  /* Hide scrollbars in print */
+  ::-webkit-scrollbar {
+    display: none;
   }
+
+  /* Prevent page breaks inside common elements */
+  img, svg {
+    break-inside: avoid;
+  }
+  
+  /* Adjust specific elements if needed */
+  .text-xs { font-size: 8pt !important; }
+  .text-sm { font-size: 9pt !important; }
+  .text-base { font-size: 10pt !important; }
+  .font-semibold { font-weight: 600 !important; }
+  .font-bold { font-weight: 700 !important; }
+
 }

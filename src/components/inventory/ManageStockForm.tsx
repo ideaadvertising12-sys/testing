@@ -308,7 +308,7 @@ export function ManageStockForm() {
               </Popover>
 
               {transactionItems.length > 0 && (
-                <ScrollArea className="max-h-[300px] mt-2 pr-3">
+                <ScrollArea className="max-h-[300px] mt-2 pr-3 overflow-auto">
                   <div className="space-y-3">
                     {transactionItems.map((item, index) => (
                       <Card key={item.product.id} className="p-3 bg-muted/20 relative group">
