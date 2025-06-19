@@ -9,13 +9,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { MinusCircle, PlusCircle, Trash2, Users, XCircle, Check, ChevronsUpDown, ShoppingCart } from "lucide-react";
+import { MinusCircle, PlusCircle, Trash2, Users, XCircle, Check, ChevronsUpDown, ShoppingCart, Loader2, AlertTriangle } from "lucide-react";
 import Image from "next/image";
-import { placeholderCustomers } from "@/lib/placeholder-data";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
-
+import { useCustomers } from "@/hooks/useCustomers"; // Import useCustomers hook
 
 interface CartViewProps {
   cartItems: CartItem[];
@@ -27,7 +26,7 @@ interface CartViewProps {
   onUpdateDiscountPercentage: (percentage: number) => void;
   onCheckout: () => void;
   onCancelOrder: () => void;
-  className?: string; // Added className for parent styling
+  className?: string;
 }
 
 export function CartView({
@@ -42,6 +41,7 @@ export function CartView({
   onCancelOrder,
   className
 }: CartViewProps) {
+  const { customers: allCustomers, isLoading: isLoadingCustomers, error: customersError } = useCustomers();
   const subtotal = cartItems.reduce((sum, item) => sum + item.appliedPrice * item.quantity, 0);
   const [openCustomerPopover, setOpenCustomerPopover] = React.useState(false);
 
@@ -54,15 +54,20 @@ export function CartView({
   const calculatedDiscountAmount = subtotal * (discountPercentage / 100);
   const totalAmount = Math.max(0, subtotal - calculatedDiscountAmount);
 
-  const customerOptions = [
-    { value: "guest", label: "Walk-in / Guest" },
-    ...placeholderCustomers.map(customer => ({
-      value: customer.id,
-      label: `${customer.name} (${customer.phone || 'N/A'})${customer.shopName ? ` - ${customer.shopName}` : ''}`,
-      name: customer.name,
-      shopName: customer.shopName
-    }))
-  ];
+  const customerOptions = React.useMemo(() => {
+    const options = [{ value: "guest", label: "Walk-in / Guest", name: "Walk-in / Guest", shopName: "" }];
+    if (allCustomers) {
+      allCustomers.forEach(customer => {
+        options.push({
+          value: customer.id,
+          label: `${customer.name} (${customer.phone || 'N/A'})${customer.shopName ? ` - ${customer.shopName}` : ''}`,
+          name: customer.name,
+          shopName: customer.shopName || ""
+        });
+      });
+    }
+    return options;
+  }, [allCustomers]);
 
   const currentCustomerLabel = selectedCustomer
     ? customerOptions.find(opt => opt.value === selectedCustomer.id)?.label
@@ -81,11 +86,12 @@ export function CartView({
                 role="combobox"
                 aria-expanded={openCustomerPopover}
                 className="w-full justify-between flex-1 h-9 text-sm"
+                disabled={isLoadingCustomers || !!customersError}
               >
                 <span className="truncate">
-                  {currentCustomerLabel || "Select Customer..."}
+                  {isLoadingCustomers ? "Loading customers..." : customersError ? "Error loading" : (currentCustomerLabel || "Select Customer...")}
                 </span>
-                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                {isLoadingCustomers ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />}
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
@@ -94,37 +100,41 @@ export function CartView({
                   const option = customerOptions.find(opt => opt.value === value);
                   if (!option) return 0;
                   let searchableString = option.label.toLowerCase();
-                  if ('name' in option && option.name) searchableString += ` ${option.name.toLowerCase()}`;
-                  if ('shopName' in option && option.shopName) searchableString += ` ${option.shopName.toLowerCase()}`;
+                  if (option.name) searchableString += ` ${option.name.toLowerCase()}`;
+                  if (option.shopName) searchableString += ` ${option.shopName.toLowerCase()}`;
                   return searchableString.includes(search.toLowerCase()) ? 1 : 0;
                 }}
               >
                 <CommandInput placeholder="Search customer..." className="h-9"/>
-                <CommandEmpty>No customer found.</CommandEmpty>
-                <CommandList>
-                  <CommandGroup>
-                    {customerOptions.map((option) => (
-                      <CommandItem
-                        key={option.value}
-                        value={option.value}
-                        onSelect={(currentValue) => {
-                          onSelectCustomer(currentValue === "guest" ? null : currentValue);
-                          setOpenCustomerPopover(false);
-                        }}
-                      >
-                        <Check
-                          className={cn(
-                            "mr-2 h-4 w-4",
-                            (selectedCustomer?.id === option.value || (!selectedCustomer && option.value === "guest"))
-                              ? "opacity-100"
-                              : "opacity-0"
-                          )}
-                        />
-                        {option.label}
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </CommandList>
+                {isLoadingCustomers && <div className="p-2 text-center text-sm text-muted-foreground">Loading...</div>}
+                {customersError && <div className="p-2 text-center text-sm text-destructive flex items-center justify-center gap-1"><AlertTriangle className="h-4 w-4" /> Error</div>}
+                {!isLoadingCustomers && !customersError && (
+                  <CommandList>
+                    <CommandEmpty>No customer found.</CommandEmpty>
+                    <CommandGroup>
+                      {customerOptions.map((option) => (
+                        <CommandItem
+                          key={option.value}
+                          value={option.value}
+                          onSelect={(currentValue) => {
+                            onSelectCustomer(currentValue === "guest" ? null : currentValue);
+                            setOpenCustomerPopover(false);
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              (selectedCustomer?.id === option.value || (!selectedCustomer && option.value === "guest"))
+                                ? "opacity-100"
+                                : "opacity-0"
+                            )}
+                          />
+                          {option.label}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                )}
               </Command>
             </PopoverContent>
           </Popover>
