@@ -1,5 +1,5 @@
 
-import { db, firebaseInitializationError } from "./firebase";
+import { db } from "./firebase";
 import { 
   collection, 
   addDoc, 
@@ -27,13 +27,9 @@ import {
 
 
 function checkFirebase() {
-  if (firebaseInitializationError) {
-    console.error("Firebase initialization failed:", firebaseInitializationError);
-    throw new Error(`Firebase not initialized: ${firebaseInitializationError.message}`);
-  }
   if (!db) {
-    console.error("Firestore database instance (db) is not available.");
-    throw new Error("Firestore database instance is not available. Firebase might not be initialized correctly.");
+    console.error("Firestore database instance (db) is not available. Firebase might not be initialized correctly or there was an initialization error.");
+    throw new Error("Firestore database instance is not available. Firebase might not be initialized correctly or there was an initialization error.");
   }
 }
 
