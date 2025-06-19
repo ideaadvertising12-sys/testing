@@ -30,12 +30,13 @@ export default function DashboardPage() {
   const router = useRouter();
   const [dashboardStats, setDashboardStats] = useState<StatsData | null>(null);
   const { customers, isLoading: isLoadingCustomers, error: customersError } = useCustomers();
-  const { sales, isLoading: isLoadingSales, error: salesError } = useSalesData();
+  const { 
+    sales, 
+    isLoading: isLoadingSales, 
+    error: salesError, 
+    totalRevenue: hookTotalRevenue // Destructure totalRevenue from the hook
+  } = useSalesData();
 
-  const totalRevenue = useMemo(() => {
-    if (isLoadingSales || !sales || sales.length === 0) return 0;
-    return sales.reduce((sum, sale) => sum + (Number(sale.totalAmount) || 0), 0);
-  }, [sales, isLoadingSales]);
 
   const revenueToday = useMemo(() => {
     if (isLoadingSales || !sales || sales.length === 0) return 0;
@@ -75,13 +76,16 @@ export default function DashboardPage() {
     .sort((a,b) => (b.price * (150 - b.stock)) - (a.price * (150 - a.stock)))
     .slice(0,5);
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-IN', {
+  const formatCurrency = (value: number): string => {
+    if (typeof value !== 'number' || isNaN(value)) {
+      return 'Rs. 0.00'; // Fallback for invalid input
+    }
+    return new Intl.NumberFormat('en-LK', { // Use 'en-LK' for Sri Lanka locale
       style: 'currency',
-      currency: 'INR',
+      currency: 'LKR', // Use 'LKR' for Sri Lankan Rupee
       minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(value);
+      maximumFractionDigits: 2,
+    }).format(value).replace('LKR', 'Rs.'); // Replace LKR with Rs.
   };
 
   const renderStatsCard = (
@@ -106,24 +110,25 @@ export default function DashboardPage() {
       case 'liveTotalRevenue':
         isLoadingValue = isLoadingSales;
         hasError = salesError;
-        if (!isLoadingValue && !hasError && sales) {
-          displayValue = formatCurrency(totalRevenue);
+        if (!isLoadingValue && !hasError && sales) { // Check sales presence for consistency
+          displayValue = formatCurrency(hookTotalRevenue); // Use totalRevenue from the hook
         }
         break;
       case 'liveRevenueToday':
-        isLoadingValue = isLoadingSales;
+        isLoadingValue = isLoadingSales; // Revenue today depends on sales
         hasError = salesError;
         if (!isLoadingValue && !hasError && sales) {
           displayValue = formatCurrency(revenueToday);
         }
         break;
       case 'lowStockItems':
-        isLoadingValue = dashboardStats === null;
+        isLoadingValue = dashboardStats === null; // lowStockItems uses placeholderStats
         if (!isLoadingValue && dashboardStats) {
           displayValue = dashboardStats.lowStockItems?.toString() ?? 'N/A';
         }
         break;
       default:
+        // For other keys that might rely on dashboardStats (placeholder)
         if (dashboardStats && valueKey in dashboardStats) {
           const val = dashboardStats[valueKey as keyof StatsData];
           displayValue = typeof val === 'number' ? val.toString() : (val ?? 'N/A');
