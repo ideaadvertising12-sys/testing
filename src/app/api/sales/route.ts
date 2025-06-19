@@ -1,7 +1,19 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
-import { addSale } from '@/lib/firestoreService';
+import { addSale, getSales } from '@/lib/firestoreService'; // Added getSales
 import type { Sale, CartItem } from '@/lib/types';
+
+// GET /api/sales - Fetch all sales
+export async function GET(request: NextRequest) {
+  try {
+    const sales = await getSales();
+    return NextResponse.json(sales);
+  } catch (error) {
+    console.error('Error fetching sales:', error);
+    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+    return NextResponse.json({ error: 'Failed to fetch sales', details: errorMessage }, { status: 500 });
+  }
+}
 
 // POST /api/sales - Add a new sale and update stock
 export async function POST(request: NextRequest) {
