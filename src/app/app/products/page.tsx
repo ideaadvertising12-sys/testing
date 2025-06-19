@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Package } from "lucide-react";
@@ -25,19 +24,11 @@ export default function ProductsPage() {
   }, [currentUser, router]);
 
   if (!currentUser) {
-     return (
-      <>
-        <GlobalPreloaderScreen message="Loading products..." />
-      </>
-     );
+     return <GlobalPreloaderScreen message="Loading products..." />;
   }
 
   if (currentUser.role === "cashier") {
-    return (
-      <>
-        <AccessDenied message="Product management is not available for your role. Redirecting..." />
-      </>
-    );
+    return <AccessDenied message="Product management is not available for your role. Redirecting..." />;
   }
 
   return (

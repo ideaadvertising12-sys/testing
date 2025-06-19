@@ -1,11 +1,11 @@
+import { Timestamp } from 'firebase/firestore';
 
-import type { Timestamp } from "firebase/firestore";
-
+// Base Interfaces
 export interface Product {
   id: string;
   name: string;
   category: "Yogurt" | "Drink" | "Ice Cream" | "Dessert" | "Curd" | "Other";
-  price: number; // Retail price
+  price: number;
   wholesalePrice?: number;
   stock: number;
   imageUrl?: string;
@@ -13,8 +13,6 @@ export interface Product {
   sku?: string;
   reorderLevel?: number;
   aiHint?: string;
-  createdAt?: Date;
-  updatedAt?: Date;
 }
 
 export interface Customer {
@@ -24,17 +22,20 @@ export interface Customer {
   phone: string;
   address?: string;
   shopName?: string;
-  createdAt?: Date;
 }
 
-export interface CartItem extends Product {
+export interface CartItem {
+  id: string;
   quantity: number;
   appliedPrice: number;
   saleType: 'retail' | 'wholesale';
+  name: string;
+  category: Product["category"];
+  price: number;
 }
 
 export interface Sale {
-  id:string;
+  id: string;
   customerId?: string;
   customerName?: string;
   items: CartItem[];
@@ -49,9 +50,251 @@ export interface Sale {
   remainingCreditBalance?: number;
   saleDate: Date;
   staffId: string;
-  createdAt?: Date;
 }
 
+// Stock Transaction Types
+export type StockTransactionType =
+  | "ADD_STOCK_INVENTORY"
+  | "LOAD_TO_VEHICLE"
+  | "UNLOAD_FROM_VEHICLE"
+  | "REMOVE_STOCK_WASTAGE"
+  | "STOCK_ADJUSTMENT_MANUAL";
+
+export interface StockTransaction {
+  id: string;
+  productId: string;
+  productName: string;
+  productSku?: string;
+  type: StockTransactionType;
+  quantity: number;
+  previousStock: number;
+  newStock: number;
+  transactionDate: Date;
+  notes?: string;
+  vehicleId?: string;
+  userId?: string;
+}
+
+export interface Vehicle {
+  id: string;
+  vehicleNumber: string;
+  driverName?: string;
+  notes?: string;
+}
+
+// Firestore-specific types
+export interface FirestoreProduct extends Omit<Product, 'id'> {
+  createdAt?: Timestamp;
+  updatedAt?: Timestamp;
+}
+
+export interface FirestoreCustomer extends Omit<Customer, 'id'> {
+  createdAt?: Timestamp;
+  updatedAt?: Timestamp;
+}
+
+export interface FirestoreCartItem {
+  productRef: string;
+  quantity: number;
+  appliedPrice: number;
+  saleType: 'retail' | 'wholesale';
+  productName: string;
+  productCategory: Product["category"];
+  productPrice: number;
+}
+
+export interface FirestoreSale extends Omit<Sale, 'id' | 'saleDate' | 'items'> {
+  items: FirestoreCartItem[];
+  saleDate: Timestamp;
+  createdAt?: Timestamp;
+  updatedAt?: Timestamp;
+}
+
+export interface FirestoreStockTransaction {
+  productId: string;
+  productName: string;
+  productSku?: string;
+  type: StockTransactionType;
+  quantity: number;
+  previousStock: number;
+  newStock: number;
+  transactionDate: Timestamp;
+  notes?: string;
+  vehicleId?: string;
+  userId?: string;
+  createdAt?: Timestamp;
+  updatedAt?: Timestamp;
+}
+
+// Data Converters
+export const productConverter = {
+  toFirestore: (product: FirestoreProduct): Partial<FirestoreProduct> => {
+    const firestoreProduct: Partial<FirestoreProduct> = {
+      name: product.name,
+      category: product.category,
+      price: product.price,
+      stock: product.stock,
+      updatedAt: Timestamp.now(),
+    };
+
+    // Optional fields
+    if (product.wholesalePrice !== undefined) firestoreProduct.wholesalePrice = product.wholesalePrice;
+    if (product.imageUrl) firestoreProduct.imageUrl = product.imageUrl;
+    if (product.description) firestoreProduct.description = product.description;
+    if (product.sku) firestoreProduct.sku = product.sku;
+    if (product.reorderLevel !== undefined) firestoreProduct.reorderLevel = product.reorderLevel;
+    if (product.aiHint) firestoreProduct.aiHint = product.aiHint;
+    if (!product.createdAt) firestoreProduct.createdAt = Timestamp.now();
+
+    return firestoreProduct;
+  },
+  fromFirestore: (snapshot: any, options: any): Product => {
+    const data = snapshot.data(options);
+    return {
+      id: snapshot.id,
+      name: data.name,
+      category: data.category,
+      price: data.price,
+      wholesalePrice: data.wholesalePrice,
+      stock: data.stock,
+      imageUrl: data.imageUrl,
+      description: data.description,
+      sku: data.sku,
+      reorderLevel: data.reorderLevel,
+      aiHint: data.aiHint
+    };
+  }
+};
+
+export const customerConverter = {
+  toFirestore: (customer: FirestoreCustomer): Partial<FirestoreCustomer> => {
+    const firestoreCustomer: Partial<FirestoreCustomer> = {
+      name: customer.name,
+      phone: customer.phone,
+      updatedAt: Timestamp.now(),
+    };
+
+    // Optional fields
+    if (customer.avatar) firestoreCustomer.avatar = customer.avatar;
+    if (customer.address) firestoreCustomer.address = customer.address;
+    if (customer.shopName) firestoreCustomer.shopName = customer.shopName;
+    if (!customer.createdAt) firestoreCustomer.createdAt = Timestamp.now();
+
+    return firestoreCustomer;
+  },
+  fromFirestore: (snapshot: any, options: any): Customer => {
+    const data = snapshot.data(options);
+    return {
+      id: snapshot.id,
+      name: data.name,
+      phone: data.phone,
+      avatar: data.avatar,
+      address: data.address,
+      shopName: data.shopName
+    };
+  }
+};
+
+export const saleConverter = {
+  toFirestore: (sale: FirestoreSale): Partial<FirestoreSale> => {
+    const firestoreSale: Partial<FirestoreSale> = {
+      items: sale.items,
+      subTotal: sale.subTotal,
+      discountPercentage: sale.discountPercentage,
+      discountAmount: sale.discountAmount,
+      totalAmount: sale.totalAmount,
+      paymentMethod: sale.paymentMethod,
+      saleDate: sale.saleDate,
+      staffId: sale.staffId,
+      updatedAt: Timestamp.now(),
+    };
+
+    // Optional fields
+    if (sale.customerId) firestoreSale.customerId = sale.customerId;
+    if (sale.customerName) firestoreSale.customerName = sale.customerName;
+    if (sale.cashGiven !== undefined) firestoreSale.cashGiven = sale.cashGiven;
+    if (sale.balanceReturned !== undefined) firestoreSale.balanceReturned = sale.balanceReturned;
+    if (sale.amountPaidOnCredit !== undefined) firestoreSale.amountPaidOnCredit = sale.amountPaidOnCredit;
+    if (sale.remainingCreditBalance !== undefined) firestoreSale.remainingCreditBalance = sale.remainingCreditBalance;
+    if (!sale.createdAt) firestoreSale.createdAt = Timestamp.now();
+
+    return firestoreSale;
+  },
+  fromFirestore: async (snapshot: any, options: any): Promise<Sale> => {
+    const data = snapshot.data(options);
+    return {
+      id: snapshot.id,
+      items: data.items.map((item: FirestoreCartItem) => ({
+        id: item.productRef.split('/')[1],
+        quantity: item.quantity,
+        appliedPrice: item.appliedPrice,
+        saleType: item.saleType,
+        name: item.productName,
+        category: item.productCategory,
+        price: item.productPrice,
+        stock: 0,
+        wholesalePrice: undefined,
+        imageUrl: undefined,
+        description: undefined,
+        sku: undefined,
+        reorderLevel: undefined,
+        aiHint: undefined
+      })),
+      subTotal: data.subTotal,
+      discountPercentage: data.discountPercentage,
+      discountAmount: data.discountAmount,
+      totalAmount: data.totalAmount,
+      paymentMethod: data.paymentMethod,
+      cashGiven: data.cashGiven,
+      balanceReturned: data.balanceReturned,
+      amountPaidOnCredit: data.amountPaidOnCredit,
+      remainingCreditBalance: data.remainingCreditBalance,
+      saleDate: data.saleDate.toDate(),
+      staffId: data.staffId,
+      customerId: data.customerId,
+      customerName: data.customerName
+    };
+  }
+};
+
+export const stockTransactionConverter = {
+  toFirestore: (transaction: FirestoreStockTransaction): FirestoreStockTransaction => {
+    return {
+      productId: transaction.productId,
+      productName: transaction.productName,
+      productSku: transaction.productSku,
+      type: transaction.type,
+      quantity: transaction.quantity,
+      previousStock: transaction.previousStock,
+      newStock: transaction.newStock,
+      transactionDate: transaction.transactionDate,
+      notes: transaction.notes,
+      vehicleId: transaction.vehicleId,
+      userId: transaction.userId,
+      updatedAt: Timestamp.now(),
+      createdAt: transaction.createdAt || Timestamp.now()
+    };
+  },
+  fromFirestore: (snapshot: { id: string; data(): any }): StockTransaction => {
+    const data = snapshot.data();
+    return {
+      id: snapshot.id,
+      productId: data.productId,
+      productName: data.productName,
+      productSku: data.productSku,
+      type: data.type,
+      quantity: data.quantity,
+      previousStock: data.previousStock,
+      newStock: data.newStock,
+      transactionDate: data.transactionDate.toDate(),
+      notes: data.notes,
+      vehicleId: data.vehicleId,
+      userId: data.userId
+    };
+  }
+};
+
+// Rest of interfaces remain unchanged
 export interface StatsData {
   totalSales: number;
   totalCustomers: number;
@@ -73,7 +316,6 @@ export interface User {
   password_hashed_or_plain?: string;
 }
 
-
 export interface NavItemConfig {
   href?: string;
   label: string;
@@ -81,24 +323,6 @@ export interface NavItemConfig {
   allowedRoles: UserRole[];
   children?: NavItemConfig[];
   id: string;
-}
-
-export type StockTransactionType =
-  | "ADD_STOCK_INVENTORY"
-  | "LOAD_TO_VEHICLE"
-  | "UNLOAD_FROM_VEHICLE"
-  | "REMOVE_STOCK_WASTAGE"
-  | "STOCK_ADJUSTMENT_MANUAL";
-
-export interface StockTransaction {
-  id: string;
-  productId: string;
-  productName: string;
-  type: StockTransactionType;
-  quantity: number;
-  transactionDate: Date;
-  notes?: string;
-  vehicleId?: string;
 }
 
 export interface FullReportEntry {
@@ -141,142 +365,7 @@ export interface DayEndReportSummary {
   totalTransactions: number;
 }
 
-export interface Vehicle {
-  id: string;
-  vehicleNumber: string;
-  driverName?: string;
-  notes?: string;
-}
-
 export interface ManagedUser extends User {
   id: string;
   password?: string;
 }
-
-// Firestore-specific types
-export interface FirestoreProduct extends Omit<Product, 'id' | 'createdAt' | 'updatedAt'> {
-  createdAt: Timestamp; // Mandatory for new Firestore documents
-  updatedAt: Timestamp; // Mandatory for new/updated Firestore documents
-}
-
-export interface FirestoreSale extends Omit<Sale, 'id' | 'saleDate' | 'createdAt' | 'items'> {
-  saleDate: Timestamp;
-  createdAt: Timestamp; // Mandatory for new Firestore documents
-  items: Omit<CartItem, 'createdAt' | 'updatedAt' | 'id'>[]; // Items in sale don't need their own product id or timestamps
-}
-
-export interface FirestoreCustomer extends Omit<Customer, 'id' | 'createdAt'> {
-  createdAt: Timestamp; // Mandatory for new Firestore documents
-}
-
-// Firestore converters for type safety
-export const productConverter = {
-  toFirestore: (productData: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>): FirestoreProduct => {
-    return {
-      name: productData.name,
-      category: productData.category,
-      price: productData.price,
-      wholesalePrice: productData.wholesalePrice === undefined ? null : productData.wholesalePrice, // Use null for undefined in Firestore
-      stock: productData.stock,
-      imageUrl: productData.imageUrl === undefined ? null : productData.imageUrl,
-      description: productData.description === undefined ? null : productData.description,
-      sku: productData.sku === undefined ? null : productData.sku,
-      reorderLevel: productData.reorderLevel === undefined ? null : productData.reorderLevel,
-      aiHint: productData.aiHint === undefined ? null : productData.aiHint,
-      createdAt: Timestamp.now(),
-      updatedAt: Timestamp.now(),
-    };
-  },
-  fromFirestore: (snapshot: any, options: any): Product => {
-    const data = snapshot.data(options)!;
-    return {
-      id: snapshot.id,
-      name: data.name,
-      category: data.category,
-      price: data.price,
-      wholesalePrice: data.wholesalePrice === null ? undefined : data.wholesalePrice,
-      stock: data.stock,
-      imageUrl: data.imageUrl === null ? undefined : data.imageUrl,
-      description: data.description === null ? undefined : data.description,
-      sku: data.sku === null ? undefined : data.sku,
-      reorderLevel: data.reorderLevel === null ? undefined : data.reorderLevel,
-      aiHint: data.aiHint === null ? undefined : data.aiHint,
-      createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : undefined,
-      updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : undefined,
-    };
-  }
-};
-
-export const saleConverter = {
-  toFirestore: (saleData: Omit<Sale, 'id' | 'createdAt'>): FirestoreSale => {
-    const { items, ...restOfSaleData } = saleData;
-    const firestoreItems = items.map(item => {
-      const { id, createdAt, updatedAt, ...firestoreCartItemFields } = item; // Strip Product's id, createdAt, updatedAt
-      return firestoreCartItemFields;
-    });
-
-    return {
-      ...restOfSaleData,
-      saleDate: Timestamp.fromDate(saleData.saleDate),
-      items: firestoreItems,
-      createdAt: Timestamp.now(),
-    };
-  },
-  fromFirestore: (snapshot: any, options: any): Sale => {
-    const data = snapshot.data(options)!;
-    // Reconstruct CartItem with necessary fields from Product (like id, name, category, etc.)
-    // Assuming the fields stored in firestoreItems are sufficient to display in cart context.
-    // If full product details are needed for each cart item upon fetching a sale, this might need adjustment
-    // or fetching products separately. For now, we assume stored item details are enough.
-    const reconstructedItems: CartItem[] = data.items.map((item: any) => ({
-      ...item, // This includes name, category, price, quantity, appliedPrice, saleType, etc.
-      id: '', // Placeholder, as product ID is not stored per item in FirestoreSale.items
-              // This might be an issue if CartItem expects a valid product ID.
-              // For now, the original CartItem on Sale creation had the ID, but it's stripped for DB.
-    }));
-
-    return {
-      id: snapshot.id,
-      customerId: data.customerId,
-      customerName: data.customerName,
-      subTotal: data.subTotal,
-      discountPercentage: data.discountPercentage,
-      discountAmount: data.discountAmount,
-      totalAmount: data.totalAmount,
-      paymentMethod: data.paymentMethod,
-      cashGiven: data.cashGiven,
-      balanceReturned: data.balanceReturned,
-      amountPaidOnCredit: data.amountPaidOnCredit,
-      remainingCreditBalance: data.remainingCreditBalance,
-      staffId: data.staffId,
-      saleDate: data.saleDate.toDate(),
-      createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : undefined,
-      items: reconstructedItems,
-    };
-  }
-};
-
-export const customerConverter = {
-  toFirestore: (customerData: Omit<Customer, 'id' | 'createdAt'>): FirestoreCustomer => {
-    return {
-      name: customerData.name,
-      phone: customerData.phone,
-      address: customerData.address === undefined ? null : customerData.address,
-      shopName: customerData.shopName === undefined ? null : customerData.shopName,
-      avatar: customerData.avatar === undefined ? null : customerData.avatar,
-      createdAt: Timestamp.now(),
-    };
-  },
-  fromFirestore: (snapshot: any, options: any): Customer => {
-    const data = snapshot.data(options)!;
-    return {
-      id: snapshot.id,
-      name: data.name,
-      phone: data.phone,
-      address: data.address === null ? undefined : data.address,
-      shopName: data.shopName === null ? undefined : data.shopName,
-      avatar: data.avatar === null ? undefined : data.avatar,
-      createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : undefined,
-    };
-  }
-};

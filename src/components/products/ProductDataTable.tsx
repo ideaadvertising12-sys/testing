@@ -1,8 +1,7 @@
-
 "use client";
 
 import Image from "next/image";
-import { MoreHorizontal, Edit, Trash2, PlusCircle, PackageSearch, Package, FileDigit, Maximize, Minimize, AlertCircle, Loader2 } from "lucide-react";
+import { MoreHorizontal, Edit, Trash2, PlusCircle, PackageSearch, Package, FileDigit, Maximize, Minimize } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,8 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { Product } from "@/lib/types";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ProductDialog } from "./ProductDialog";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -37,22 +35,13 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
-import { useProducts } from "@/hooks/useProducts"; // Import the hook
-import { useToast } from "@/hooks/use-toast"; // Import useToast
-import { Skeleton } from "@/components/ui/skeleton"; // For loading state
-import { Alert, AlertDescription } from "@/components/ui/alert"; // For error state
+import { ProductService } from "@/lib/productService";
+import { useToast } from "@/hooks/use-toast";
+import type { Product } from "@/lib/types";
 
 export function ProductDataTable() {
-  const { 
-    products, 
-    isLoading: isLoadingProducts, 
-    error: productsError, 
-    addProduct, 
-    updateProduct, 
-    deleteProduct,
-    refetchProducts
-  } = useProducts();
-  
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
@@ -60,60 +49,52 @@ export function ProductDataTable() {
   const [isFullScreen, setIsFullScreen] = useState(false);
   const { currentUser } = useAuth();
   const { toast } = useToast();
-  const userRole = currentUser?.role;
-  const isAdmin = userRole === 'admin';
 
-  const handleSaveProduct = async (productToSave: Product) => {
-    if (!isAdmin) {
-      toast({ variant: "destructive", title: "Unauthorized", description: "You do not have permission to save products." });
-      return;
-    }
+  const isAdmin = currentUser?.role === 'admin';
 
-    let success = false;
-    let message = "";
-
-    try {
-      if (editingProduct && editingProduct.id === productToSave.id) { // Update existing product
-        const { id, createdAt, updatedAt, ...updateData } = productToSave;
-        const result = await updateProduct(id, updateData);
-        if (result) {
-          success = true;
-          message = `Product "${result.name}" updated successfully.`;
-        } else {
-          message = "Failed to update product.";
-        }
-      } else { // Add new product
-        const { id, createdAt, updatedAt, ...addData } = productToSave; // Firestore generates ID
-        const result = await addProduct(addData);
-        if (result) {
-          success = true;
-          message = `Product "${result.name}" added successfully.`;
-        } else {
-          message = "Failed to add product.";
-        }
-      }
-    } catch (error: any) {
-        message = error.message || "An unexpected error occurred.";
-        console.error("Error saving product:", error);
-    }
-
-    toast({
-      title: success ? "Success" : "Error",
-      description: message,
-      variant: success ? "default" : "destructive",
+  useEffect(() => {
+    const unsubscribe = ProductService.subscribeToProducts((products) => {
+      setProducts(products);
+      setLoading(false);
     });
 
-    if (success) {
+    return () => unsubscribe();
+  }, []);
+
+  const handleSaveProduct = async (productToSave: Product) => {
+    if (!isAdmin) return;
+    
+    try {
+      setLoading(true);
+      if (editingProduct) {
+        const { id, ...updateData } = productToSave;
+        await ProductService.updateProduct(id, updateData);
+        toast({
+          title: "Success",
+          description: "Product updated successfully",
+        });
+      } else {
+        const { id, ...createData } = productToSave;
+        const newProduct = await ProductService.createProduct(createData);
+        toast({
+          title: "Success",
+          description: "Product created successfully",
+        });
+      }
       setEditingProduct(null);
-      // refetchProducts(); // useProducts hook should ideally handle optimistic updates or refetch internally on success
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: `Failed to ${editingProduct ? 'update' : 'create'} product`,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
   const openDeleteConfirmation = (productId: string) => {
-    if (!isAdmin) {
-       toast({ variant: "destructive", title: "Unauthorized", description: "You do not have permission to delete products." });
-      return;
-    }
+    if (!isAdmin) return;
     setProductToDeleteId(productId);
     setIsDeleteAlertOpen(true);
   };
@@ -121,82 +102,50 @@ export function ProductDataTable() {
   const handleDeleteProduct = async () => {
     if (!isAdmin || !productToDeleteId) return;
     
-    const productName = products?.find(p => p.id === productToDeleteId)?.name || "Product";
-    let success = false;
-    let message = "";
-
     try {
-      success = await deleteProduct(productToDeleteId);
-      if (success) {
-        message = `Product "${productName}" deleted successfully.`;
-      } else {
-        message = `Failed to delete product "${productName}".`;
-      }
-    } catch (error: any) {
-        message = error.message || "An unexpected error occurred during deletion.";
-        console.error("Error deleting product:", error);
+      setLoading(true);
+      await ProductService.deleteProduct(productToDeleteId);
+      toast({
+        title: "Success",
+        description: "Product deleted successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete product",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleteAlertOpen(false);
+      setProductToDeleteId(null);
+      setLoading(false);
     }
-    
-    toast({
-      title: success ? "Success" : "Error",
-      description: message,
-      variant: success ? "default" : "destructive",
-    });
-
-    setIsDeleteAlertOpen(false);
-    setProductToDeleteId(null);
-    // if (success) refetchProducts(); // Hook should handle this
   };
 
   const handleEditProduct = (product: Product) => {
-    if (!isAdmin) {
-      toast({ variant: "destructive", title: "Unauthorized", description: "You do not have permission to edit products." });
-      return;
-    }
+    if (!isAdmin) return;
     setEditingProduct(product);
-  }
+  };
 
   const toggleFullScreen = () => {
     setIsFullScreen(!isFullScreen);
   };
 
-  const filteredDisplayProducts = products?.filter(product =>
+  const filteredDisplayProducts = products.filter(product =>
     product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (product.sku && product.sku.toLowerCase().includes(searchTerm.toLowerCase()))
-  ) || [];
+  );
 
-
-  const renderSkeletons = (count: number, isMobile: boolean) => {
-    return Array.from({ length: count }).map((_, i) => (
-      isMobile ? (
-        <Card key={i} className="w-full overflow-hidden p-3">
-          <div className="flex items-start gap-3">
-            <Skeleton className="h-12 w-12 rounded-md flex-shrink-0" />
-            <div className="flex-grow min-w-0 space-y-2">
-              <Skeleton className="h-4 w-3/4" />
-              <Skeleton className="h-3 w-1/4" />
-              <Skeleton className="h-3 w-1/2" />
-              <Skeleton className="h-4 w-1/3" />
-            </div>
-          </div>
-        </Card>
-      ) : (
-        <TableRow key={i}>
-          <TableCell><Skeleton className="h-16 w-16 rounded-md" /></TableCell>
-          <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-          <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-          <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-          <TableCell><Skeleton className="h-4 w-12" /></TableCell>
-          <TableCell className="text-right"><Skeleton className="h-4 w-20 ml-auto" /></TableCell>
-          <TableCell className="text-right"><Skeleton className="h-4 w-20 ml-auto" /></TableCell>
-          {isAdmin && <TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto rounded-full" /></TableCell>}
-        </TableRow>
-      )
-    ));
-  };
+  if (loading && products.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
-    <>
+    <div className="space-y-4">
       <Card className={cn(
         "shadow-lg flex flex-col", 
         isFullScreen ? "fixed inset-0 z-50 bg-card" : "flex-1 min-h-0"
@@ -215,7 +164,7 @@ export function ProductDataTable() {
             </div>
             {isAdmin && (
               <ProductDialog
-                product={null} // For adding new product
+                product={null}
                 onSave={handleSaveProduct}
                 trigger={
                   <Button size="sm" className="w-full sm:w-auto shrink-0">
@@ -237,55 +186,13 @@ export function ProductDataTable() {
           </div>
         </CardHeader>
         <CardContent className={cn("p-4 overflow-auto flex-1 min-h-0")}>
-          {productsError && (
-            <Alert variant="destructive" className="mb-4">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                Error fetching products: {productsError.message}. 
-                <Button variant="link" onClick={refetchProducts} className="p-0 h-auto ml-1">Try again</Button>
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {isLoadingProducts && !productsError && (
-            <>
-              {/* Mobile Skeletons */}
-              <div className="md:hidden space-y-3 overflow-auto h-[450px]">
-                {renderSkeletons(3, true)}
-              </div>
-              {/* Desktop Skeletons */}
-              <div className="hidden md:block overflow-auto h-[450px]">
-                <Table>
-                  <TableHeader className="md:sticky md:top-0 md:z-10 md:bg-card">
-                     <TableRow>
-                      <TableHead className="w-[80px] xl:w-[100px] md:bg-card">Image</TableHead>
-                      <TableHead className="md:bg-card">Name</TableHead>
-                      <TableHead className="md:bg-card">Category</TableHead>
-                      <TableHead className="md:bg-card">SKU</TableHead>
-                      <TableHead className="md:bg-card">Stock</TableHead>
-                      <TableHead className="text-right md:bg-card">Wholesale Price</TableHead>
-                      <TableHead className="text-right md:bg-card">Retail Price</TableHead>
-                      {isAdmin && <TableHead className="text-right md:bg-card"><span className="sr-only">Actions</span></TableHead>}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {renderSkeletons(5, false)}
-                  </TableBody>
-                </Table>
-              </div>
-            </>
-          )}
-
-          {!isLoadingProducts && !productsError && filteredDisplayProducts.length === 0 && (
+          {filteredDisplayProducts.length === 0 ? (
              <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
                 <PackageSearch className="w-16 h-16 mb-4" />
                 <p className="text-xl">No products found.</p>
                 {searchTerm && <p>Try adjusting your search term.</p>}
-                {!searchTerm && <p>Use the "Add Product" button to add new products.</p>}
             </div>
-          )}
-
-          {!isLoadingProducts && !productsError && filteredDisplayProducts.length > 0 && (
+          ) : (
             <>
               {/* Mobile Card View */}
               <div className="md:hidden space-y-3 overflow-auto h-[450px]">
@@ -329,6 +236,7 @@ export function ProductDataTable() {
                                         </DropdownMenu>
                                     )}
                                 </div>
+
                                 <div className="mt-1.5 space-y-0.5 text-xs text-muted-foreground">
                                     <div className="flex items-center">
                                         <Package className="mr-1.5 h-3.5 w-3.5 text-primary/80 flex-shrink-0" />
@@ -424,18 +332,21 @@ export function ProductDataTable() {
               </div>
             </>
           )}
-          {isAdmin && editingProduct && (
-            <ProductDialog
-              product={editingProduct}
-              onSave={handleSaveProduct}
-              trigger={<></>} // Dialog is controlled by editingProduct state
-              open={!!editingProduct}
-              onOpenChange={(isOpen) => { if (!isOpen) setEditingProduct(null); }}
-            />
-          )}
         </CardContent>
       </Card>
 
+      {/* Edit Product Dialog */}
+      {isAdmin && editingProduct && (
+        <ProductDialog
+          product={editingProduct}
+          onSave={handleSaveProduct}
+          open={!!editingProduct}
+          onOpenChange={(isOpen) => !isOpen && setEditingProduct(null)}
+          loading={loading}
+        />
+      )}
+
+      {/* Delete Confirmation Dialog */}
       <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -448,11 +359,11 @@ export function ProductDataTable() {
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setProductToDeleteId(null)}>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteProduct} className="bg-destructive hover:bg-destructive/90">
-              Yes, delete product
+              {loading ? "Deleting..." : "Yes, delete product"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </>
+    </div>
   );
 }

@@ -1,7 +1,6 @@
-
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,13 +10,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { placeholderProducts as initialProducts, placeholderVehicles } from "@/lib/placeholder-data";
-import type { Product, StockTransactionType, Vehicle } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Info, PlusCircle, Trash2, ChevronsUpDown, PackageSearch, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ProductService } from "@/lib/productService";
+import type { Product, StockTransactionType, Vehicle } from "@/lib/types";
 
 interface TransactionItem {
   product: Product;
@@ -25,8 +24,9 @@ interface TransactionItem {
 }
 
 export function ManageStockForm() {
-  const [allProducts] = useState<Product[]>(initialProducts);
-  const [vehicles] = useState<Vehicle[]>(placeholderVehicles);
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [vehicles] = useState<Vehicle[]>([]); // Initialize empty, replace with real data if needed
+  const [loading, setLoading] = useState(true);
   
   const [transactionType, setTransactionType] = useState<StockTransactionType>("ADD_STOCK_INVENTORY");
   const [transactionDate, setTransactionDate] = useState<string>("");
@@ -40,6 +40,17 @@ export function ManageStockForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
+  // Load products from Firestore
+  useEffect(() => {
+    const unsubscribe = ProductService.subscribeToProducts((products) => {
+      setAllProducts(products);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // Set initial transaction date
   useEffect(() => {
     const now = new Date();
     const offset = now.getTimezoneOffset();
@@ -53,7 +64,7 @@ export function ManageStockForm() {
       setTransactionItems(prev => [...prev, { product: productToAdd, quantity: "" }]);
     }
     setProductSearchPopoverOpen(false);
-    setProductSearchValue(""); 
+    setProductSearchValue("");
   };
 
   const handleRemoveProductFromTransaction = (productId: string) => {
@@ -73,13 +84,13 @@ export function ManageStockForm() {
     setTransactionItems([]);
     setNotes("");
     setSelectedVehicleId("");
-    // Keep transactionType and date as they might be intentionally set for multiple transactions
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSubmitting(true);
 
+    // Validate form
     if (transactionItems.length === 0) {
       toast({ variant: "destructive", title: "Validation Error", description: "Please add at least one product to the transaction." });
       setIsSubmitting(false);
@@ -92,84 +103,82 @@ export function ManageStockForm() {
       return;
     }
 
-    let allItemsValid = true;
+    // Validate quantities
     for (const item of transactionItems) {
       if (item.quantity === "" || Number(item.quantity) <= 0) {
         toast({ variant: "destructive", title: "Validation Error", description: `Please enter a valid quantity for ${item.product.name}.` });
-        allItemsValid = false;
-        break;
+        setIsSubmitting(false);
+        return;
       }
-      if (transactionType === "LOAD_TO_VEHICLE" || transactionType === "REMOVE_STOCK_WASTAGE" || transactionType === "STOCK_ADJUSTMENT_MANUAL") {
-        // For manual adjustment, stock can go negative if user intends to correct a negative stock later
-        if (item.product.stock < Number(item.quantity) && transactionType !== "STOCK_ADJUSTMENT_MANUAL") {
-          toast({ 
-            variant: "destructive", 
-            title: "Stock Error", 
-            description: `Not enough stock for ${item.product.name}. Available: ${item.product.stock}, Trying to transact: ${item.quantity}.` 
-          });
-          allItemsValid = false;
-          break;
+      
+      if (transactionType !== "STOCK_ADJUSTMENT_MANUAL" && 
+          (transactionType === "LOAD_TO_VEHICLE" || transactionType === "REMOVE_STOCK_WASTAGE") && 
+          item.product.stock < Number(item.quantity)) {
+        toast({ 
+          variant: "destructive", 
+          title: "Stock Error", 
+          description: `Not enough stock for ${item.product.name}. Available: ${item.product.stock}, Trying to transact: ${item.quantity}.` 
+        });
+        setIsSubmitting(false);
+        return;
+      }
+    }
+
+    try {
+      // Process all updates
+      await Promise.all(transactionItems.map(async (item) => {
+        const product = item.product;
+        const quantity = Number(item.quantity);
+        let newStock = product.stock;
+
+        // Calculate new stock based on transaction type
+        switch (transactionType) {
+          case "ADD_STOCK_INVENTORY":
+          case "UNLOAD_FROM_VEHICLE":
+            newStock += quantity;
+            break;
+          case "LOAD_TO_VEHICLE":
+          case "REMOVE_STOCK_WASTAGE":
+          case "STOCK_ADJUSTMENT_MANUAL":
+            newStock -= quantity;
+            break;
         }
-      }
-    }
 
-    if (!allItemsValid) {
-      setIsSubmitting(false);
-      return;
-    }
+        // Update product stock in Firestore
+        await ProductService.updateProduct(product.id, { stock: newStock });
 
-    // Simulate API call and update stock
-    // In a real app, this would be an API call and product state might be managed globally or refetched.
-    await new Promise(resolve => setTimeout(resolve, 700));
+        // Here you would typically also create a transaction record
+        // await StockService.createTransaction({
+        //   productId: product.id,
+        //   productName: product.name,
+        //   type: transactionType,
+        //   quantity: quantity,
+        //   previousStock: product.stock,
+        //   newStock: newStock,
+        //   notes: notes,
+        //   vehicleId: selectedVehicleId || undefined,
+        //   timestamp: new Date(transactionDate)
+        // });
+      }));
 
-    const updatedProducts = [...allProducts]; // Create a mutable copy for local state update simulation
-    let successfulTransactions = 0;
-
-    transactionItems.forEach(item => {
-      const productIndex = updatedProducts.findIndex(p => p.id === item.product.id);
-      if (productIndex === -1) return;
-
-      let newStock = updatedProducts[productIndex].stock;
-      const numQuantity = Number(item.quantity);
-
-      if (transactionType === "ADD_STOCK_INVENTORY" || transactionType === "UNLOAD_FROM_VEHICLE") {
-        newStock += numQuantity;
-      } else if (transactionType === "LOAD_TO_VEHICLE" || transactionType === "REMOVE_STOCK_WASTAGE" || transactionType === "STOCK_ADJUSTMENT_MANUAL") {
-        newStock -= numQuantity;
-      }
-       // For STOCK_ADJUSTMENT_MANUAL, newStock can be anything (even negative if user is correcting an error)
-      if (transactionType !== "STOCK_ADJUSTMENT_MANUAL") {
-         newStock = Math.max(0, newStock);
-      }
-      
-      updatedProducts[productIndex] = { ...updatedProducts[productIndex], stock: newStock };
-      
-      console.log("Stock Transaction Logged:", {
-        productId: item.product.id,
-        productName: item.product.name,
-        sku: item.product.sku,
-        type: transactionType,
-        quantity: numQuantity,
-        transactionDate: new Date(transactionDate),
-        notes,
-        vehicleId: (transactionType === "LOAD_TO_VEHICLE" || transactionType === "UNLOAD_FROM_VEHICLE") ? selectedVehicleId : undefined,
-        previousStock: item.product.stock,
-        newStock: newStock,
+      toast({
+        title: "Success",
+        description: `Stock updated for ${transactionItems.length} product(s)`,
       });
-      successfulTransactions++;
-    });
-    
-    // setAllProducts(updatedProducts); // This would update the global/parent state in a real app
-
-    toast({
-      title: "Transactions Processed",
-      description: `${successfulTransactions} product(s) updated for transaction type: ${transactionType}.`,
-    });
-    
-    resetForm();
-    setIsSubmitting(false);
+      
+      resetForm();
+    } catch (error) {
+      console.error("Error updating stock:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update stock. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
-  
+
   const transactionTypes: { value: StockTransactionType; label: string }[] = [
     { value: "ADD_STOCK_INVENTORY", label: "Add Stock to Inventory" },
     { value: "LOAD_TO_VEHICLE", label: "Load Stock to Vehicle" },
@@ -182,13 +191,23 @@ export function ManageStockForm() {
     p => !transactionItems.some(item => item.product.id === p.id)
   );
 
+  if (loading && allProducts.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="animate-spin h-8 w-8 text-primary" />
+      </div>
+    );
+  }
+
   return (
     <Card className="shadow-xl border-0">
       <CardHeader className="bg-gradient-to-r from-primary/5 to-secondary/5 px-6 py-5 rounded-t-lg">
         <div className="flex items-center justify-between">
           <div>
             <CardTitle className="font-headline text-2xl">Manage Stock Transactions</CardTitle>
-            <CardDescription className="mt-1">Record stock movements and adjustments for multiple products.</CardDescription>
+            <CardDescription className="mt-1">
+              Record stock movements and adjustments for multiple products.
+            </CardDescription>
           </div>
           <Badge variant="outline" className="hidden sm:flex">
             {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
@@ -201,7 +220,10 @@ export function ManageStockForm() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
             <div className="space-y-1.5">
               <Label htmlFor="transactionType">Transaction Type *</Label>
-              <Select value={transactionType} onValueChange={(value) => setTransactionType(value as StockTransactionType)}>
+              <Select 
+                value={transactionType} 
+                onValueChange={(value) => setTransactionType(value as StockTransactionType)}
+              >
                 <SelectTrigger id="transactionType" className="h-11">
                   <SelectValue placeholder="Select type" />
                 </SelectTrigger>
@@ -230,7 +252,10 @@ export function ManageStockForm() {
             {(transactionType === "LOAD_TO_VEHICLE" || transactionType === "UNLOAD_FROM_VEHICLE") && (
               <div className="space-y-1.5">
                 <Label htmlFor="selectedVehicleId">Select Vehicle *</Label>
-                <Select value={selectedVehicleId} onValueChange={setSelectedVehicleId}>
+                <Select 
+                  value={selectedVehicleId} 
+                  onValueChange={setSelectedVehicleId}
+                >
                   <SelectTrigger id="selectedVehicleId" className="h-11">
                     <SelectValue placeholder="Choose vehicle" />
                   </SelectTrigger>
@@ -272,11 +297,11 @@ export function ManageStockForm() {
                 <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
                   <Command
                     filter={(value, search) => {
-                        const product = allProducts.find(p => p.id === value);
-                        if (!product) return 0;
-                        const nameMatch = product.name.toLowerCase().includes(search.toLowerCase());
-                        const skuMatch = product.sku?.toLowerCase().includes(search.toLowerCase());
-                        return (nameMatch || skuMatch) ? 1 : 0;
+                      const product = allProducts.find(p => p.id === value);
+                      if (!product) return 0;
+                      const nameMatch = product.name.toLowerCase().includes(search.toLowerCase());
+                      const skuMatch = product.sku?.toLowerCase().includes(search.toLowerCase());
+                      return (nameMatch || skuMatch) ? 1 : 0;
                     }}
                   >
                     <CommandInput placeholder="Search product by name or SKU..." />
@@ -307,10 +332,10 @@ export function ManageStockForm() {
                 </PopoverContent>
               </Popover>
 
-              {transactionItems.length > 0 && (
+              {transactionItems.length > 0 ? (
                 <ScrollArea className="max-h-[300px] mt-2 pr-3 overflow-auto">
                   <div className="space-y-3">
-                    {transactionItems.map((item, index) => (
+                    {transactionItems.map((item) => (
                       <Card key={item.product.id} className="p-3 bg-muted/20 relative group">
                         <div className="flex flex-col sm:flex-row gap-3 items-start">
                           <div className="flex-grow">
@@ -320,7 +345,7 @@ export function ManageStockForm() {
                             </p>
                           </div>
                           <div className="w-full sm:w-32 shrink-0">
-                            <Label htmlFor={`quantity-${item.product.id}`} className="sr-only">Quantity for {item.product.name}</Label>
+                            <Label htmlFor={`quantity-${item.product.id}`} className="sr-only">Quantity</Label>
                             <Input
                               id={`quantity-${item.product.id}`}
                               type="number"
@@ -334,22 +359,23 @@ export function ManageStockForm() {
                           </div>
                         </div>
                         <Button
-                            variant="ghost"
-                            size="icon"
-                            className="absolute top-1 right-1 h-6 w-6 text-muted-foreground hover:text-destructive opacity-50 group-hover:opacity-100"
-                            onClick={() => handleRemoveProductFromTransaction(item.product.id)}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                            <span className="sr-only">Remove {item.product.name}</span>
+                          variant="ghost"
+                          size="icon"
+                          className="absolute top-1 right-1 h-6 w-6 text-muted-foreground hover:text-destructive opacity-50 group-hover:opacity-100"
+                          onClick={() => handleRemoveProductFromTransaction(item.product.id)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          <span className="sr-only">Remove</span>
                         </Button>
                       </Card>
                     ))}
                   </div>
                 </ScrollArea>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  No products added to this transaction yet.
+                </p>
               )}
-               {transactionItems.length === 0 && (
-                 <p className="text-sm text-muted-foreground text-center py-4">No products added to this transaction yet.</p>
-               )}
             </CardContent>
           </Card>
           
@@ -374,11 +400,11 @@ export function ManageStockForm() {
               disabled={isSubmitting}
               className="h-11"
             >
-              Clear Items & Notes
+              Clear Form
             </Button>
             <Button 
               type="submit" 
-              disabled={isSubmitting || transactionItems.length === 0 || transactionItems.some(item => item.quantity === "" || Number(item.quantity) <= 0)}
+              disabled={isSubmitting || transactionItems.length === 0}
               className="min-w-[200px] h-11"
             >
               {isSubmitting ? (
@@ -394,5 +420,3 @@ export function ManageStockForm() {
     </Card>
   );
 }
-
-    
