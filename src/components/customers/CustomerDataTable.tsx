@@ -1,7 +1,7 @@
 
 "use client";
 
-import { MoreHorizontal, Edit, Trash2, PlusCircle, Users2, Search, PhoneCall } from "lucide-react";
+import { MoreHorizontal, Edit, Trash2, PlusCircle, Users2, Search, PhoneCall, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -23,7 +23,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { Customer } from "@/lib/types";
 import { CustomerDialog } from "./CustomerDialog";
 import { useState, useEffect } from "react";
-import { placeholderCustomers } from "@/lib/placeholder-data";
 import { useAuth } from "@/contexts/AuthContext";
 import { Input } from "@/components/ui/input";
 import {
@@ -41,77 +40,92 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useCustomers } from "@/hooks/useCustomers"; // Import the hook
 
 const getInitials = (name: string) => name.split(" ").map(n => n[0]).join("").toUpperCase();
 
 export function CustomerDataTable() {
-  const [customers, setCustomers] = useState<Customer[]>(placeholderCustomers);
+  const { 
+    customers, 
+    isLoading: isLoadingCustomers, 
+    error: customersError, 
+    addCustomer, 
+    updateCustomer, 
+    deleteCustomer 
+  } = useCustomers();
+  
+  const [isMounted, setIsMounted] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+  const [isCustomerDialogOpen, setIsCustomerDialogOpen] = useState(false);
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
-  const [customerToDeleteId, setCustomerToDeleteId] = useState<string | null>(null);
+  const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
   const { currentUser } = useAuth();
-  const userRole = currentUser?.role;
   const { toast } = useToast();
+  const userRole = currentUser?.role;
 
   const canManageCustomers = userRole === 'admin';
   const canAddCustomers = userRole === 'admin' || userRole === 'cashier';
 
   useEffect(() => {
-    const firstLoadAnimationDoneKey = "customerDataTableFirstLoadDone";
-    const hasFirstLoadAnimationBeenDone = localStorage.getItem(firstLoadAnimationDoneKey) === "true";
-
-    if (hasFirstLoadAnimationBeenDone) {
-      setIsLoading(false);
-    } else {
-      setIsLoading(true);
-      const timer = setTimeout(() => {
-        setIsLoading(false);
-        localStorage.setItem(firstLoadAnimationDoneKey, "true");
-      }, 800);
-      return () => clearTimeout(timer);
-    }
+    setIsMounted(true);
   }, []);
 
-  const handleSaveCustomer = (customerToSave: Customer) => {
-    if (editingCustomer) {
-      if (!canManageCustomers) return;
-      setCustomers(customers.map(c => c.id === customerToSave.id ? customerToSave : c));
-    } else {
-      if (!canAddCustomers) return;
-      setCustomers([...customers, {
-        ...customerToSave,
-        id: Date.now().toString(),
-        avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${customerToSave.name}`
-      }]);
-    }
+  const handleOpenAddDialog = () => {
+    if (!canAddCustomers) return;
     setEditingCustomer(null);
+    setIsCustomerDialogOpen(true);
   };
 
-  const openDeleteConfirmation = (customerId: string) => {
+  const handleOpenEditDialog = (customer: Customer) => {
     if (!canManageCustomers) return;
-    setCustomerToDeleteId(customerId);
+    setEditingCustomer(customer);
+    setIsCustomerDialogOpen(true);
+  };
+
+  const handleSaveCustomer = async (customerToSave: Customer) => {
+    let success = false;
+    if (editingCustomer) { // Edit mode
+      if (!canManageCustomers) return;
+      const result = await updateCustomer(customerToSave.id, customerToSave);
+      success = !!result;
+    } else { // Add mode
+      if (!canAddCustomers) return;
+      // The avatar URL logic is now handled within addCustomer or the API for consistency
+      const result = await addCustomer({
+        name: customerToSave.name,
+        phone: customerToSave.phone,
+        address: customerToSave.address,
+        shopName: customerToSave.shopName,
+      });
+      success = !!result;
+    }
+
+    if (success) {
+      setIsCustomerDialogOpen(false);
+      setEditingCustomer(null);
+    }
+    // Toasts are handled by the useCustomers hook
+  };
+
+  const openDeleteConfirmation = (customer: Customer) => {
+    if (!canManageCustomers) return;
+    setCustomerToDelete(customer);
     setIsDeleteAlertOpen(true);
   };
 
-  const handleDeleteCustomer = () => {
-    if (!canManageCustomers || !customerToDeleteId) return;
-    setCustomers(customers.filter(c => c.id !== customerToDeleteId));
+  const handleDeleteConfirmed = async () => {
+    if (!canManageCustomers || !customerToDelete) return;
+    await deleteCustomer(customerToDelete.id);
+    // Toast is handled by the hook
     setIsDeleteAlertOpen(false);
-    setCustomerToDeleteId(null);
+    setCustomerToDelete(null);
   };
-
-  const handleEditCustomer = (customer: Customer) => {
-    if (!canManageCustomers) return;
-    setEditingCustomer(customer);
-  }
 
   const handleCallCustomer = (customerName: string) => {
     toast({
       title: "Premium Feature Locked",
-      description: `Direct calling ${customerName} is a Limidora premium feature. Please upgrade your package to enable this.`,
-      variant: "default", 
+      description: `Direct calling ${customerName} is a Limidora premium feature. Please contact Limidora to enable this.`,
     });
   };
 
@@ -124,6 +138,24 @@ export function CustomerDataTable() {
     );
   });
 
+  const isLoading = !isMounted || isLoadingCustomers;
+
+  if (customersError && isMounted) {
+    return (
+      <Card className="shadow-none border-0">
+        <CardHeader className="p-4 sm:p-6">
+          <CardTitle className="text-2xl font-bold text-destructive">Error Loading Customers</CardTitle>
+        </CardHeader>
+        <CardContent className="p-4 sm:p-6">
+          <p className="text-muted-foreground">
+            Could not load customer data. Please try again later.
+          </p>
+          <p className="text-xs text-destructive mt-1">Details: {customersError}</p>
+        </CardContent>
+      </Card>
+    );
+  }
+  
   return (
     <TooltipProvider>
       <Card className="shadow-none border-0">
@@ -132,7 +164,7 @@ export function CustomerDataTable() {
             <div>
               <CardTitle className="text-2xl font-bold">Customers</CardTitle>
               <p className="text-sm text-muted-foreground mt-1">
-                {filteredCustomers.length} {filteredCustomers.length === 1 ? 'customer' : 'customers'}
+                {isLoading ? <Loader2 className="h-4 w-4 animate-spin inline-block" /> : `${filteredCustomers.length} ${filteredCustomers.length === 1 ? 'customer' : 'customers'}`}
               </p>
             </div>
 
@@ -146,19 +178,12 @@ export function CustomerDataTable() {
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
-
               {canAddCustomers && (
-                <CustomerDialog
-                  customer={null}
-                  onSave={handleSaveCustomer}
-                  trigger={
-                    <Button className="h-10 gap-1">
-                      <PlusCircle className="h-4 w-4" />
-                      <span className="hidden sm:inline">Add Customer</span>
-                      <span className="inline sm:hidden">Add</span>
-                    </Button>
-                  }
-                />
+                <Button onClick={handleOpenAddDialog} className="h-10 gap-1">
+                  <PlusCircle className="h-4 w-4" />
+                  <span className="hidden sm:inline">Add Customer</span>
+                  <span className="inline sm:hidden">Add</span>
+                </Button>
               )}
             </div>
           </div>
@@ -218,12 +243,12 @@ export function CustomerDataTable() {
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent align="end" className="w-40">
                                     <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                    <DropdownMenuItem onClick={() => handleEditCustomer(customer)}>
+                                    <DropdownMenuItem onClick={() => handleOpenEditDialog(customer)}>
                                       <Edit className="mr-2 h-4 w-4" /> Edit
                                     </DropdownMenuItem>
                                     <DropdownMenuItem
                                       className="text-destructive focus:text-destructive"
-                                      onClick={() => openDeleteConfirmation(customer.id)}
+                                      onClick={() => openDeleteConfirmation(customer)}
                                     >
                                       <Trash2 className="mr-2 h-4 w-4" /> Delete
                                     </DropdownMenuItem>
@@ -330,12 +355,12 @@ export function CustomerDataTable() {
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="w-40">
                                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                <DropdownMenuItem onClick={() => handleEditCustomer(customer)}>
+                                <DropdownMenuItem onClick={() => handleOpenEditDialog(customer)}>
                                   <Edit className="mr-2 h-4 w-4" /> Edit
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
                                   className="text-destructive focus:text-destructive"
-                                  onClick={() => openDeleteConfirmation(customer.id)}
+                                  onClick={() => openDeleteConfirmation(customer)}
                                 >
                                   <Trash2 className="mr-2 h-4 w-4" /> Delete
                                 </DropdownMenuItem>
@@ -353,13 +378,13 @@ export function CustomerDataTable() {
         </CardContent>
       </Card>
 
-      {editingCustomer && (
+      {isCustomerDialogOpen && (
         <CustomerDialog
           customer={editingCustomer}
           onSave={handleSaveCustomer}
-          open={!!editingCustomer}
-          onOpenChange={(open) => !open && setEditingCustomer(null)}
-          isEditMode={true}
+          open={isCustomerDialogOpen}
+          onOpenChange={setIsCustomerDialogOpen}
+          isEditMode={!!editingCustomer}
         />
       )}
 
@@ -368,13 +393,13 @@ export function CustomerDataTable() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Customer</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete this customer and all associated data. This action cannot be undone.
+              Are you sure you want to delete {customerToDelete?.name}? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => setIsDeleteAlertOpen(false)}>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleDeleteCustomer}
+              onClick={handleDeleteConfirmed}
               className="bg-destructive hover:bg-destructive/90"
             >
               Delete Customer
