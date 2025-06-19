@@ -23,10 +23,19 @@ export function useSalesData() {
         throw new Error(errorData.message || "Failed to fetch sales data");
       }
       const data = await response.json();
-      // Ensure saleDate is a Date object
+      // Ensure saleDate is a Date object and totalAmount is a number
       const formattedData = data.map((sale: any) => ({
         ...sale,
         saleDate: new Date(sale.saleDate),
+        totalAmount: Number(sale.totalAmount) || 0, // Ensure totalAmount is a number, default to 0 if NaN/undefined
+        // Also ensure other numerical fields from sale are numbers
+        subTotal: Number(sale.subTotal) || 0,
+        discountPercentage: Number(sale.discountPercentage) || 0,
+        discountAmount: Number(sale.discountAmount) || 0,
+        cashGiven: sale.cashGiven !== undefined ? Number(sale.cashGiven) : undefined,
+        balanceReturned: sale.balanceReturned !== undefined ? Number(sale.balanceReturned) : undefined,
+        amountPaidOnCredit: sale.amountPaidOnCredit !== undefined ? Number(sale.amountPaidOnCredit) : undefined,
+        remainingCreditBalance: sale.remainingCreditBalance !== undefined ? Number(sale.remainingCreditBalance) : undefined,
       }));
       setSales(formattedData);
     } catch (err: any) {
@@ -54,3 +63,4 @@ export function useSalesData() {
     refetchSales: fetchSales,
   };
 }
+
