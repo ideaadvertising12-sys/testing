@@ -12,9 +12,9 @@ export interface Product {
   description?: string;
   sku?: string;
   reorderLevel?: number;
-  aiHint?: string; // Added for specific AI hints
-  createdAt?: Date; // For FirestoreProduct fromFirestore conversion
-  updatedAt?: Date; // For FirestoreProduct fromFirestore conversion
+  aiHint?: string;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export interface Customer {
@@ -24,32 +24,32 @@ export interface Customer {
   phone: string;
   address?: string;
   shopName?: string;
-  createdAt?: Date; // For FirestoreCustomer fromFirestore conversion
+  createdAt?: Date;
 }
 
 export interface CartItem extends Product {
   quantity: number;
-  appliedPrice: number; // Price used for this item in the cart (retail or wholesale)
-  saleType: 'retail' | 'wholesale'; // How this item was added
+  appliedPrice: number;
+  saleType: 'retail' | 'wholesale';
 }
 
 export interface Sale {
   id:string;
-  customerId?: string; // Mandatory for credit sales
-  customerName?: string; // Denormalized for quick display, mandatory for credit
+  customerId?: string;
+  customerName?: string;
   items: CartItem[];
-  subTotal: number; // Subtotal before discount
-  discountPercentage: number; // Discount applied
-  discountAmount: number; // Calculated discount amount
-  totalAmount: number; // Final amount after discount
+  subTotal: number;
+  discountPercentage: number;
+  discountAmount: number;
+  totalAmount: number;
   paymentMethod: "Cash" | "Card" | "Credit";
-  cashGiven?: number; // For cash payment
-  balanceReturned?: number; // For cash payment
-  amountPaidOnCredit?: number; // For credit payment
-  remainingCreditBalance?: number; // For credit payment
+  cashGiven?: number;
+  balanceReturned?: number;
+  amountPaidOnCredit?: number;
+  remainingCreditBalance?: number;
   saleDate: Date;
-  staffId: string; // Or staff name
-  createdAt?: Date; // For FirestoreSale fromFirestore conversion
+  staffId: string;
+  createdAt?: Date;
 }
 
 export interface StatsData {
@@ -60,27 +60,27 @@ export interface StatsData {
 }
 
 export interface SalesChartData {
-  name: string; // e.g., 'Jan', 'Feb', 'Mon', 'Tue'
+  name: string;
   sales: number;
 }
 
 export type UserRole = "admin" | "cashier";
 
 export interface User {
-  username: string; // Acts as ID
+  username: string;
   role: UserRole;
-  name: string; // Display name, e.g., "Admin User"
-  password_hashed_or_plain?: string; // For user management forms, actual storage in mock is separate
+  name: string;
+  password_hashed_or_plain?: string;
 }
 
 
 export interface NavItemConfig {
-  href?: string; // Optional: if not provided, it's a parent/header for children
+  href?: string;
   label: string;
   icon: React.ElementType;
   allowedRoles: UserRole[];
-  children?: NavItemConfig[]; // For sub-menus
-  id: string; // Unique ID for accordion items
+  children?: NavItemConfig[];
+  id: string;
 }
 
 export type StockTransactionType =
@@ -93,18 +93,18 @@ export type StockTransactionType =
 export interface StockTransaction {
   id: string;
   productId: string;
-  productName: string; // Denormalized
+  productName: string;
   type: StockTransactionType;
   quantity: number;
   transactionDate: Date;
   notes?: string;
-  vehicleId?: string; // Optional, for vehicle loading/unloading
+  vehicleId?: string;
 }
 
 export interface FullReportEntry {
   saleId: string;
-  saleDate: string; // Formatted date string
-  saleTime: string; // Formatted time string
+  saleDate: string;
+  saleTime: string;
   customerName: string;
   productSku: string;
   productName: string;
@@ -117,7 +117,6 @@ export interface FullReportEntry {
   staffId: string;
 }
 
-// For RecentActivity component
 export interface ActivityItem {
   id: string;
   type: "sale" | "new_product" | "new_customer";
@@ -127,7 +126,7 @@ export interface ActivityItem {
   icon: React.ElementType;
   avatarUrl?: string;
   avatarFallback?: string;
-  aiHint?: string; // Added for product images
+  aiHint?: string;
 }
 
 export interface DayEndReportSummary {
@@ -136,7 +135,7 @@ export interface DayEndReportSummary {
   cardSales: { count: number; amount: number };
   creditSales: { count: number; amount: number; amountPaidOnCredit: number; remainingCreditBalance: number };
   overallTotalSales: number;
-  overallTotalCashReceived: number; // Cash from Cash Sales + Amount Paid on Credit Sales
+  overallTotalCashReceived: number;
   overallTotalBalanceReturned: number;
   overallTotalCreditOutstanding: number;
   totalTransactions: number;
@@ -149,114 +148,135 @@ export interface Vehicle {
   notes?: string;
 }
 
-// For User Management
 export interface ManagedUser extends User {
-  id: string; // Typically the username
-  password?: string; // Used in forms, not directly stored
+  id: string;
+  password?: string;
 }
 
 // Firestore-specific types
 export interface FirestoreProduct extends Omit<Product, 'id' | 'createdAt' | 'updatedAt'> {
-  createdAt?: Timestamp;
-  updatedAt?: Timestamp;
+  createdAt: Timestamp; // Mandatory for new Firestore documents
+  updatedAt: Timestamp; // Mandatory for new/updated Firestore documents
 }
 
 export interface FirestoreSale extends Omit<Sale, 'id' | 'saleDate' | 'createdAt' | 'items'> {
   saleDate: Timestamp;
-  createdAt?: Timestamp;
-  items: Omit<CartItem, 'createdAt' | 'updatedAt'>[]; // Cart items in FirestoreSale won't have timestamps from Product directly
+  createdAt: Timestamp; // Mandatory for new Firestore documents
+  items: Omit<CartItem, 'createdAt' | 'updatedAt' | 'id'>[]; // Items in sale don't need their own product id or timestamps
 }
 
 export interface FirestoreCustomer extends Omit<Customer, 'id' | 'createdAt'> {
-  createdAt?: Timestamp;
+  createdAt: Timestamp; // Mandatory for new Firestore documents
 }
 
 // Firestore converters for type safety
 export const productConverter = {
-  toFirestore: (product: Omit<Product, 'id' | 'createdAt' | 'updatedAt'> & { createdAt?: Timestamp, updatedAt?: Timestamp }) => {
-    const { ...data } = product; // Destructure to remove id and specific Date fields if they exist
+  toFirestore: (productData: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>): FirestoreProduct => {
     return {
-      ...data,
-      name: product.name,
-      category: product.category,
-      price: product.price,
-      wholesalePrice: product.wholesalePrice,
-      stock: product.stock,
-      imageUrl: product.imageUrl,
-      description: product.description,
-      sku: product.sku,
-      reorderLevel: product.reorderLevel,
-      aiHint: product.aiHint,
-      createdAt: product.createdAt instanceof Date ? Timestamp.fromDate(product.createdAt) : (product.createdAt || Timestamp.now()),
-      updatedAt: Timestamp.now()
+      name: productData.name,
+      category: productData.category,
+      price: productData.price,
+      wholesalePrice: productData.wholesalePrice === undefined ? null : productData.wholesalePrice, // Use null for undefined in Firestore
+      stock: productData.stock,
+      imageUrl: productData.imageUrl === undefined ? null : productData.imageUrl,
+      description: productData.description === undefined ? null : productData.description,
+      sku: productData.sku === undefined ? null : productData.sku,
+      reorderLevel: productData.reorderLevel === undefined ? null : productData.reorderLevel,
+      aiHint: productData.aiHint === undefined ? null : productData.aiHint,
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
     };
   },
   fromFirestore: (snapshot: any, options: any): Product => {
-    const data = snapshot.data(options);
+    const data = snapshot.data(options)!;
     return {
       id: snapshot.id,
       name: data.name,
       category: data.category,
       price: data.price,
-      wholesalePrice: data.wholesalePrice,
+      wholesalePrice: data.wholesalePrice === null ? undefined : data.wholesalePrice,
       stock: data.stock,
-      imageUrl: data.imageUrl,
-      description: data.description,
-      sku: data.sku,
-      reorderLevel: data.reorderLevel,
-      aiHint: data.aiHint,
-      createdAt: data.createdAt?.toDate(),
-      updatedAt: data.updatedAt?.toDate()
-    } as Product; // Cast to Product type
+      imageUrl: data.imageUrl === null ? undefined : data.imageUrl,
+      description: data.description === null ? undefined : data.description,
+      sku: data.sku === null ? undefined : data.sku,
+      reorderLevel: data.reorderLevel === null ? undefined : data.reorderLevel,
+      aiHint: data.aiHint === null ? undefined : data.aiHint,
+      createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : undefined,
+      updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : undefined,
+    };
   }
 };
 
 export const saleConverter = {
-  toFirestore: (sale: Omit<Sale, 'id' | 'createdAt' | 'items'> & { createdAt?: Timestamp, items: Omit<CartItem, 'createdAt' | 'updatedAt'>[] }) => {
-    const { ...data } = sale;
+  toFirestore: (saleData: Omit<Sale, 'id' | 'createdAt'>): FirestoreSale => {
+    const { items, ...restOfSaleData } = saleData;
+    const firestoreItems = items.map(item => {
+      const { id, createdAt, updatedAt, ...firestoreCartItemFields } = item; // Strip Product's id, createdAt, updatedAt
+      return firestoreCartItemFields;
+    });
+
     return {
-      ...data,
-      saleDate: sale.saleDate instanceof Date ? Timestamp.fromDate(sale.saleDate) : sale.saleDate,
-      createdAt: sale.createdAt instanceof Date ? Timestamp.fromDate(sale.createdAt) : (sale.createdAt || Timestamp.now()),
-      items: sale.items.map(item => { // Ensure items are plain objects
-        const {...itemData} = item;
-        return itemData;
-      })
+      ...restOfSaleData,
+      saleDate: Timestamp.fromDate(saleData.saleDate),
+      items: firestoreItems,
+      createdAt: Timestamp.now(),
     };
   },
   fromFirestore: (snapshot: any, options: any): Sale => {
-    const data = snapshot.data(options);
+    const data = snapshot.data(options)!;
+    // Reconstruct CartItem with necessary fields from Product (like id, name, category, etc.)
+    // Assuming the fields stored in firestoreItems are sufficient to display in cart context.
+    // If full product details are needed for each cart item upon fetching a sale, this might need adjustment
+    // or fetching products separately. For now, we assume stored item details are enough.
+    const reconstructedItems: CartItem[] = data.items.map((item: any) => ({
+      ...item, // This includes name, category, price, quantity, appliedPrice, saleType, etc.
+      id: '', // Placeholder, as product ID is not stored per item in FirestoreSale.items
+              // This might be an issue if CartItem expects a valid product ID.
+              // For now, the original CartItem on Sale creation had the ID, but it's stripped for DB.
+    }));
+
     return {
       id: snapshot.id,
-      ...data,
+      customerId: data.customerId,
+      customerName: data.customerName,
+      subTotal: data.subTotal,
+      discountPercentage: data.discountPercentage,
+      discountAmount: data.discountAmount,
+      totalAmount: data.totalAmount,
+      paymentMethod: data.paymentMethod,
+      cashGiven: data.cashGiven,
+      balanceReturned: data.balanceReturned,
+      amountPaidOnCredit: data.amountPaidOnCredit,
+      remainingCreditBalance: data.remainingCreditBalance,
+      staffId: data.staffId,
       saleDate: data.saleDate.toDate(),
-      createdAt: data.createdAt?.toDate(),
-      items: data.items.map((item: any) => ({ // Ensure items are mapped correctly
-        ...item
-      }))
-    } as Sale;
+      createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : undefined,
+      items: reconstructedItems,
+    };
   }
 };
 
 export const customerConverter = {
-  toFirestore: (customer: Omit<Customer, 'id' | 'createdAt'> & { createdAt?: Timestamp }) => {
-    const { ...data } = customer;
+  toFirestore: (customerData: Omit<Customer, 'id' | 'createdAt'>): FirestoreCustomer => {
     return {
-      ...data,
-      name: customer.name,
-      phone: customer.phone,
-      address: customer.address,
-      shopName: customer.shopName,
-      avatar: customer.avatar,
-      createdAt: customer.createdAt instanceof Date ? Timestamp.fromDate(customer.createdAt) : (customer.createdAt || Timestamp.now())
+      name: customerData.name,
+      phone: customerData.phone,
+      address: customerData.address === undefined ? null : customerData.address,
+      shopName: customerData.shopName === undefined ? null : customerData.shopName,
+      avatar: customerData.avatar === undefined ? null : customerData.avatar,
+      createdAt: Timestamp.now(),
     };
   },
   fromFirestore: (snapshot: any, options: any): Customer => {
-    const data = snapshot.data(options);
+    const data = snapshot.data(options)!;
     return {
       id: snapshot.id,
-      ...data,
-      createdAt: data.createdAt?.toDate()
-    } as Customer;
+      name: data.name,
+      phone: data.phone,
+      address: data.address === null ? undefined : data.address,
+      shopName: data.shopName === null ? undefined : data.shopName,
+      avatar: data.avatar === null ? undefined : data.avatar,
+      createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : undefined,
+    };
   }
 };

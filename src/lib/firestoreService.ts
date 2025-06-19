@@ -37,6 +37,7 @@ const productsCollection = collection(db, 'products').withConverter(productConve
 
 export const addProduct = async (productData: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> => {
   try {
+    // The productConverter.toFirestore will add createdAt and updatedAt
     const docRef = await addDoc(productsCollection, productData);
     return docRef.id;
   } catch (error) {
@@ -70,8 +71,16 @@ export const getProducts = async (): Promise<Product[]> => {
 export const updateProduct = async (productId: string, productData: Partial<Omit<Product, 'id' | 'createdAt' | 'updatedAt'>>): Promise<void> => {
   try {
     const docRef = doc(db, 'products', productId).withConverter(productConverter);
-    // Ensure updatedAt is updated
-    const dataToUpdate = { ...productData, updatedAt: Timestamp.now() } as Partial<FirestoreProduct>;
+    // For partial updates, ensure `updatedAt` is always set.
+    // The data passed to updateDoc should be fields of FirestoreProduct.
+    // Fields in productData are from Product, but productConverter isn't automatically called on each field for updates.
+    // So, ensure that if productData contains any Date objects, they are converted to Timestamps if needed by Firestore schema.
+    // However, Product type's createdAt/updatedAt are Dates, but they are OMITTED from productData type.
+    // So we only need to worry about updatedAt.
+    const dataToUpdate: Partial<FirestoreProduct> = {
+      ...productData,
+      updatedAt: Timestamp.now()
+    };
     await updateDoc(docRef, dataToUpdate);
   } catch (error) {
     console.error("Error updating product: ", error);
@@ -95,6 +104,7 @@ const customersCollection = collection(db, 'customers').withConverter(customerCo
 
 export const addCustomer = async (customerData: Omit<Customer, 'id' | 'createdAt'>): Promise<string> => {
   try {
+    // customerConverter.toFirestore will add createdAt
     const docRef = await addDoc(customersCollection, customerData);
     return docRef.id;
   } catch (error) {
@@ -128,8 +138,9 @@ export const getCustomers = async (): Promise<Customer[]> => {
 export const updateCustomer = async (customerId: string, customerData: Partial<Omit<Customer, 'id' | 'createdAt'>>): Promise<void> => {
   try {
     const docRef = doc(db, 'customers', customerId).withConverter(customerConverter);
-    // Ensure updatedAt logic if you add an updatedAt field to Customer
-    await updateDoc(docRef, customerData as Partial<FirestoreCustomer>);
+    // If Customer type had an updatedAt, we'd add it here as Timestamp.now()
+    // const dataToUpdate: Partial<FirestoreCustomer> = {...customerData, updatedAt: Timestamp.now()};
+    await updateDoc(docRef, customerData as Partial<FirestoreCustomer>); // Casting because customerData is Partial<Customer>
   } catch (error) {
     console.error("Error updating customer: ", error);
     throw new Error("Failed to update customer.");
@@ -155,11 +166,12 @@ export const addSale = async (saleData: Omit<Sale, 'id' | 'createdAt'>): Promise
 
   // 1. Create the sale document
   const saleDocRef = doc(salesCollection); // Auto-generate ID for the sale
-  batch.set(saleDocRef, { ...saleData, saleDate: Timestamp.fromDate(saleData.saleDate) });
+  // Pass saleData directly, saleConverter.toFirestore will handle saleDate (Date -> Timestamp) and items.
+  batch.set(saleDocRef, saleData);
 
   // 2. Update product stock for each item in the sale
   for (const item of saleData.items) {
-    const productRef = doc(db, 'products', item.id).withConverter(productConverter);
+    const productRef = doc(db, 'products', item.id).withConverter(productConverter); // item.id is the product ID
     const productSnap = await getDoc(productRef);
 
     if (productSnap.exists()) {
@@ -169,9 +181,10 @@ export const addSale = async (saleData: Omit<Sale, 'id' | 'createdAt'>): Promise
         console.error(`Not enough stock for product ${item.name} (ID: ${item.id}). Available: ${currentStock}, Required: ${item.quantity}`);
         throw new Error(`Not enough stock for product ${item.name}. Transaction rolled back.`);
       }
-      // Firestore Partial<Product> expects plain JS Date for updatedAt, converter handles Timestamp
-      const productUpdateData: Partial<Product> = { stock: newStock, updatedAt: new Date() };
-      batch.update(productRef, productUpdateData);
+      // Prepare update data for product. updateProduct expects Partial<Omit<Product, 'id' | 'createdAt' | 'updatedAt'>>
+      const productUpdateData = { stock: newStock };
+      // The updateDoc call in updateProduct function will handle setting updatedAt
+      batch.update(productRef, { ...productUpdateData, updatedAt: Timestamp.now() } as Partial<FirestoreProduct>);
     } else {
       console.error(`Product with ID ${item.id} not found during sale processing.`);
       throw new Error(`Product ${item.name} not found. Transaction rolled back.`);
@@ -211,14 +224,10 @@ export const getSales = async (count = 20): Promise<Sale[]> => {
 };
 
 // --- Stock Transaction Services ---
-// (Placeholder for future implementation if needed, e.g., logging stock movements)
-// For now, stock updates are handled directly within addSale or dedicated product stock update functions.
-// We might need to enhance this if complex stock logging/auditing is required.
-
 export const updateProductStock = async (productId: string, newStockLevel: number): Promise<void> => {
   try {
     const productRef = doc(db, 'products', productId).withConverter(productConverter);
-    await updateDoc(productRef, { stock: newStockLevel, updatedAt: Timestamp.now() });
+    await updateDoc(productRef, { stock: newStockLevel, updatedAt: Timestamp.now() } as Partial<FirestoreProduct>);
   } catch (error) {
     console.error(`Error updating stock for product ${productId}: `, error);
     throw new Error("Failed to update product stock.");
