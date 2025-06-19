@@ -13,7 +13,7 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger, 
 } from "@/components/ui/dropdown-menu";
-import { LogOut, Settings, User, Sun, Moon, Laptop } from "lucide-react";
+import { LogOut, Settings, User, Sun, Moon, Laptop, UsersCog } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "next-themes";
 import Link from "next/link";
@@ -74,6 +74,14 @@ export function UserProfile() {
             <span>Settings</span>
           </Link>
         </DropdownMenuItem>
+        {currentUser.role === 'admin' && (
+          <DropdownMenuItem asChild>
+            <Link href="/app/user-management">
+              <UsersCog className="mr-2 h-4 w-4" />
+              <span>User Management</span>
+            </Link>
+          </DropdownMenuItem>
+        )}
         <DropdownMenuSeparator />
         
         <DropdownMenuLabel>Theme</DropdownMenuLabel>
@@ -101,4 +109,3 @@ export function UserProfile() {
     </DropdownMenu>
   );
 }
-

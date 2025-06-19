@@ -22,9 +22,10 @@ import {
   Settings,
   ReceiptText, 
   CalendarClock,
-  Truck, // Added for Vehicles
-  ListPlus, // Added for Add/Manage Vehicles
-  MapPin, // Added for Track Vehicles
+  Truck, 
+  ListPlus, 
+  MapPin, 
+  UsersCog, // Added for User Management
 } from "lucide-react";
 
 import {
@@ -105,6 +106,7 @@ const ALL_NAV_ITEMS: NavItemConfig[] = [
       { id: "customer-report", href: "/app/reports/customer-report", label: "Customer Report", icon: UserCheck, allowedRoles: ["admin"] },
     ]
   },
+  { id: "user-management", href: "/app/user-management", label: "User Management", icon: UsersCog, allowedRoles: ["admin"] },
   { id: "settings", href: "/app/settings", label: "Settings", icon: Settings, allowedRoles: ["admin", "cashier"] },
 ];
 

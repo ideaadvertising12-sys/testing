@@ -61,10 +61,12 @@ export interface SalesChartData {
 export type UserRole = "admin" | "cashier";
 
 export interface User {
-  username: string;
+  username: string; // Acts as ID
   role: UserRole;
   name: string; // Display name, e.g., "Admin User"
+  password_hashed_or_plain?: string; // For user management forms, actual storage in mock is separate
 }
+
 
 export interface NavItemConfig {
   href?: string; // Optional: if not provided, it's a parent/header for children
@@ -139,4 +141,10 @@ export interface Vehicle {
   vehicleNumber: string;
   driverName?: string;
   notes?: string;
+}
+
+// For User Management
+export interface ManagedUser extends User {
+  id: string; // Typically the username
+  password?: string; // Used in forms, not directly stored
 }

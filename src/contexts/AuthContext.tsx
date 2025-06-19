@@ -10,13 +10,14 @@ interface AuthContextType {
   login: (username: string, password_plain: string) => boolean;
   logout: () => void;
   availableRoles: UserRole[];
+  mockUsersCredentials: Record<string, { password_hashed_or_plain: string; role: UserRole, name: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const availableRoles: UserRole[] = ["admin", "cashier"];
 
-const mockUsersCredentials: Record<string, { password_hashed_or_plain: string; role: UserRole, name: string }> = {
+export const mockUsersCredentials: Record<string, { password_hashed_or_plain: string; role: UserRole, name: string }> = {
   "admin": { password_hashed_or_plain: "123", role: "admin", name: "Admin User" },
   "user": { password_hashed_or_plain: "123", role: "cashier", name: "Cashier User" },
 };
@@ -41,7 +42,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const username = usernameInput.toLowerCase(); 
     const userCredentials = mockUsersCredentials[username];
     if (userCredentials && userCredentials.password_hashed_or_plain === password_plain) {
-      const userToSet = { username: username, role: userCredentials.role, name: userCredentials.name };
+      const userToSet: User = { username: username, role: userCredentials.role, name: userCredentials.name };
       setCurrentUser(userToSet);
       // Persist to localStorage (example)
       // localStorage.setItem('currentUser', JSON.stringify(userToSet));
@@ -59,7 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ currentUser, login, logout, availableRoles }}>
+    <AuthContext.Provider value={{ currentUser, login, logout, availableRoles, mockUsersCredentials }}>
       {children}
     </AuthContext.Provider>
   );
@@ -72,5 +73,3 @@ export function useAuth(): AuthContextType {
   }
   return context;
 }
-
-    
