@@ -27,8 +27,7 @@ export function useSalesData() {
       const formattedData = data.map((sale: any) => ({
         ...sale,
         saleDate: new Date(sale.saleDate),
-        totalAmount: Number(sale.totalAmount) || 0, // Ensure totalAmount is a number, default to 0 if NaN/undefined
-        // Also ensure other numerical fields from sale are numbers
+        totalAmount: Number(sale.totalAmount) || 0,
         subTotal: Number(sale.subTotal) || 0,
         discountPercentage: Number(sale.discountPercentage) || 0,
         discountAmount: Number(sale.discountAmount) || 0,
@@ -42,6 +41,8 @@ export function useSalesData() {
       console.error("Error fetching sales data:", err);
       const errorMessage = err.message || "An unknown error occurred while fetching sales data.";
       setError(errorMessage);
+      // Only show toast if it's a new error or loading state changes, to avoid spamming
+      // For simplicity, we'll keep the toast here, but a more advanced setup might gate it.
       toast({
         variant: "destructive",
         title: "Error Fetching Sales",
@@ -50,10 +51,25 @@ export function useSalesData() {
     } finally {
       setIsLoading(false);
     }
-  }, [toast]);
+  }, [toast]); // Removed setIsLoading, setError, setSales from deps as they are stable state setters
 
   useEffect(() => {
-    fetchSales();
+    fetchSales(); // Initial fetch
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchSales();
+      }
+    };
+
+    // Refetch when the tab/window gains focus or becomes visible
+    window.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', fetchSales);
+
+    return () => {
+      window.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', fetchSales);
+    };
   }, [fetchSales]);
 
   return {
@@ -63,4 +79,3 @@ export function useSalesData() {
     refetchSales: fetchSales,
   };
 }
-
