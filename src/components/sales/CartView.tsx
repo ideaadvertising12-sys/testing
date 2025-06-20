@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { MinusCircle, PlusCircle, Trash2, Users, XCircle, Check, ChevronsUpDown, ShoppingCart, Loader2, AlertTriangle } from "lucide-react";
+import { MinusCircle, PlusCircle, Trash2, Users, XCircle, Check, ChevronsUpDown, ShoppingCart, Loader2, AlertTriangle, Gift } from "lucide-react";
 import Image from "next/image";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -22,7 +22,7 @@ interface CartViewProps {
   discountPercentage: number;
   onUpdateQuantity: (productId: string, quantity: number, saleType: 'retail' | 'wholesale') => void;
   onRemoveItem: (productId: string, saleType: 'retail' | 'wholesale') => void;
-  onSelectCustomer: (customer: Customer | null) => void; // Changed to accept Customer object or null
+  onSelectCustomer: (customer: Customer | null) => void; 
   onUpdateDiscountPercentage: (percentage: number) => void;
   onCheckout: () => void;
   onCancelOrder: () => void;
@@ -42,7 +42,10 @@ export function CartView({
   className
 }: CartViewProps) {
   const { customers: allCustomers, isLoading: isLoadingCustomers, error: customersError } = useCustomers();
-  const subtotal = cartItems.reduce((sum, item) => sum + item.appliedPrice * item.quantity, 0);
+  
+  // Subtotal should only consider non-offer items
+  const subtotal = cartItems.filter(item => !item.isOfferItem).reduce((sum, item) => sum + item.appliedPrice * item.quantity, 0);
+  
   const [openCustomerPopover, setOpenCustomerPopover] = React.useState(false);
 
   const handleDiscountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -52,7 +55,7 @@ export function CartView({
   };
 
   const calculatedDiscountAmount = subtotal * (discountPercentage / 100);
-  const totalAmount = Math.max(0, subtotal - calculatedDiscountAmount);
+  const totalAmount = Math.max(0, subtotal - calculatedDiscountAmount); // Total amount is based on subtotal of paid items
 
   const customerOptions = React.useMemo(() => {
     const options = [{ value: "guest", label: "Walk-in / Guest", customerObject: null as Customer | null }];
@@ -98,7 +101,6 @@ export function CartView({
                  filter={(value, search) => {
                   const option = customerOptions.find(opt => opt.value === value);
                   if (!option) return 0;
-                  // Make sure option.label is always a string
                   const label = typeof option.label === 'string' ? option.label.toLowerCase() : '';
                   const name = option.customerObject?.name ? option.customerObject.name.toLowerCase() : '';
                   const shopName = option.customerObject?.shopName ? option.customerObject.shopName.toLowerCase() : '';
@@ -116,9 +118,9 @@ export function CartView({
                       {customerOptions.map((option) => (
                         <CommandItem
                           key={option.value}
-                          value={option.value} // Keep using ID for CommandItem value
+                          value={option.value} 
                           onSelect={() => {
-                            onSelectCustomer(option.customerObject); // Pass the full Customer object or null
+                            onSelectCustomer(option.customerObject); 
                             setOpenCustomerPopover(false);
                           }}
                         >
@@ -153,7 +155,7 @@ export function CartView({
           ) : (
             <div className="divide-y divide-border">
               {cartItems.map((item, index) => (
-                <div key={`${item.id}-${item.saleType}-${index}`} className="flex items-start p-3 gap-3">
+                <div key={`${item.id}-${item.saleType}-${item.isOfferItem ? 'offer' : 'paid'}-${index}`} className="flex items-start p-3 gap-3">
                   <Image
                     src={item.imageUrl || "https://placehold.co/48x48.png"}
                     alt={item.name}
@@ -165,49 +167,58 @@ export function CartView({
                   <div className="flex-grow min-w-0">
                     <div className="flex justify-between items-start">
                       <div className="flex-grow min-w-0 pr-2">
-                        <p className="text-sm font-medium truncate" title={item.name}>{item.name}</p>
+                        <p className="text-sm font-medium truncate" title={item.name}>
+                          {item.name}
+                          {item.isOfferItem && <Gift className="inline-block h-4 w-4 ml-1 text-green-600" />}
+                        </p>
                         <p className="text-xs text-muted-foreground">
-                          Rs. {item.appliedPrice.toFixed(2)}
-                          {item.saleType === 'wholesale' && <span className="text-blue-500 ml-1 font-semibold">(W)</span>}
+                          {item.isOfferItem ? <span className="font-semibold text-green-600">FREE</span> : `Rs. ${item.appliedPrice.toFixed(2)}`}
+                          {item.saleType === 'wholesale' && !item.isOfferItem && <span className="text-blue-500 ml-1 font-semibold">(W)</span>}
                         </p>
                       </div>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:bg-destructive/10 rounded-full -mr-1 -mt-0.5 flex-shrink-0" onClick={() => onRemoveItem(item.id, item.saleType)}>
-                        <Trash2 className="h-4 w-4" />
-                        <span className="sr-only">Remove {item.name}</span>
-                      </Button>
+                      {!item.isOfferItem && ( // Allow removing only paid items directly, offer items are auto-managed
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:bg-destructive/10 rounded-full -mr-1 -mt-0.5 flex-shrink-0" onClick={() => onRemoveItem(item.id, item.saleType)}>
+                          <Trash2 className="h-4 w-4" />
+                          <span className="sr-only">Remove {item.name}</span>
+                        </Button>
+                      )}
                     </div>
                     <div className="flex items-center justify-between mt-1.5 gap-2">
-                      <div className="flex items-center space-x-1.5">
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-7 w-7 rounded-full"
-                          onClick={() => onUpdateQuantity(item.id, item.quantity - 1, item.saleType)}
-                          disabled={item.quantity <= 1}
-                        >
-                          <MinusCircle className="h-3.5 w-3.5" />
-                        </Button>
-                        <Input
-                          type="number"
-                          value={item.quantity}
-                          onChange={(e) => onUpdateQuantity(item.id, parseInt(e.target.value) || 1, item.saleType)}
-                          className="h-7 w-10 text-center px-1 text-sm"
-                          min="1"
-                          max={item.stock}
-                          aria-label={`Quantity for ${item.name}`}
-                        />
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-7 w-7 rounded-full"
-                          onClick={() => onUpdateQuantity(item.id, item.quantity + 1, item.saleType)}
-                          disabled={item.quantity >= item.stock}
-                        >
-                          <PlusCircle className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                      <p className="text-sm font-semibold text-right">
-                        Rs. {(item.appliedPrice * item.quantity).toFixed(2)}
+                      {!item.isOfferItem ? (
+                        <div className="flex items-center space-x-1.5">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-7 w-7 rounded-full"
+                            onClick={() => onUpdateQuantity(item.id, item.quantity - 1, item.saleType)}
+                            disabled={item.quantity <= 1}
+                          >
+                            <MinusCircle className="h-3.5 w-3.5" />
+                          </Button>
+                          <Input
+                            type="number"
+                            value={item.quantity}
+                            onChange={(e) => onUpdateQuantity(item.id, parseInt(e.target.value) || 1, item.saleType)}
+                            className="h-7 w-10 text-center px-1 text-sm"
+                            min="1"
+                            max={item.stock} // Assuming 'stock' is available on CartItem, might need to fetch from Product
+                            aria-label={`Quantity for ${item.name}`}
+                          />
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-7 w-7 rounded-full"
+                            onClick={() => onUpdateQuantity(item.id, item.quantity + 1, item.saleType)}
+                            disabled={item.quantity >= (allCustomers.find(p=>p.id === item.id)?.stock || item.stock || 0)} // Assuming 'stock' is available
+                          >
+                            <PlusCircle className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="text-sm text-muted-foreground">Qty: {item.quantity}</div>
+                      )}
+                       <p className="text-sm font-semibold text-right">
+                        {item.isOfferItem ? <span className="text-green-600">Rs. 0.00</span> : `Rs. ${(item.appliedPrice * item.quantity).toFixed(2)}`}
                       </p>
                     </div>
                   </div>
@@ -263,7 +274,7 @@ export function CartView({
               size="lg" 
               className="py-2.5"
               onClick={onCheckout}
-              disabled={cartItems.length === 0}
+              disabled={cartItems.filter(item => !item.isOfferItem).length === 0} // Disable if only free items or empty
             >
               Checkout
             </Button>

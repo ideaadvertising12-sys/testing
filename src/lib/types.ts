@@ -33,6 +33,7 @@ export interface CartItem {
   name: string;
   category: Product["category"];
   price: number;
+  isOfferItem?: boolean; // Added for "Buy 12 Get 1 Free"
 }
 
 export interface Sale {
@@ -51,6 +52,7 @@ export interface Sale {
   remainingCreditBalance?: number;
   saleDate: Date;
   staffId: string;
+  offerApplied?: boolean; // Added for "Buy 12 Get 1 Free"
 }
 
 // Stock Transaction Types
@@ -102,6 +104,7 @@ export interface FirestoreCartItem {
   productName: string;
   productCategory: Product["category"];
   productPrice: number;
+  isOfferItem?: boolean; // Added for "Buy 12 Get 1 Free"
 }
 
 export interface FirestoreSale extends Omit<Sale, 'id' | 'saleDate' | 'items'> {
@@ -109,6 +112,7 @@ export interface FirestoreSale extends Omit<Sale, 'id' | 'saleDate' | 'items'> {
   saleDate: Timestamp;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
+  offerApplied?: boolean; // Added for "Buy 12 Get 1 Free"
 }
 
 export interface FirestoreStockTransaction {
@@ -217,6 +221,7 @@ export const saleConverter = {
     if (sale.balanceReturned !== undefined) firestoreSale.balanceReturned = sale.balanceReturned;
     if (sale.amountPaidOnCredit !== undefined) firestoreSale.amountPaidOnCredit = sale.amountPaidOnCredit;
     if (sale.remainingCreditBalance !== undefined) firestoreSale.remainingCreditBalance = sale.remainingCreditBalance;
+    if (sale.offerApplied !== undefined) firestoreSale.offerApplied = sale.offerApplied; // Handle offerApplied
     if (!sale.createdAt) firestoreSale.createdAt = Timestamp.now();
 
     return firestoreSale;
@@ -226,20 +231,22 @@ export const saleConverter = {
     return {
       id: snapshot.id,
       items: data.items.map((item: FirestoreCartItem) => ({
-        id: item.productRef.split('/')[1],
+        id: item.productRef.split('/')[1], // Assuming productRef is 'products/productId'
         quantity: item.quantity,
         appliedPrice: item.appliedPrice,
         saleType: item.saleType,
         name: item.productName,
         category: item.productCategory,
         price: item.productPrice,
-        stock: 0,
+        isOfferItem: item.isOfferItem || false, // Handle isOfferItem
+        // These are not stored in FirestoreCartItem but are part of CartItem type, provide defaults
+        stock: 0, 
         wholesalePrice: undefined,
         imageUrl: undefined,
         description: undefined,
         sku: undefined,
         reorderLevel: undefined,
-        aiHint: undefined
+        aiHint: undefined 
       })),
       subTotal: data.subTotal,
       discountPercentage: data.discountPercentage,
@@ -253,7 +260,8 @@ export const saleConverter = {
       saleDate: data.saleDate.toDate(),
       staffId: data.staffId,
       customerId: data.customerId,
-      customerName: data.customerName
+      customerName: data.customerName,
+      offerApplied: data.offerApplied || false, // Handle offerApplied
     };
   }
 };

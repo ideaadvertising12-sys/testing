@@ -15,19 +15,18 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { AppLogo } from "@/components/AppLogo";
-import { CreditCard, Landmark, Printer, Wallet, AlertTriangle } from "lucide-react";
+import { CreditCard, Landmark, Printer, Wallet, AlertTriangle, Gift } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import React, { useState, useEffect, useMemo } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { placeholderCustomers } from "@/lib/placeholder-data"; // For finding customer details in reprint
+import { placeholderCustomers } from "@/lib/placeholder-data"; 
 import { cn } from "@/lib/utils";
 
 interface BillDialogProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
   
-  // For new sales
   cartItems?: CartItem[];
   customer?: Customer | null;
   discountPercentage?: number;
@@ -36,8 +35,8 @@ interface BillDialogProps {
   currentTotalAmount?: number;
   saleId?: string; 
   onConfirmSale?: (saleData: Omit<Sale, 'id' | 'saleDate' | 'staffId' | 'items'>) => void;
+  offerApplied?: boolean; // New prop
 
-  // For reprinting existing sales
   existingSaleData?: Sale;
 }
 
@@ -52,10 +51,13 @@ export function BillDialog({
   currentTotalAmount: newTotalAmount,
   saleId: newSaleId,
   onConfirmSale,
+  offerApplied: newOfferApplied, // Destructure new prop
   existingSaleData
 }: BillDialogProps) {
   
   const isReprintMode = !!existingSaleData;
+  const offerWasApplied = isReprintMode ? (existingSaleData.offerApplied || false) : (newOfferApplied || false);
+
 
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<Sale["paymentMethod"]>(
     isReprintMode && existingSaleData ? existingSaleData.paymentMethod : "Cash"
@@ -126,7 +128,6 @@ export function BillDialog({
       return;
     }
 
-    // Logic for new sale
     if (onConfirmSale) {
       const saleData: Omit<Sale, 'id' | 'saleDate' | 'staffId' | 'items'> = {
         customerId: customerForDisplay?.id,
@@ -136,18 +137,19 @@ export function BillDialog({
         discountAmount: discountAmountToDisplay,
         totalAmount: totalAmountToDisplay,
         paymentMethod: selectedPaymentMethod,
+        offerApplied: offerWasApplied, // Pass offer status
       };
 
       if (selectedPaymentMethod === "Cash") {
         saleData.cashGiven = parseFloat(cashGiven || "0");
         saleData.balanceReturned = balanceReturned !== null ? balanceReturned : 0;
         if (saleData.cashGiven < totalAmountToDisplay) {
-          alert("Cash given is less than total amount."); // Consider using toast
+          alert("Cash given is less than total amount.");
           return;
         }
       } else if (selectedPaymentMethod === "Credit") {
         if (!customerForDisplay) {
-          alert("A customer must be selected for credit sales."); // Consider using toast
+          alert("A customer must be selected for credit sales.");
           return;
         }
         saleData.customerId = customerForDisplay.id; 
@@ -155,7 +157,7 @@ export function BillDialog({
         saleData.amountPaidOnCredit = parseFloat(amountPaidOnCredit || "0");
         saleData.remainingCreditBalance = remainingCreditBalance !== null ? remainingCreditBalance : totalAmountToDisplay;
         if (saleData.amountPaidOnCredit > totalAmountToDisplay) {
-          alert("Amount paid cannot exceed total amount for credit sales."); // Consider using toast
+          alert("Amount paid cannot exceed total amount for credit sales.");
           return;
         }
       }
@@ -172,7 +174,7 @@ export function BillDialog({
   ];
   
   const isPrimaryButtonDisabled = !isReprintMode && (
-    itemsToDisplay.length === 0 ||
+    itemsToDisplay.filter(item => !item.isOfferItem || (item.isOfferItem && item.quantity > 0)).length === 0 ||
     (selectedPaymentMethod === "Cash" && (cashGiven === "" || parseFloat(cashGiven) < totalAmountToDisplay)) ||
     (selectedPaymentMethod === "Credit" && (!customerForDisplay || amountPaidOnCredit === "" || parseFloat(amountPaidOnCredit) > totalAmountToDisplay))
   );
@@ -183,7 +185,7 @@ export function BillDialog({
         className={cn(
           "sm:max-w-lg flex flex-col",
           "print:shadow-none print:border-none print:max-w-full print:max-h-full print:m-0 print:p-0 print:h-auto print:overflow-visible",
-          isOpen ? "max-h-[90vh]" : "" // Apply max-h only when dialog is open for screen view
+          isOpen ? "max-h-[90vh]" : "" 
         )}
       >
         <DialogHeader className="print:hidden px-6 pt-6">
@@ -218,6 +220,7 @@ export function BillDialog({
               {displaySaleId && <p>Transaction ID: {displaySaleId}</p>}
               {customerForDisplay && <p>Customer: {customerForDisplay.name} {customerForDisplay.shopName ? `(${customerForDisplay.shopName})` : ''}</p>}
               <p>Served by: Staff Member</p> 
+              {offerWasApplied && <p className="font-semibold text-green-600">Offer: Buy 12 Get 1 Free Applied!</p>}
             </div>
 
             <Separator className="my-4"/>
@@ -235,11 +238,14 @@ export function BillDialog({
                 </thead>
                 <tbody>
                   {itemsToDisplay.map((item, index) => (
-                    <tr key={`${item.id}-${item.saleType}-${index}`} className="border-b border-dashed">
-                      <td className="py-1.5">{item.name}</td>
+                    <tr key={`${item.id}-${item.saleType}-${item.isOfferItem ? 'offer' : 'paid'}-${index}`} className="border-b border-dashed">
+                      <td className="py-1.5">
+                        {item.name}
+                        {item.isOfferItem && <Gift className="inline-block h-3 w-3 ml-1 text-green-600" />}
+                      </td>
                       <td className="text-center py-1.5">{item.quantity}</td>
-                      <td className="text-right py-1.5">Rs. {item.appliedPrice.toFixed(2)}</td>
-                      <td className="text-right py-1.5">Rs. {(item.appliedPrice * item.quantity).toFixed(2)}</td>
+                      <td className="text-right py-1.5">{item.isOfferItem ? "FREE" : `Rs. ${item.appliedPrice.toFixed(2)}`}</td>
+                      <td className="text-right py-1.5">{item.isOfferItem ? "Rs. 0.00" : `Rs. ${(item.appliedPrice * item.quantity).toFixed(2)}`}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -248,7 +254,7 @@ export function BillDialog({
 
             <div className="space-y-1 text-xs mb-4">
               <div className="flex justify-between">
-                <span>Subtotal:</span>
+                <span>Subtotal (Paid Items):</span>
                 <span>Rs. {subtotalToDisplay.toFixed(2)}</span>
               </div>
               {discountPercentageToDisplay > 0 && (
@@ -259,7 +265,7 @@ export function BillDialog({
               )}
               <Separator className="my-1"/>
               <div className="flex justify-between font-bold text-sm">
-                <span>Total Amount:</span>
+                <span>Total Amount Due:</span>
                 <span>Rs. {totalAmountToDisplay.toFixed(2)}</span>
               </div>
             </div>
@@ -325,7 +331,6 @@ export function BillDialog({
                         </AlertDescription>
                     </Alert>
                 )}
-                 {/* For print view of cash details */}
                 <div className="mt-2 text-xs print:block hidden">
                   {isReprintMode && existingSaleData?.paymentMethod === "Cash" && (
                     <>
@@ -371,7 +376,6 @@ export function BillDialog({
                         </AlertDescription>
                     </Alert>
                 )}
-                {/* For print view of credit details */}
                 <div className="mt-2 text-xs print:block hidden">
                   {isReprintMode && existingSaleData?.paymentMethod === "Credit" && (
                     <>

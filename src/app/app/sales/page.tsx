@@ -1,8 +1,8 @@
 
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
-import { PackageSearch, ShoppingCart, Tag, X, Search, Maximize, Minimize, Loader2 } from "lucide-react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { PackageSearch, ShoppingCart, Tag, X, Search, Maximize, Minimize, Loader2, Gift } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { POSProductCard } from "@/components/sales/POSProductCard";
 import { CartView } from "@/components/sales/CartView";
@@ -17,13 +17,57 @@ import { Badge } from "@/components/ui/badge";
 import { Drawer, DrawerContent, DrawerTrigger, DrawerHeader, DrawerTitle, DrawerClose } from "@/components/ui/drawer";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import type { Product, CartItem, Customer, Sale } from "@/lib/types";
-import { placeholderSales } from "@/lib/placeholder-data";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useProducts } from "@/hooks/useProducts";
-import { useCustomers } from "@/hooks/useCustomers"; // Import useCustomers
+import { useCustomers } from "@/hooks/useCustomers";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertTriangle } from "lucide-react";
+
+// Helper function to reconcile offer items in the cart
+function reconcileOfferItems(
+  currentCart: CartItem[],
+  offerActive: boolean,
+  allProductsForLookup: Product[]
+): CartItem[] {
+  const paidItems = currentCart.filter(item => !item.isOfferItem);
+
+  if (!offerActive) {
+    return paidItems; // If offer is off, return only paid items
+  }
+
+  const newOfferItems: CartItem[] = [];
+  const productGroupCounts: Record<string, { count: number; productDetails: Product; saleType: 'retail' | 'wholesale' }> = {};
+
+  paidItems.forEach(item => {
+    const key = `${item.id}-${item.saleType}`; // Group by product ID and sale type
+    if (!productGroupCounts[key]) {
+      const baseProduct = allProductsForLookup.find(p => p.id === item.id);
+      if (!baseProduct) return; 
+      productGroupCounts[key] = { count: 0, productDetails: baseProduct, saleType: item.saleType };
+    }
+    productGroupCounts[key].count += item.quantity;
+  });
+
+  Object.values(productGroupCounts).forEach(group => {
+    const numberOfFreeUnits = Math.floor(group.count / 12);
+    if (numberOfFreeUnits > 0) {
+      newOfferItems.push({
+        ...group.productDetails,
+        id: group.productDetails.id, // Ensure ID is present
+        name: group.productDetails.name, // Ensure name is present
+        category: group.productDetails.category, // Ensure category is present
+        price: group.productDetails.price, // Ensure original price is present for reference
+        quantity: numberOfFreeUnits,
+        appliedPrice: 0,
+        saleType: group.saleType,
+        isOfferItem: true,
+      });
+    }
+  });
+  return [...paidItems, ...newOfferItems];
+}
+
 
 export default function SalesPage() {
   const { 
@@ -32,28 +76,25 @@ export default function SalesPage() {
     error: productsError,
     refetch: refetchProducts 
   } = useProducts();
-
-  // SalesPage also needs useCustomers to potentially get customer details if needed elsewhere,
-  // but primary selection object comes from CartView.
+  
   const { 
     customers: allCustomersFromHook, 
     isLoading: isLoadingHookCustomers, 
     error: hookCustomersError 
   } = useCustomers();
   
-  const [localSalesHistory, setLocalSalesHistory] = useState<Sale[]>(placeholderSales); 
-
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<Product["category"] | "All">("All");
   const [isBillOpen, setIsBillOpen] = useState(false);
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null); // State for the selected customer object
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [discountPercentage, setDiscountPercentage] = useState(0);
   const [currentSaleType, setCurrentSaleType] = useState<'retail' | 'wholesale'>('retail');
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isSalesPageFullScreen, setIsSalesPageFullScreen] = useState(false);
   const [isProcessingSale, setIsProcessingSale] = useState(false);
+  const [isBuy12Get1FreeActive, setIsBuy12Get1FreeActive] = useState(false); // Offer state
   const { toast } = useToast();
 
   const isMobile = useMediaQuery("(max-width: 768px)");
@@ -62,7 +103,6 @@ export default function SalesPage() {
     if (isLoadingProducts || !allProducts) return ["All"];
     return ["All", ...new Set(allProducts.map(p => p.category))];
   }, [allProducts, isLoadingProducts]);
-
 
   const toggleSalesPageFullScreen = () => setIsSalesPageFullScreen(!isSalesPageFullScreen);
 
@@ -84,67 +124,90 @@ export default function SalesPage() {
     }
   }, [searchTerm, selectedCategory, allProducts, isLoadingProducts]);
 
-  const handleAddToCart = (product: Product) => {
+  // Effect to update cart when offer status changes
+  useEffect(() => {
+    if (allProducts && allProducts.length > 0) { // Ensure allProducts is available
+        setCartItems(prevCart => reconcileOfferItems(prevCart, isBuy12Get1FreeActive, allProducts));
+    }
+  }, [isBuy12Get1FreeActive, allProducts]);
+
+
+  const handleAddToCart = (productToAdd: Product) => {
     setCartItems(prevItems => {
-      const existingItem = prevItems.find(item => item.id === product.id && item.saleType === currentSaleType);
-
-      const priceToUse = (currentSaleType === 'wholesale' && product.wholesalePrice && product.wholesalePrice > 0)
-        ? product.wholesalePrice
-        : product.price;
-
-      if (existingItem) {
-        if (product.stock > existingItem.quantity) { 
-          return prevItems.map(item =>
-            item.id === product.id && item.saleType === currentSaleType
-              ? { ...item, quantity: item.quantity + 1 }
-              : item
-          );
+      let updatedCart = [...prevItems];
+      const existingItemIndex = updatedCart.findIndex(
+        item => item.id === productToAdd.id && item.saleType === currentSaleType && !item.isOfferItem
+      );
+  
+      const priceToUse = (currentSaleType === 'wholesale' && productToAdd.wholesalePrice && productToAdd.wholesalePrice > 0)
+        ? productToAdd.wholesalePrice
+        : productToAdd.price;
+  
+      if (existingItemIndex > -1) {
+        const existingItem = updatedCart[existingItemIndex];
+        if (productToAdd.stock > existingItem.quantity) {
+          updatedCart[existingItemIndex] = { ...existingItem, quantity: existingItem.quantity + 1 };
         } else {
-          toast({ variant: "destructive", title: "Out of Stock", description: `Cannot add more ${product.name}. Maximum stock reached.`});
-          return prevItems;
+          toast({ variant: "destructive", title: "Out of Stock", description: `Cannot add more ${productToAdd.name}. Maximum stock reached.`});
+          return reconcileOfferItems(prevItems, isBuy12Get1FreeActive, allProducts); // Return reconciled original if no change
+        }
+      } else {
+        if (productToAdd.stock > 0) {
+          updatedCart.push({
+            ...productToAdd,
+            quantity: 1,
+            appliedPrice: priceToUse,
+            saleType: currentSaleType,
+            isOfferItem: false // Explicitly false for new paid items
+          });
+        } else {
+          toast({ variant: "destructive", title: "Out of Stock", description: `${productToAdd.name} is currently out of stock.`});
+          return reconcileOfferItems(prevItems, isBuy12Get1FreeActive, allProducts); // Return reconciled original if no change
         }
       }
-      if (product.stock > 0) { 
-        return [...prevItems, { ...product, quantity: 1, appliedPrice: priceToUse, saleType: currentSaleType }];
-      } else {
-         toast({ variant: "destructive", title: "Out of Stock", description: `${product.name} is currently out of stock.`});
-         return prevItems;
-      }
+      return reconcileOfferItems(updatedCart, isBuy12Get1FreeActive, allProducts);
     });
-
+  
     if (isMobile && !isCartOpen) {
       setIsCartOpen(true);
     }
   };
-
+  
   const handleUpdateQuantity = (productId: string, quantity: number, saleType: 'retail' | 'wholesale') => {
     const productInStock = allProducts.find(p => p.id === productId);
     if (!productInStock) return;
-
-    const newQuantity = Math.max(0, Math.min(quantity, productInStock.stock));
-
-    if (newQuantity === 0) {
-      handleRemoveItem(productId, saleType);
-    } else {
-      setCartItems(prevItems =>
-        prevItems.map(item =>
-          item.id === productId && item.saleType === saleType ? { ...item, quantity: newQuantity } : item
+  
+    const targetQuantity = Math.max(0, Math.min(quantity, productInStock.stock));
+  
+    setCartItems(prevItems => {
+      let updatedCart = prevItems
+        .map(item =>
+          item.id === productId && item.saleType === saleType && !item.isOfferItem
+            ? { ...item, quantity: targetQuantity }
+            : item
         )
-      );
-    }
+        .filter(item => (item.isOfferItem) || (!item.isOfferItem && item.quantity > 0)); // Keep offer items, remove paid if qty is 0
+        
+      return reconcileOfferItems(updatedCart, isBuy12Get1FreeActive, allProducts);
+    });
   };
-
+  
   const handleRemoveItem = (productId: string, saleType: 'retail' | 'wholesale') => {
-    setCartItems(prevItems => prevItems.filter(item => !(item.id === productId && item.saleType === saleType)));
+    setCartItems(prevItems => {
+      const updatedCart = prevItems.filter(item =>
+        !(item.id === productId && item.saleType === saleType && !item.isOfferItem) // Remove only the specific paid item
+      );
+      return reconcileOfferItems(updatedCart, isBuy12Get1FreeActive, allProducts);
+    });
   };
 
-  // Updated to accept a Customer object or null
   const handleSelectCustomer = (customer: Customer | null) => {
     setSelectedCustomer(customer);
   };
 
   const handleCheckout = () => {
-    if (cartItems.length === 0) {
+    const actualCartItems = cartItems.filter(item => !item.isOfferItem || (item.isOfferItem && item.quantity > 0));
+    if (actualCartItems.length === 0) {
         toast({
             variant: "destructive",
             title: "Empty Cart",
@@ -159,13 +222,14 @@ export default function SalesPage() {
   };
 
   const handleCancelOrder = () => {
-    setCartItems([]);
+    setCartItems([]); // This will be reconciled by useEffect if offer is active, so it will become empty.
     setSelectedCustomer(null);
     setDiscountPercentage(0);
     setCurrentSaleType('retail');
+    // setIsBuy12Get1FreeActive(false); // Optionally reset offer too
   };
 
-  const currentSubtotal = useMemo(() => cartItems.reduce((sum, item) => sum + item.appliedPrice * item.quantity, 0), [cartItems]);
+  const currentSubtotal = useMemo(() => cartItems.filter(item => !item.isOfferItem).reduce((sum, item) => sum + item.appliedPrice * item.quantity, 0), [cartItems]);
   const currentDiscountAmount = useMemo(() => currentSubtotal * (discountPercentage / 100), [currentSubtotal, discountPercentage]);
   const currentTotalAmount = useMemo(() => Math.max(0, currentSubtotal - currentDiscountAmount), [currentSubtotal, currentDiscountAmount]);
 
@@ -182,10 +246,12 @@ export default function SalesPage() {
         appliedPrice: item.appliedPrice,
         saleType: item.saleType,
         sku: item.sku, 
-        imageUrl: item.imageUrl, 
+        imageUrl: item.imageUrl,
+        isOfferItem: item.isOfferItem || false,
       })),
       saleDate: new Date().toISOString(), 
-      staffId: "staff001", 
+      staffId: "staff001",
+      offerApplied: isBuy12Get1FreeActive,
     };
 
     try {
@@ -202,11 +268,6 @@ export default function SalesPage() {
 
       const newSaleResponse = await response.json();
       
-      setLocalSalesHistory(prevSales => [
-        { ...newSaleResponse, saleDate: new Date(newSaleResponse.saleDate) }, 
-        ...prevSales
-      ]); 
-      
       toast({
           title: "Sale Successful!",
           description: `Payment Method: ${newSaleResponse.paymentMethod}. Total: Rs. ${newSaleResponse.totalAmount.toFixed(2)}`,
@@ -216,6 +277,7 @@ export default function SalesPage() {
       setSelectedCustomer(null);
       setDiscountPercentage(0);
       setCurrentSaleType('retail');
+      // setIsBuy12Get1FreeActive(false); // Optionally reset offer
       await refetchProducts(); 
 
     } catch (error: any) {
@@ -230,7 +292,8 @@ export default function SalesPage() {
     }
   };
 
-  const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+  const totalItemsInCartDisplay = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+
 
   const fullscreenButton = (
     <Button
@@ -323,6 +386,20 @@ export default function SalesPage() {
                 </Label>
               </div>
 
+               <div className="flex items-center space-x-2 bg-muted p-2 rounded-md shrink-0 self-start sm:self-center">
+                <Switch
+                  id="buy12get1free-toggle"
+                  checked={isBuy12Get1FreeActive}
+                  onCheckedChange={setIsBuy12Get1FreeActive}
+                  aria-label="Toggle Buy 12 Get 1 Free Offer"
+                  className="data-[state=checked]:bg-green-600"
+                />
+                <Label htmlFor="buy12get1free-toggle" className="flex items-center gap-1 text-sm font-medium">
+                  <Gift className="h-4 w-4" />
+                  Buy 12 Get 1 Free
+                </Label>
+              </div>
+
               <Tabs
                 value={selectedCategory}
                 onValueChange={(value) => setSelectedCategory(value as Product["category"] | "All")}
@@ -400,9 +477,9 @@ export default function SalesPage() {
                 className="fixed bottom-6 right-6 z-20 rounded-full h-14 w-14 shadow-lg bg-primary hover:bg-primary/90"
               >
                 <ShoppingCart className="h-6 w-6" />
-                {totalItems > 0 && (
+                {totalItemsInCartDisplay > 0 && (
                   <Badge className="absolute -top-2 -right-2 h-6 w-6 rounded-full flex items-center justify-center p-0">
-                    {totalItems}
+                    {totalItemsInCartDisplay}
                   </Badge>
                 )}
               </Button>
@@ -449,6 +526,7 @@ export default function SalesPage() {
         currentTotalAmount={currentTotalAmount}
         saleId={`SALE-${Date.now().toString().slice(-6)}`} 
         onConfirmSale={handleSuccessfulSale}
+        offerApplied={isBuy12Get1FreeActive} // Pass offer status
       />
     </div>
   );

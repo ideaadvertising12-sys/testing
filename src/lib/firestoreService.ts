@@ -20,8 +20,8 @@ import {
   saleConverter,
   type Sale,
   type FirestoreSale,
-  type CartItem, // Added CartItem for addSale signature
-  type FirestoreCartItem, // Added FirestoreCartItem for conversion
+  type CartItem, 
+  type FirestoreCartItem, 
   customerConverter,
   type Customer,
   type FirestoreCustomer
@@ -52,8 +52,6 @@ export const getProduct = async (id: string): Promise<Product | null> => {
 
 export const addProduct = async (productData: Omit<Product, 'id'>): Promise<string> => {
   checkFirebase();
-  // The converter's toFirestore method should handle timestamp creation.
-  // Ensure productData being passed matches what toFirestore expects.
   const dataToCreate = productConverter.toFirestore(productData as FirestoreProduct);
   const docRef = await addDoc(collection(db, "products"), dataToCreate);
   return docRef.id;
@@ -128,10 +126,10 @@ export const addSale = async (saleData: Omit<Sale, 'id' | 'saleDate' | 'items'> 
     saleType: item.saleType,
     productName: item.name, 
     productCategory: item.category,
-    productPrice: item.price 
+    productPrice: item.price,
+    isOfferItem: item.isOfferItem || false, // Include offer item flag
   }));
 
-  // Explicitly construct FirestoreSale to avoid spreading undefined optional fields
   const firestoreSaleData: FirestoreSale = {
     items: firestoreSaleItems,
     subTotal: saleData.subTotal,
@@ -139,13 +137,13 @@ export const addSale = async (saleData: Omit<Sale, 'id' | 'saleDate' | 'items'> 
     discountAmount: saleData.discountAmount,
     totalAmount: saleData.totalAmount,
     paymentMethod: saleData.paymentMethod,
-    saleDate: Timestamp.fromDate(saleData.saleDate), // Convert Date to Timestamp
+    saleDate: Timestamp.fromDate(saleData.saleDate),
     staffId: saleData.staffId,
-    createdAt: Timestamp.now(), // Add createdAt
-    updatedAt: Timestamp.now()  // Add updatedAt
+    offerApplied: saleData.offerApplied || false, // Include offer applied flag
+    createdAt: Timestamp.now(), 
+    updatedAt: Timestamp.now()  
   };
 
-  // Conditionally add optional fields if they exist (are not undefined)
   if (saleData.customerId !== undefined) firestoreSaleData.customerId = saleData.customerId;
   if (saleData.customerName !== undefined) firestoreSaleData.customerName = saleData.customerName;
   if (saleData.cashGiven !== undefined) firestoreSaleData.cashGiven = saleData.cashGiven;
@@ -156,19 +154,19 @@ export const addSale = async (saleData: Omit<Sale, 'id' | 'saleDate' | 'items'> 
   batch.set(saleDocRef, firestoreSaleData);
 
   for (const item of saleData.items) {
-    const productDocRef = doc(db, "products", item.id);
-    const productSnap = await getDoc(productDocRef.withConverter(productConverter)); // Ensure converter is used for reading
-    if (productSnap.exists()) {
-      const currentProduct = productSnap.data();
-      const newStock = currentProduct.stock - item.quantity;
-      if (newStock < 0) {
-        // This check should ideally be done before attempting the batch commit,
-        // or the API route should pre-validate stock.
-        throw new Error(`Insufficient stock for ${item.name} (ID: ${item.id}).`);
+    if (!item.isOfferItem) { // Only update stock for non-offer items
+      const productDocRef = doc(db, "products", item.id);
+      const productSnap = await getDoc(productDocRef.withConverter(productConverter));
+      if (productSnap.exists()) {
+        const currentProduct = productSnap.data();
+        const newStock = currentProduct.stock - item.quantity;
+        if (newStock < 0) {
+          throw new Error(`Insufficient stock for ${item.name} (ID: ${item.id}).`);
+        }
+        batch.update(productDocRef, { stock: newStock, updatedAt: Timestamp.now() });
+      } else {
+        throw new Error(`Product ${item.name} (ID: ${item.id}) not found for stock update.`);
       }
-      batch.update(productDocRef, { stock: newStock, updatedAt: Timestamp.now() });
-    } else {
-      throw new Error(`Product ${item.name} (ID: ${item.id}) not found for stock update.`);
     }
   }
 
@@ -184,7 +182,6 @@ export const getSales = async (): Promise<Sale[]> => {
   return salesSnapshot.docs.map(doc => doc.data());
 };
 
-// More specific stock update, could be used for manual adjustments
 export const updateProductStock = async (productId: string, newStockLevel: number): Promise<void> => {
   checkFirebase();
   const productDocRef = doc(db, "products", productId);
@@ -194,7 +191,6 @@ export const updateProductStock = async (productId: string, newStockLevel: numbe
   });
 };
 
-// Transactional stock update (safer for concurrent operations)
 export const updateProductStockTransactional = async (productId: string, quantityChange: number): Promise<void> => {
   checkFirebase();
   const productDocRef = doc(db, "products", productId);
@@ -216,4 +212,3 @@ export const updateProductStockTransactional = async (productId: string, quantit
     throw e; 
   }
 };
-

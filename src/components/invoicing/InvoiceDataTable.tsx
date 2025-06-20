@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
@@ -25,13 +24,12 @@ import { BillDialog } from "@/components/sales/BillDialog";
 import { useMediaQuery } from "@/hooks/use-media-query";
 
 interface InvoiceDataTableProps {
-  sales: Sale[]; // Accept sales as a prop
+  sales: Sale[];
   isLoading: boolean;
   error?: string | null;
-  onRefetch?: () => void;
 }
 
-export function InvoiceDataTable({ sales: initialSales, isLoading, error, onRefetch }: InvoiceDataTableProps) {
+export function InvoiceDataTable({ sales: initialSales, isLoading, error }: InvoiceDataTableProps) {
   const isMobile = useMediaQuery("(max-width: 768px)");
   const [searchTerm, setSearchTerm] = useState("");
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
@@ -39,15 +37,21 @@ export function InvoiceDataTable({ sales: initialSales, isLoading, error, onRefe
   const [expandedInvoice, setExpandedInvoice] = useState<string | null>(null);
   const [selectedInvoiceForReprint, setSelectedInvoiceForReprint] = useState<Sale | null>(null);
   const [isBillDialogOpen, setIsBillDialogOpen] = useState(false);
+  const [localSales, setLocalSales] = useState<Sale[]>(initialSales);
+
+  // Update local sales when props change
+  useEffect(() => {
+    setLocalSales(initialSales);
+  }, [initialSales]);
 
   // Sort sales by date (newest first)
   const sortedSales = useMemo(() => {
-    return [...initialSales].sort((a, b) => {
+    return [...localSales].sort((a, b) => {
       const dateA = a.saleDate instanceof Date ? a.saleDate : new Date(a.saleDate || 0);
       const dateB = b.saleDate instanceof Date ? b.saleDate : new Date(b.saleDate || 0);
       return dateB.getTime() - dateA.getTime();
     });
-  }, [initialSales]);
+  }, [localSales]);
 
   const filteredSales = useMemo(() => {
     return sortedSales.filter(sale => {
@@ -69,7 +73,7 @@ export function InvoiceDataTable({ sales: initialSales, isLoading, error, onRefe
             matchesDateRange = saleDateObj <= endOfDay(endDate);
           }
       } else {
-        if (startDate || endDate) matchesDateRange = false; // If date is invalid, it doesn't match if a range is set
+        if (startDate || endDate) matchesDateRange = false;
       }
       
       return matchesSearchTerm && matchesDateRange;
@@ -100,9 +104,11 @@ export function InvoiceDataTable({ sales: initialSales, isLoading, error, onRefe
       maximumFractionDigits: 2
     }).format(amount).replace('LKR', 'Rs.');
   };
-  
-  // Loading and error states are now handled by the parent component (InvoicingPage)
-  // The table itself will show a loading indicator or message via props if needed.
+
+  // Auto-collapse expanded invoice when sales data changes
+  useEffect(() => {
+    setExpandedInvoice(null);
+  }, [localSales]);
 
   return (
     <>
@@ -192,7 +198,6 @@ export function InvoiceDataTable({ sales: initialSales, isLoading, error, onRefe
                 <AlertTriangle className="h-12 w-12 mb-4" />
                 <p className="text-lg font-medium">Error loading invoices</p>
                 <p className="text-sm">{error}</p>
-                {onRefetch && <Button onClick={onRefetch} variant="outline" className="mt-4">Try Again</Button>}
             </div>
           ) : (
             <ScrollArea className={isMobile ? "h-[calc(100vh-24rem)]" : "h-[calc(100vh-24rem)]"}>
