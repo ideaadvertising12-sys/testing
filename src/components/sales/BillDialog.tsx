@@ -113,7 +113,7 @@ export function BillDialog({
         setChequeAmountPaid(existingSaleData.paidAmountCheque?.toString() || "");
         setChequeNumber(existingSaleData.chequeDetails?.number || "");
         setChequeBank(existingSaleData.chequeDetails?.bank || "");
-        setChequeDate(existingSaleData.chequeDetails?.date || new Date());
+        setChequeDate(existingSaleData.chequeDetails?.date ? new Date(existingSaleData.chequeDetails.date) : new Date());
         setBankTransferAmountPaid(existingSaleData.paidAmountBankTransfer?.toString() || "");
         setBankTransferBankName(existingSaleData.bankTransferDetails?.bankName || "");
         setBankTransferReference(existingSaleData.bankTransferDetails?.referenceNumber || "");
@@ -139,7 +139,6 @@ export function BillDialog({
   
   const changeGiven = useMemo(() => {
     if (parsedCashTendered > 0 && totalTenderedByMethods > totalAmountDueForDisplay) {
-      // Change is typically given from cash payment if cash was part of the tender
       const cashExcess = parsedCashTendered - (totalAmountDueForDisplay - (parsedChequeAmountPaid + parsedBankTransferAmountPaid));
       return Math.max(0, cashExcess);
     }
@@ -163,7 +162,7 @@ export function BillDialog({
       if (methodsUsed.length === 0) return "Full Credit";
       return `Partial (${methodsUsed.join(' + ')})`;
     } else {
-      if (methodsUsed.length === 0 && totalAmountDueForDisplay > 0) return "Error - No Payment"; // Should not happen
+      if (methodsUsed.length === 0 && totalAmountDueForDisplay > 0) return "Error - No Payment"; 
       if (methodsUsed.length === 0 && totalAmountDueForDisplay === 0) return "Paid (Zero Value)";
       return methodsUsed.join(' + ');
     }
@@ -186,8 +185,6 @@ export function BillDialog({
       }
       if (parsedBankTransferAmountPaid > 0 && (!bankTransferBankName.trim() && !bankTransferReference.trim())) {
         alert("Bank Name or Reference Number is required for bank transfers.");
-        //setIsProcessing(false); // Allow if at least one is there
-        // return;
       }
       if (totalPaymentApplied <= 0 && totalAmountDueForDisplay > 0 && !customerForDisplay) {
         alert("A customer must be selected if the sale is on credit or partially paid with an outstanding balance.");
@@ -474,44 +471,66 @@ export function BillDialog({
 
             {/* Payment Summary for Display (Live and Reprint) */}
             <div className="space-y-1 text-xs mb-4">
-                <Separator className="my-2"/>
-                <div className="flex justify-between font-medium">
+                <h4 className="font-semibold text-sm mb-1 mt-2">Payment Information:</h4>
+                {(isReprintMode ? existingSaleData?.paidAmountCash : parsedCashTendered) > 0 && (
+                     <div className="flex justify-between"><span>Paid by Cash:</span><span>Rs. {(isReprintMode ? existingSaleData?.paidAmountCash : parsedCashTendered)?.toFixed(2)}</span></div>
+                )}
+                {(isReprintMode ? existingSaleData?.paidAmountCheque : parsedChequeAmountPaid) > 0 && (
+                    <>
+                        <div className="flex justify-between">
+                            <span>Paid by Cheque:</span>
+                            <span>Rs. {(isReprintMode ? existingSaleData?.paidAmountCheque : parsedChequeAmountPaid)?.toFixed(2)}</span>
+                        </div>
+                        <div className="pl-4 text-muted-foreground">
+                            <div>Cheque No: {isReprintMode ? existingSaleData?.chequeDetails?.number || 'N/A' : chequeNumber.trim() || 'N/A'}</div>
+                            {( (isReprintMode ? existingSaleData?.chequeDetails?.bank : chequeBank.trim()) || (isReprintMode ? existingSaleData?.chequeDetails?.date : chequeDate) ) &&
+                                <div>
+                                    Bank: {isReprintMode ? existingSaleData?.chequeDetails?.bank || 'N/A' : chequeBank.trim() || 'N/A'}
+                                    {(isReprintMode ? existingSaleData?.chequeDetails?.date : chequeDate) && isValid(isReprintMode ? new Date(existingSaleData!.chequeDetails!.date!) : (chequeDate || new Date())) &&
+                                        <span> | Date: {format(isReprintMode ? new Date(existingSaleData!.chequeDetails!.date!) : (chequeDate || new Date()), "dd/MM/yy")}</span>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </>
+                )}
+                 {(isReprintMode ? existingSaleData?.paidAmountBankTransfer : parsedBankTransferAmountPaid) > 0 && (
+                    <>
+                        <div className="flex justify-between">
+                            <span>Paid by Bank Transfer:</span>
+                            <span>Rs. {(isReprintMode ? existingSaleData?.paidAmountBankTransfer : parsedBankTransferAmountPaid)?.toFixed(2)}</span>
+                        </div>
+                        <div className="pl-4 text-muted-foreground">
+                            <div>Ref No: {isReprintMode ? existingSaleData?.bankTransferDetails?.referenceNumber || 'N/A' : bankTransferReference.trim() || 'N/A'}</div>
+                            {(isReprintMode ? existingSaleData?.bankTransferDetails?.bankName : bankTransferBankName.trim()) && 
+                                <div>Bank: {isReprintMode ? existingSaleData?.bankTransferDetails?.bankName || 'N/A' : bankTransferBankName.trim() || 'N/A'}</div>
+                            }
+                        </div>
+                    </>
+                )}
+
+                <Separator className="my-1"/>
+                <div className="flex justify-between font-semibold">
                     <span>Total Tendered:</span>
                     <span>Rs. {isReprintMode ? ((existingSaleData?.paidAmountCash || 0) + (existingSaleData?.paidAmountCheque || 0) + (existingSaleData?.paidAmountBankTransfer || 0)).toFixed(2) : totalTenderedByMethods.toFixed(2)}</span>
                 </div>
-                {(isReprintMode ? existingSaleData?.paidAmountCash : parsedCashTendered) > 0 && (
-                     <div className="flex justify-between pl-2"><span className="text-muted-foreground">By Cash:</span><span>Rs. {(isReprintMode ? existingSaleData?.paidAmountCash : parsedCashTendered)?.toFixed(2)}</span></div>
-                )}
-                {(isReprintMode ? existingSaleData?.paidAmountCheque : parsedChequeAmountPaid) > 0 && (
-                     <div className="flex justify-between pl-2">
-                        <span className="text-muted-foreground">By Cheque ({isReprintMode ? existingSaleData?.chequeDetails?.number : chequeNumber.trim() || 'N/A'}):</span>
-                        <span>Rs. {(isReprintMode ? existingSaleData?.paidAmountCheque : parsedChequeAmountPaid)?.toFixed(2)}</span>
-                    </div>
-                )}
-                 {(isReprintMode ? existingSaleData?.paidAmountBankTransfer : parsedBankTransferAmountPaid) > 0 && (
-                     <div className="flex justify-between pl-2">
-                        <span className="text-muted-foreground">By Bank Transfer:</span>
-                        <span>Rs. {(isReprintMode ? existingSaleData?.paidAmountBankTransfer : parsedBankTransferAmountPaid)?.toFixed(2)}</span>
-                    </div>
-                )}
-
-
+                
                 {!isReprintMode && changeGiven > 0 && (
                     <div className="flex justify-between text-green-600">
                         <span>Change Given:</span>
                         <span>Rs. {changeGiven.toFixed(2)}</span>
                     </div>
                 )}
-                {isReprintMode && existingSaleData?.changeGiven && (
-                     <div className="flex justify-between pl-2 text-green-600"><span>Change Given:</span><span>Rs. {existingSaleData.changeGiven.toFixed(2)}</span></div>
+                {isReprintMode && existingSaleData?.changeGiven && existingSaleData.changeGiven > 0 && (
+                     <div className="flex justify-between text-green-600"><span>Change Given:</span><span>Rs. {existingSaleData.changeGiven.toFixed(2)}</span></div>
                 )}
                 
                 <Separator className="my-1"/>
-                <div className="flex justify-between font-semibold text-sm">
+                <div className="flex justify-between font-bold text-sm">
                     <span>Total Payment Applied:</span>
                     <span>Rs. {isReprintMode ? (existingSaleData?.totalAmountPaid || 0).toFixed(2) : totalPaymentApplied.toFixed(2)}</span>
                 </div>
-                <div className={cn("flex justify-between font-semibold text-sm", (isReprintMode ? (existingSaleData?.outstandingBalance || 0) : outstandingBalance) > 0 ? "text-destructive" : "text-muted-foreground")}>
+                <div className={cn("flex justify-between font-bold text-sm", (isReprintMode ? (existingSaleData?.outstandingBalance || 0) : outstandingBalance) > 0 ? "text-destructive" : "text-muted-foreground")}>
                     <span>Balance Due:</span>
                     <span>Rs. {(isReprintMode ? (existingSaleData?.outstandingBalance || 0) : outstandingBalance).toFixed(2)}</span>
                 </div>
@@ -537,3 +556,5 @@ export function BillDialog({
     </Dialog>
   );
 }
+
+    
