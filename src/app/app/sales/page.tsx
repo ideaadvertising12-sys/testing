@@ -227,6 +227,7 @@ export default function SalesPage() {
     setSelectedCustomer(null);
     setDiscountPercentage(0);
     setCurrentSaleType('retail');
+    setIsBuy12Get1FreeActive(false); // Also reset the offer switch
   };
 
   const currentSubtotal = useMemo(() => cartItems.filter(item => !item.isOfferItem).reduce((sum, item) => sum + item.appliedPrice * item.quantity, 0), [cartItems]);
@@ -261,15 +262,36 @@ export default function SalesPage() {
       });
 
       if (!response.ok) {
-        let errorMessage = `Sale failed with status ${response.status}`;
+        let detailedErrorMessage = `Sale processing failed. Status: ${response.status}`; // Default
         try {
-          const errorData = await response.json();
-          errorMessage = errorData.error || errorData.message || errorMessage;
-        } catch (jsonError) {
-          // If response is not JSON, use statusText or a generic message
-          errorMessage = response.statusText || errorMessage;
+          const responseText = await response.text(); // Try to get raw text first
+          try {
+            const errorData = JSON.parse(responseText); // Then attempt to parse as JSON
+            if (errorData.error) {
+              detailedErrorMessage = errorData.error;
+              if (errorData.details) {
+                detailedErrorMessage += ` (Details: ${errorData.details})`;
+              }
+            } else if (errorData.message) {
+              detailedErrorMessage = errorData.message;
+            } else if (responseText) { // If JSON was valid but no .error or .message, use raw text
+              detailedErrorMessage = responseText;
+            }
+          } catch (jsonParseError) {
+            // Parsing as JSON failed, use the raw text response if it's not empty
+            if (responseText.trim()) {
+              detailedErrorMessage = responseText.trim();
+            } else if (response.statusText) { // Fallback to statusText if raw text is empty
+                detailedErrorMessage = response.statusText;
+            }
+          }
+        } catch (textReadError) {
+          // Failed to even read as text (highly unlikely for HTTP errors but good to cover)
+          if(response.statusText) {
+            detailedErrorMessage = response.statusText;
+          }
         }
-        throw new Error(errorMessage);
+        throw new Error(detailedErrorMessage);
       }
 
       const newSaleResponse = await response.json();
@@ -279,10 +301,8 @@ export default function SalesPage() {
           description: `Payment Method: ${newSaleResponse.paymentMethod}. Total: Rs. ${newSaleResponse.totalAmount.toFixed(2)}`,
       });
 
-      setCartItems([]);
-      setSelectedCustomer(null);
-      setDiscountPercentage(0);
-      setCurrentSaleType('retail');
+      // Reset cart and related states
+      handleCancelOrder(); 
       await refetchProducts(); 
 
     } catch (error: any) {
