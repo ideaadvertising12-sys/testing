@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { SalesChart } from "@/components/dashboard/SalesChart";
 import { AlertQuantityTable } from "@/components/dashboard/AlertQuantityTable";
-import { generatePlaceholderStats, placeholderMonthlySalesData, placeholderProducts } from "@/lib/placeholder-data";
+import { placeholderMonthlySalesData, placeholderProducts } from "@/lib/placeholder-data"; // Keep placeholderProducts for top selling example
 import type { StatsData, Sale } from "@/lib/types";
 import {
   Table,
@@ -24,11 +24,12 @@ import { useRouter } from "next/navigation";
 import { GlobalPreloaderScreen } from "@/components/GlobalPreloaderScreen";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useSalesData } from "@/hooks/useSalesData";
+import { useProducts } from "@/hooks/useProducts"; // Import useProducts
 
 export default function DashboardPage() {
   const { currentUser } = useAuth();
   const router = useRouter();
-  const [dashboardStats, setDashboardStats] = useState<StatsData | null>(null);
+  
   const { customers, isLoading: isLoadingCustomers, error: customersError } = useCustomers();
   const { 
     sales, 
@@ -36,6 +37,11 @@ export default function DashboardPage() {
     error: salesError, 
     totalRevenue: hookTotalRevenue 
   } = useSalesData();
+  const { 
+    products: allProducts, 
+    isLoading: isLoadingProducts, 
+    error: productsError 
+  } = useProducts();
 
 
   const revenueToday = useMemo(() => {
@@ -50,6 +56,12 @@ export default function DashboardPage() {
       .reduce((sum, sale) => sum + (Number(sale.totalAmount) || 0), 0);
   }, [sales, isLoadingSales]);
 
+  const liveLowStockItemsCount = useMemo(() => {
+    if (isLoadingProducts || !allProducts || allProducts.length === 0) return 0;
+    return allProducts.filter(p => p.stock <= (p.reorderLevel || 10)).length;
+  }, [allProducts, isLoadingProducts]);
+
+
   useEffect(() => {
     if (!currentUser) {
       router.replace("/");
@@ -57,12 +69,8 @@ export default function DashboardPage() {
     }
     if (currentUser.role === "cashier") {
       router.replace("/app/sales");
-    } else {
-      if (!dashboardStats) {
-        setDashboardStats(generatePlaceholderStats());
-      }
     }
-  }, [currentUser, router, dashboardStats]);
+  }, [currentUser, router]);
 
   if (!currentUser) {
     return <GlobalPreloaderScreen message="Loading dashboard..." />;
@@ -72,6 +80,7 @@ export default function DashboardPage() {
     return <AccessDenied message="Dashboard is not available for your role. Redirecting..." />;
   }
 
+  // Top selling products can remain using placeholder data for now, or be updated similarly if desired
   const topSellingProducts = [...placeholderProducts]
     .sort((a,b) => (b.price * (150 - b.stock)) - (a.price * (150 - a.stock)))
     .slice(0,5);
@@ -90,7 +99,7 @@ export default function DashboardPage() {
 
   const renderStatsCard = (
     title: string,
-    valueKey: keyof StatsData | 'liveTotalCustomers' | 'liveTotalRevenue' | 'liveRevenueToday',
+    valueKey: 'liveTotalCustomers' | 'liveTotalRevenue' | 'liveRevenueToday' | 'liveLowStockItems',
     icon: LucideIcon,
     iconColor: string,
     description?: string
@@ -121,17 +130,16 @@ export default function DashboardPage() {
           displayValue = formatCurrency(revenueToday);
         }
         break;
-      case 'lowStockItems':
-        isLoadingValue = dashboardStats === null; 
-        if (!isLoadingValue && dashboardStats) {
-          displayValue = dashboardStats.lowStockItems?.toString() ?? 'N/A';
+      case 'liveLowStockItems':
+        isLoadingValue = isLoadingProducts;
+        hasError = productsError;
+        if (!isLoadingValue && !hasError && allProducts) {
+          displayValue = liveLowStockItemsCount.toString();
         }
         break;
       default:
-        if (dashboardStats && valueKey in dashboardStats) {
-          const val = dashboardStats[valueKey as keyof StatsData];
-          displayValue = typeof val === 'number' ? val.toString() : (val ?? 'N/A');
-        }
+        // This default case might not be needed if all keys are explicitly handled
+        displayValue = 'N/A';
     }
 
     if (isLoadingValue) {
@@ -159,6 +167,7 @@ export default function DashboardPage() {
           <CardContent>
             <div className="text-2xl font-bold font-headline text-destructive">Error</div>
             {description && <p className="text-xs text-muted-foreground pt-1">{description}</p>}
+            {/* <p className="text-xs text-destructive mt-1">{hasError}</p> */}
           </CardContent>
         </Card>
       );
@@ -198,7 +207,7 @@ export default function DashboardPage() {
         )}
         {renderStatsCard(
           "Low Stock Items",
-          "lowStockItems", 
+          "liveLowStockItems", 
           AlertTriangle,
           "text-destructive",
           "Needs reordering soon"

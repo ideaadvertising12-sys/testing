@@ -1,17 +1,28 @@
 
 "use client";
 
-import { placeholderProducts } from "@/lib/placeholder-data";
 import type { Product } from "@/lib/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { AlertTriangle, Package } from "lucide-react"; // Combined Package import
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertTriangle, Package, Loader2 } from "lucide-react";
+import { useProducts } from "@/hooks/useProducts"; // Import useProducts
+import { useMemo } from "react";
 
 export function AlertQuantityTable() {
-  const productsToReorder = placeholderProducts.filter(
-    product => product.stock <= (product.reorderLevel || 10) // Default reorder level to 10 if not specified
-  );
+  const { 
+    products: allProducts, 
+    isLoading: isLoadingProducts, 
+    error: productsError 
+  } = useProducts();
+
+  const productsToReorder = useMemo(() => {
+    if (isLoadingProducts || !allProducts || allProducts.length === 0) return [];
+    return allProducts.filter(
+      product => product.stock <= (product.reorderLevel || 10)
+    );
+  }, [allProducts, isLoadingProducts]);
 
   return (
     <Card className="shadow-lg">
@@ -23,7 +34,21 @@ export function AlertQuantityTable() {
         <CardDescription>Products that have reached or fallen below their reorder quantity.</CardDescription>
       </CardHeader>
       <CardContent>
-        {productsToReorder.length === 0 ? (
+        {isLoadingProducts ? (
+          <div className="flex flex-col items-center justify-center h-[350px] text-muted-foreground">
+            <Loader2 className="w-12 h-12 animate-spin text-primary mb-4" />
+            <p className="text-lg">Loading stock alerts...</p>
+          </div>
+        ) : productsError ? (
+          <Alert variant="destructive" className="h-[350px] flex flex-col items-center justify-center text-center">
+            <AlertTriangle className="w-12 h-12 mb-4" />
+            <CardTitle className="text-lg">Error Loading Alerts</CardTitle>
+            <AlertDescription>
+              Could not load low stock information. Please try again later.
+              <p className="text-xs mt-1">{productsError}</p>
+            </AlertDescription>
+          </Alert>
+        ) : productsToReorder.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-[350px] text-muted-foreground">
             <Package className="w-16 h-16 mb-4 text-green-500" />
             <p className="text-xl">All Products Well Stocked!</p>
