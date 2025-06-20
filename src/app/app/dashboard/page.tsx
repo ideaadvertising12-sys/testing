@@ -34,7 +34,7 @@ export default function DashboardPage() {
     sales, 
     isLoading: isLoadingSales, 
     error: salesError, 
-    totalRevenue: hookTotalRevenue // Destructure totalRevenue from the hook
+    totalRevenue: hookTotalRevenue 
   } = useSalesData();
 
 
@@ -44,7 +44,6 @@ export default function DashboardPage() {
     today.setHours(0, 0, 0, 0);
     return sales
       .filter(sale => {
-        // Ensure sale.saleDate is a Date object before comparison
         const saleDate = sale.saleDate instanceof Date ? sale.saleDate : new Date(sale.saleDate);
         return saleDate >= today;
       })
@@ -60,7 +59,6 @@ export default function DashboardPage() {
       router.replace("/app/sales");
     } else {
       if (!dashboardStats) {
-        // Keep placeholder stats for items not yet live
         setDashboardStats(generatePlaceholderStats());
       }
     }
@@ -112,7 +110,6 @@ export default function DashboardPage() {
       case 'liveTotalRevenue':
         isLoadingValue = isLoadingSales;
         hasError = salesError;
-        // Use hookTotalRevenue directly as it's already calculated in useSalesData
         if (!isLoadingValue && !hasError && hookTotalRevenue !== undefined) { 
           displayValue = formatCurrency(hookTotalRevenue);
         }
