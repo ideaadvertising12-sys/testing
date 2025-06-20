@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Drawer, DrawerContent, DrawerTrigger, DrawerHeader, DrawerTitle, DrawerClose } from "@/components/ui/drawer";
 import { useMediaQuery } from "@/hooks/use-media-query";
-import type { Product, CartItem, Customer, Sale } from "@/lib/types";
+import type { Product, CartItem, Customer, Sale, ChequeInfo } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useProducts } from "@/hooks/useProducts";
@@ -232,12 +232,17 @@ export default function SalesPage() {
 
   const currentSubtotal = useMemo(() => cartItems.filter(item => !item.isOfferItem).reduce((sum, item) => sum + item.appliedPrice * item.quantity, 0), [cartItems]);
   const currentDiscountAmount = useMemo(() => currentSubtotal * (discountPercentage / 100), [currentSubtotal, discountPercentage]);
-  const currentTotalAmount = useMemo(() => Math.max(0, currentSubtotal - currentDiscountAmount), [currentSubtotal, currentDiscountAmount]);
+  const currentTotalAmountDue = useMemo(() => Math.max(0, currentSubtotal - currentDiscountAmount), [currentSubtotal, currentDiscountAmount]); // This is the final amount due
 
-  const handleSuccessfulSale = async (saleDetails: Omit<Sale, 'id' | 'saleDate' | 'staffId' | 'items'>) => {
+  // Updated handleSuccessfulSale
+  const handleSuccessfulSale = async (
+    salePaymentDetails: Omit<Sale, 'id' | 'saleDate' | 'staffId' | 'items' | 'subTotal' | 'discountPercentage' | 'discountAmount' | 'totalAmount' | 'offerApplied'> & 
+                        Pick<Sale, 'paidAmountCash' | 'paidAmountCheque' | 'chequeDetails' | 'totalAmountPaid' | 'outstandingBalance' | 'changeGiven' | 'paymentSummary'>
+  ) => {
     setIsProcessingSale(true);
     const salePayload = {
-      ...saleDetails,
+      customerId: selectedCustomer?.id,
+      customerName: selectedCustomer?.name,
       items: cartItems.map(item => ({ 
         id: item.id,
         name: item.name, 
@@ -249,8 +254,21 @@ export default function SalesPage() {
         saleType: item.saleType,
         isOfferItem: item.isOfferItem || false,
       })),
+      subTotal: currentSubtotal,
+      discountPercentage: discountPercentage,
+      discountAmount: currentDiscountAmount,
+      totalAmount: currentTotalAmountDue, // Total amount due for the sale
+      
+      paidAmountCash: salePaymentDetails.paidAmountCash,
+      paidAmountCheque: salePaymentDetails.paidAmountCheque,
+      chequeDetails: salePaymentDetails.chequeDetails,
+      totalAmountPaid: salePaymentDetails.totalAmountPaid,
+      outstandingBalance: salePaymentDetails.outstandingBalance,
+      changeGiven: salePaymentDetails.changeGiven,
+      paymentSummary: salePaymentDetails.paymentSummary,
+
       saleDate: new Date().toISOString(), 
-      staffId: "staff001", 
+      staffId: "staff001", // Replace with actual staff ID from auth context if available
       offerApplied: isBuy12Get1FreeActive,
     };
 
@@ -264,9 +282,9 @@ export default function SalesPage() {
       if (!response.ok) {
         let detailedErrorMessage = `Sale processing failed. Status: ${response.status}`; // Default
         try {
-          const responseText = await response.text(); // Try to get raw text first
+          const responseText = await response.text(); 
           try {
-            const errorData = JSON.parse(responseText); // Then attempt to parse as JSON
+            const errorData = JSON.parse(responseText); 
             if (errorData.error) {
               detailedErrorMessage = errorData.error;
               if (errorData.details) {
@@ -274,19 +292,17 @@ export default function SalesPage() {
               }
             } else if (errorData.message) {
               detailedErrorMessage = errorData.message;
-            } else if (responseText) { // If JSON was valid but no .error or .message, use raw text
+            } else if (responseText) { 
               detailedErrorMessage = responseText;
             }
           } catch (jsonParseError) {
-            // Parsing as JSON failed, use the raw text response if it's not empty
             if (responseText.trim()) {
               detailedErrorMessage = responseText.trim();
-            } else if (response.statusText) { // Fallback to statusText if raw text is empty
+            } else if (response.statusText) { 
                 detailedErrorMessage = response.statusText;
             }
           }
         } catch (textReadError) {
-          // Failed to even read as text (highly unlikely for HTTP errors but good to cover)
           if(response.statusText) {
             detailedErrorMessage = response.statusText;
           }
@@ -298,10 +314,9 @@ export default function SalesPage() {
       
       toast({
           title: "Sale Successful!",
-          description: `Payment Method: ${newSaleResponse.paymentMethod}. Total: Rs. ${newSaleResponse.totalAmount.toFixed(2)}`,
+          description: `Payment: ${newSaleResponse.paymentSummary}. Total Paid: Rs. ${newSaleResponse.totalAmountPaid.toFixed(2)}`,
       });
 
-      // Reset cart and related states
       handleCancelOrder(); 
       await refetchProducts(); 
 
@@ -541,13 +556,14 @@ export default function SalesPage() {
         isOpen={isBillOpen}
         onOpenChange={(isOpenDialog) => {
           setIsBillOpen(isOpenDialog);
+          if (!isOpenDialog) setIsProcessingSale(false); // Reset processing state if dialog is closed
         }}
         cartItems={cartItems}
         customer={selectedCustomer}
         discountPercentage={discountPercentage}
         currentSubtotal={currentSubtotal}
         currentDiscountAmount={currentDiscountAmount}
-        currentTotalAmount={currentTotalAmount}
+        currentTotalAmount={currentTotalAmountDue} // Pass total amount due
         saleId={`SALE-${Date.now().toString().slice(-6)}`} 
         onConfirmSale={handleSuccessfulSale}
         offerApplied={isBuy12Get1FreeActive} 

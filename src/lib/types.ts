@@ -42,6 +42,19 @@ export interface CartItem {
   isOfferItem?: boolean; // Added for "Buy 12 Get 1 Free"
 }
 
+export interface ChequeInfo {
+  number?: string;
+  bank?: string;
+  date?: Date; // For Sale object
+  amount?: number; // For Sale object, amount covered by this specific cheque
+}
+
+export interface FirestoreChequeInfo extends Omit<ChequeInfo, 'date' | 'amount'> {
+  date?: Timestamp; // For FirestoreSale object
+  amount?: number;
+}
+
+
 export interface Sale {
   id: string;
   customerId?: string;
@@ -50,13 +63,18 @@ export interface Sale {
   subTotal: number;
   discountPercentage: number;
   discountAmount: number;
-  totalAmount: number;
-  paymentMethod: "Cash" | "Cheque" | "Credit";
-  chequeNumber?: string;
-  cashGiven?: number;
-  balanceReturned?: number;
-  amountPaidOnCredit?: number;
-  remainingCreditBalance?: number;
+  totalAmount: number; // Total amount due for the sale
+  
+  paidAmountCash?: number;
+  paidAmountCheque?: number;
+  chequeDetails?: ChequeInfo; // For a single cheque scenario first
+
+  totalAmountPaid: number; // Sum of all payments made
+  outstandingBalance: number; // totalAmount - totalAmountPaid (if positive, amount due)
+  changeGiven?: number; // If cash_tendered > totalAmount and paid fully by cash
+
+  paymentSummary: string; // e.g., "Cash", "Cheque", "Partial Cash", "Split (Cash+Cheque)", "Credit"
+  
   saleDate: Date;
   staffId: string;
   offerApplied?: boolean; 
@@ -119,10 +137,10 @@ export interface FirestoreCartItem {
   isOfferItem?: boolean;
 }
 
-export interface FirestoreSale extends Omit<Sale, 'id' | 'saleDate' | 'items'> {
+export interface FirestoreSale extends Omit<Sale, 'id' | 'saleDate' | 'items' | 'chequeDetails'> {
   items: FirestoreCartItem[];
   saleDate: Timestamp;
-  chequeNumber?: string;
+  chequeDetails?: FirestoreChequeInfo;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
   offerApplied?: boolean; 
@@ -214,54 +232,92 @@ export const customerConverter = {
 export const saleConverter = {
   toFirestore: (sale: FirestoreSale): Partial<FirestoreSale> => {
     const firestoreSale: Partial<FirestoreSale> = {
-      items: sale.items, // Assumes items are already FirestoreCartItem[]
+      items: sale.items,
       subTotal: sale.subTotal,
       discountPercentage: sale.discountPercentage,
       discountAmount: sale.discountAmount,
-      totalAmount: sale.totalAmount,
-      paymentMethod: sale.paymentMethod,
-      saleDate: sale.saleDate, // Should be a Firestore Timestamp
+      totalAmount: sale.totalAmount, // Amount due
+      
+      paidAmountCash: sale.paidAmountCash,
+      paidAmountCheque: sale.paidAmountCheque,
+      totalAmountPaid: sale.totalAmountPaid,
+      outstandingBalance: sale.outstandingBalance,
+      changeGiven: sale.changeGiven,
+      paymentSummary: sale.paymentSummary,
+
+      saleDate: sale.saleDate, // Firestore Timestamp
       staffId: sale.staffId,
       updatedAt: Timestamp.now(),
     };
+    
+    if (sale.chequeDetails) {
+      firestoreSale.chequeDetails = {
+        ...sale.chequeDetails,
+        date: sale.chequeDetails.date ? Timestamp.fromDate(sale.chequeDetails.date) : undefined,
+      };
+    }
 
     if (sale.customerId) firestoreSale.customerId = sale.customerId;
     if (sale.customerName) firestoreSale.customerName = sale.customerName;
-    if (sale.cashGiven !== undefined) firestoreSale.cashGiven = sale.cashGiven;
-    if (sale.balanceReturned !== undefined) firestoreSale.balanceReturned = sale.balanceReturned;
-    if (sale.amountPaidOnCredit !== undefined) firestoreSale.amountPaidOnCredit = sale.amountPaidOnCredit;
-    if (sale.remainingCreditBalance !== undefined) firestoreSale.remainingCreditBalance = sale.remainingCreditBalance;
-    if (sale.chequeNumber) firestoreSale.chequeNumber = sale.chequeNumber;
     if (sale.offerApplied !== undefined) firestoreSale.offerApplied = sale.offerApplied;
     if (!sale.createdAt) firestoreSale.createdAt = Timestamp.now();
+
+    // Remove undefined fields to prevent Firestore errors
+    Object.keys(firestoreSale).forEach(key => {
+      if ((firestoreSale as any)[key] === undefined) {
+        delete (firestoreSale as any)[key];
+      }
+    });
+    if (firestoreSale.chequeDetails) {
+      Object.keys(firestoreSale.chequeDetails).forEach(key => {
+        if ((firestoreSale.chequeDetails as any)[key] === undefined) {
+          delete (firestoreSale.chequeDetails as any)[key];
+        }
+      });
+      if (Object.keys(firestoreSale.chequeDetails).length === 0) {
+        delete firestoreSale.chequeDetails;
+      }
+    }
+
 
     return firestoreSale;
   },
   fromFirestore: (snapshot: any, options: any): Sale => { 
     const data = snapshot.data(options);
+    let chequeDetails;
+    if (data.chequeDetails) {
+        chequeDetails = {
+            ...data.chequeDetails,
+            date: data.chequeDetails.date instanceof Timestamp ? data.chequeDetails.date.toDate() : undefined,
+        }
+    }
+
     return {
       id: snapshot.id,
       items: data.items.map((item: FirestoreCartItem): CartItem => ({
-        id: item.productRef.split('/')[1], 
+        id: item.productRef ? item.productRef.split('/')[1] : 'unknown_id', // Handle missing productRef gracefully
         quantity: item.quantity,
         appliedPrice: item.appliedPrice,
         saleType: item.saleType,
-        name: item.productName, 
-        category: item.productCategory,
-        price: item.productPrice, 
+        name: item.productName || "N/A", 
+        category: item.productCategory || "Other",
+        price: typeof item.productPrice === 'number' ? item.productPrice : 0, 
         sku: item.productSku, 
         isOfferItem: item.isOfferItem || false,
       })),
       subTotal: data.subTotal,
       discountPercentage: data.discountPercentage,
       discountAmount: data.discountAmount,
-      totalAmount: data.totalAmount,
-      paymentMethod: data.paymentMethod,
-      cashGiven: data.cashGiven,
-      balanceReturned: data.balanceReturned,
-      amountPaidOnCredit: data.amountPaidOnCredit,
-      remainingCreditBalance: data.remainingCreditBalance,
-      chequeNumber: data.chequeNumber,
+      totalAmount: data.totalAmount, // Amount due
+
+      paidAmountCash: data.paidAmountCash,
+      paidAmountCheque: data.paidAmountCheque,
+      chequeDetails: chequeDetails,
+      totalAmountPaid: data.totalAmountPaid,
+      outstandingBalance: data.outstandingBalance,
+      changeGiven: data.changeGiven,
+      paymentSummary: data.paymentSummary || "N/A",
+
       saleDate: data.saleDate.toDate(),
       staffId: data.staffId,
       customerId: data.customerId,
@@ -351,7 +407,7 @@ export interface FullReportEntry {
   appliedPrice: number;
   lineTotal: number;
   saleType: 'retail' | 'wholesale';
-  paymentMethod: Sale["paymentMethod"];
+  paymentMethod: Sale["paymentSummary"]; // Changed from Sale["paymentMethod"]
   staffId: string;
 }
 
@@ -369,13 +425,23 @@ export interface ActivityItem {
 
 export interface DayEndReportSummary {
   reportDate: Date;
+  // Old structure - will need significant update based on new payment model
   cashSales: { count: number; amount: number; cashReceived: number; balanceReturned: number };
   chequeSales: { count: number; amount: number; chequeNumbers: string[] };
   creditSales: { count: number; amount: number; amountPaidOnCredit: number; remainingCreditBalance: number };
-  overallTotalSales: number;
-  overallTotalCashReceived: number;
-  overallTotalBalanceReturned: number;
-  overallTotalCreditOutstanding: number;
+  
+  // New aggregated fields
+  totalSalesAmount: number; // This is totalAmountDue from sales
+  totalAmountCollectedByCash: number;
+  totalAmountCollectedByCheque: number;
+  totalChangeGiven: number;
+  totalOutstandingAmount: number; // Sum of all outstanding balances
+  
+  overallTotalSales: number; // This might be same as totalSalesAmount
+  overallTotalCashReceived: number; // This needs to be sum of cash portions
+  overallTotalBalanceReturned: number; // This is totalChangeGiven
+  overallTotalCreditOutstanding: number; // This is totalOutstandingAmount
+
   totalTransactions: number;
 }
 

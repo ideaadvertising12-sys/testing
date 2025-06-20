@@ -17,12 +17,14 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { CalendarIcon, FilterX, Search, ReceiptText, Printer, Eye, ChevronDown, ChevronUp, Loader2, AlertTriangle } from "lucide-react";
+import { CalendarIcon, FilterX, Search, ReceiptText, Printer, Eye, ChevronDown, ChevronUp, Loader2, AlertTriangle, Info } from "lucide-react";
 import { format, isValid, parseISO, isWithinInterval, startOfDay, endOfDay } from "date-fns";
 import type { Sale } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { BillDialog } from "@/components/sales/BillDialog";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+
 
 interface InvoiceDataTableProps {
   sales: Sale[];
@@ -40,12 +42,10 @@ export function InvoiceDataTable({ sales: initialSales, isLoading, error }: Invo
   const [isBillDialogOpen, setIsBillDialogOpen] = useState(false);
   const [localSales, setLocalSales] = useState<Sale[]>(initialSales);
 
-  // Update local sales when props change
   useEffect(() => {
     setLocalSales(initialSales);
   }, [initialSales]);
 
-  // Sort sales by date (newest first)
   const sortedSales = useMemo(() => {
     return [...localSales].sort((a, b) => {
       const dateA = a.saleDate instanceof Date ? a.saleDate : new Date(a.saleDate || 0);
@@ -62,8 +62,8 @@ export function InvoiceDataTable({ sales: initialSales, isLoading, error }: Invo
       const matchesSearchTerm = 
         (sale.id && sale.id.toLowerCase().includes(lowerSearchTerm)) ||
         (sale.customerName && sale.customerName.toLowerCase().includes(lowerSearchTerm)) ||
-        (sale.paymentMethod && sale.paymentMethod.toLowerCase().includes(lowerSearchTerm)) ||
-        (sale.chequeNumber && sale.chequeNumber.toLowerCase().includes(lowerSearchTerm));
+        (sale.paymentSummary && sale.paymentSummary.toLowerCase().includes(lowerSearchTerm)) ||
+        (sale.chequeDetails?.number && sale.chequeDetails.number.toLowerCase().includes(lowerSearchTerm));
 
 
       let matchesDateRange = true;
@@ -108,12 +108,24 @@ export function InvoiceDataTable({ sales: initialSales, isLoading, error }: Invo
     }).format(amount).replace('LKR', 'Rs.');
   };
 
-  // Auto-collapse expanded invoice when sales data changes
   useEffect(() => {
     setExpandedInvoice(null);
   }, [localSales]);
 
+  const getPaymentStatusBadge = (sale: Sale) => {
+    if (sale.outstandingBalance <= 0 && sale.totalAmountPaid >= sale.totalAmount) {
+      return <Badge variant="default" className="bg-green-600 hover:bg-green-700 text-white text-xs">Paid</Badge>;
+    } else if (sale.totalAmountPaid > 0 && sale.outstandingBalance > 0) {
+      return <Badge variant="default" className="bg-yellow-500 hover:bg-yellow-600 text-black text-xs">Partial</Badge>;
+    } else if (sale.totalAmount > 0 && sale.totalAmountPaid === 0) {
+      return <Badge variant="destructive" className="text-xs">Credit</Badge>;
+    }
+    return <Badge variant="outline" className="text-xs">N/A</Badge>;
+  };
+
+
   return (
+    <TooltipProvider>
     <>
       <Card className="shadow-lg">
         <CardHeader>
@@ -123,7 +135,7 @@ export function InvoiceDataTable({ sales: initialSales, isLoading, error }: Invo
             <div className="relative flex-grow">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search ID, Customer, Payment, Cheque#..."
+                placeholder="Search ID, Customer, Payment Summary, Cheque#..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-9 h-10 w-full"
@@ -213,69 +225,47 @@ export function InvoiceDataTable({ sales: initialSales, isLoading, error }: Invo
               ) : isMobile ? (
                 <div className="space-y-2">
                   {filteredSales.map((sale) => (
-                    <Card key={sale.id} className="p-4">
+                    <Card key={sale.id} className="p-3">
                       <div className="flex justify-between items-start">
                         <div>
                           <p className="font-medium text-sm">{sale.id}</p>
-                          <p className="text-sm text-muted-foreground">
+                          <p className="text-xs text-muted-foreground">
                             {format(typeof sale.saleDate === 'string' ? parseISO(sale.saleDate) : sale.saleDate, "PP")}
                           </p>
-                          <p className="text-sm mt-1">{sale.customerName || "Walk-in"}</p>
+                          <p className="text-xs mt-1">{sale.customerName || "Walk-in"}</p>
                         </div>
                         <div className="text-right">
-                          <p className="font-medium">{formatCurrency(sale.totalAmount)}</p>
-                          <Badge 
-                            variant={
-                                sale.paymentMethod === "Credit" ? "destructive" : 
-                                sale.paymentMethod === "Cheque" ? "secondary" : "default"
-                            }
-                            className={cn(
-                                "text-xs",
-                                sale.paymentMethod === "Credit" && "bg-orange-500 text-white",
-                                sale.paymentMethod === "Cheque" && "bg-blue-500 text-white"
-                            )}
-                          >
-                            {sale.paymentMethod}
-                          </Badge>
+                          <p className="font-medium text-sm">{formatCurrency(sale.totalAmount)}</p>
+                          {getPaymentStatusBadge(sale)}
                         </div>
                       </div>
+                       <p className="text-xs text-muted-foreground mt-1">Summary: {sale.paymentSummary}</p>
                       
                       <Button 
                         variant="ghost" 
                         size="sm" 
-                        className="w-full mt-2 justify-between text-primary hover:text-primary"
+                        className="w-full mt-1.5 justify-between text-primary hover:text-primary text-xs h-8"
                         onClick={() => toggleExpandInvoice(sale.id)}
                       >
                         {expandedInvoice === sale.id ? "Hide details" : "Show details"}
-                        {expandedInvoice === sale.id ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                        {expandedInvoice === sale.id ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
                       </Button>
                       
                       {expandedInvoice === sale.id && (
-                        <div className="mt-3 space-y-1 text-xs border-t pt-2">
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Paid/Given:</span>
-                            <span>
-                              {sale.paymentMethod === "Cash" && sale.cashGiven !== undefined ? formatCurrency(sale.cashGiven) : ""}
-                              {sale.paymentMethod === "Credit" && sale.amountPaidOnCredit !== undefined ? formatCurrency(sale.amountPaidOnCredit) : ""}
-                              {sale.paymentMethod === "Cheque" ? `Cheque #: ${sale.chequeNumber || "N/A"}` : ""}
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Balance:</span>
-                            <span>
-                              {sale.paymentMethod === "Cash" && sale.balanceReturned !== undefined ? `${formatCurrency(sale.balanceReturned)} (Ret)` : ""}
-                              {sale.paymentMethod === "Credit" && sale.remainingCreditBalance !== undefined ? `${formatCurrency(sale.remainingCreditBalance)} (Rem)` : ""}
-                              {sale.paymentMethod === "Cheque" ? "N/A" : ""}
-                            </span>
-                          </div>
-                           <p className="text-muted-foreground mt-1 pt-1 border-t">Items: {sale.items.length}</p>
+                        <div className="mt-2 space-y-0.5 text-xs border-t pt-1.5">
+                          <div className="flex justify-between"><span className="text-muted-foreground">Total Paid:</span><span>{formatCurrency(sale.totalAmountPaid)}</span></div>
+                          {sale.paidAmountCash && <div className="flex justify-between pl-2"><span className="text-muted-foreground">Cash:</span><span>{formatCurrency(sale.paidAmountCash)}</span></div>}
+                          {sale.paidAmountCheque && <div className="flex justify-between pl-2"><span className="text-muted-foreground">Cheque ({sale.chequeDetails?.number || 'N/A'}):</span><span>{formatCurrency(sale.paidAmountCheque)}</span></div>}
+                          {sale.changeGiven && <div className="flex justify-between pl-2"><span className="text-muted-foreground">Change:</span><span>{formatCurrency(sale.changeGiven)}</span></div>}
+                          {sale.outstandingBalance > 0 && <div className="flex justify-between text-destructive"><span className="text-muted-foreground">Outstanding:</span><span>{formatCurrency(sale.outstandingBalance)}</span></div>}
+                           <p className="text-muted-foreground mt-1 pt-1 border-t text-xs">Items: {sale.items.length}</p>
                           <Button 
                             variant="outline" 
                             size="sm" 
-                            className="w-full mt-2"
+                            className="w-full mt-2 h-8 text-xs"
                             onClick={() => handleReprintInvoice(sale)}
                           >
-                            <Printer className="h-4 w-4 mr-2" />
+                            <Printer className="h-3.5 w-3.5 mr-1.5" />
                             Print Invoice
                           </Button>
                         </div>
@@ -287,50 +277,42 @@ export function InvoiceDataTable({ sales: initialSales, isLoading, error }: Invo
                 <Table>
                   <TableHeader className="sticky top-0 bg-card z-10">
                     <TableRow>
-                      <TableHead className="w-[120px]">ID</TableHead>
-                      <TableHead className="w-[150px]">Date</TableHead>
+                      <TableHead className="w-[100px]">ID</TableHead>
+                      <TableHead className="w-[130px]">Date</TableHead>
                       <TableHead>Customer</TableHead>
-                      <TableHead className="text-right">Total</TableHead>
-                      <TableHead>Payment</TableHead>
-                      <TableHead className="text-right">Paid/Given/Cheque#</TableHead>
-                      <TableHead className="text-right">Balance</TableHead>
-                      <TableHead className="text-center w-[100px]">Actions</TableHead>
+                      <TableHead className="text-right">Total Due</TableHead>
+                      <TableHead className="text-right">Total Paid</TableHead>
+                      <TableHead className="text-right">Outstanding</TableHead>
+                      <TableHead className="w-[150px]">Payment Summary</TableHead>
+                       <TableHead className="text-center w-[80px]">Status</TableHead>
+                      <TableHead className="text-center w-[80px]">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredSales.map((sale) => (
                       <TableRow key={sale.id}>
                         <TableCell className="font-mono text-xs">{sale.id}</TableCell>
-                        <TableCell>{format(typeof sale.saleDate === 'string' ? parseISO(sale.saleDate) : sale.saleDate, "PPp")}</TableCell>
-                        <TableCell>{sale.customerName || "Walk-in"}</TableCell>
-                        <TableCell className="text-right font-medium">{formatCurrency(sale.totalAmount)}</TableCell>
-                        <TableCell>
-                          <Badge 
-                              variant={
-                                  sale.paymentMethod === "Credit" ? "destructive" : 
-                                  sale.paymentMethod === "Cheque" ? "secondary" : "default"
-                              }
-                              className={cn(
-                                  "text-xs",
-                                  sale.paymentMethod === "Credit" && "bg-orange-500 text-white",
-                                  sale.paymentMethod === "Cheque" && "bg-blue-500 text-white"
-                              )}
-                          >
-                              {sale.paymentMethod}
-                          </Badge>
+                        <TableCell className="text-xs">{format(typeof sale.saleDate === 'string' ? parseISO(sale.saleDate) : sale.saleDate, "PP, p")}</TableCell>
+                        <TableCell className="text-sm">{sale.customerName || "Walk-in"}</TableCell>
+                        <TableCell className="text-right font-medium text-sm">{formatCurrency(sale.totalAmount)}</TableCell>
+                        <TableCell className="text-right text-sm">{formatCurrency(sale.totalAmountPaid)}</TableCell>
+                        <TableCell className={cn("text-right text-sm", sale.outstandingBalance > 0 && "text-destructive font-semibold")}>{formatCurrency(sale.outstandingBalance)}</TableCell>
+                        <TableCell className="text-xs">
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <span className="truncate block max-w-[140px] cursor-default">{sale.paymentSummary}</span>
+                                </TooltipTrigger>
+                                <TooltipContent className="text-xs">
+                                    <p>{sale.paymentSummary}</p>
+                                    {sale.paidAmountCash && <p>Cash: {formatCurrency(sale.paidAmountCash)}</p>}
+                                    {sale.paidAmountCheque && <p>Cheque: {formatCurrency(sale.paidAmountCheque)} (No: {sale.chequeDetails?.number || 'N/A'})</p>}
+                                    {sale.changeGiven && <p>Change: {formatCurrency(sale.changeGiven)}</p>}
+                                </TooltipContent>
+                            </Tooltip>
                         </TableCell>
-                        <TableCell className="text-right">
-                          {sale.paymentMethod === "Cash" && sale.cashGiven !== undefined ? formatCurrency(sale.cashGiven) : ""}
-                          {sale.paymentMethod === "Credit" && sale.amountPaidOnCredit !== undefined ? formatCurrency(sale.amountPaidOnCredit) : ""}
-                          {sale.paymentMethod === "Cheque" ? `Chq: ${sale.chequeNumber || "N/A"}` : ""}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {sale.paymentMethod === "Cash" && sale.balanceReturned !== undefined ? `${formatCurrency(sale.balanceReturned)} (Ret)` : ""}
-                          {sale.paymentMethod === "Credit" && sale.remainingCreditBalance !== undefined ? `${formatCurrency(sale.remainingCreditBalance)} (Rem)` : ""}
-                          {sale.paymentMethod === "Cheque" ? "N/A" : ""}
-                        </TableCell>
+                        <TableCell className="text-center">{getPaymentStatusBadge(sale)}</TableCell>
                         <TableCell className="text-center">
-                          <Button variant="ghost" size="icon" onClick={() => handleReprintInvoice(sale)} title="View / Print Invoice">
+                          <Button variant="ghost" size="icon" onClick={() => handleReprintInvoice(sale)} title="View / Print Invoice" className="h-8 w-8">
                             <Printer className="h-4 w-4" />
                           </Button>
                         </TableCell>
@@ -361,5 +343,6 @@ export function InvoiceDataTable({ sales: initialSales, isLoading, error }: Invo
         />
       )}
     </>
+    </TooltipProvider>
   );
 }

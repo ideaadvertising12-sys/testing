@@ -6,11 +6,11 @@ import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FullReportTable } from "@/components/reports/FullReportTable";
-import { placeholderFullReportData } from "@/lib/placeholder-data";
-import type { FullReportEntry } from "@/lib/types";
+// import { placeholderFullReportData } from "@/lib/placeholder-data"; // To be replaced by live data
+import type { FullReportEntry, Sale } from "@/lib/types"; // Added Sale
 import { useAuth } from "@/contexts/AuthContext";
 import { AccessDenied } from "@/components/AccessDenied";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
@@ -19,42 +19,61 @@ import { GlobalPreloaderScreen } from "@/components/GlobalPreloaderScreen";
 import { Input } from "@/components/ui/input";
 import { DateRangePicker } from "@/components/ui/date-range-picker"; 
 import type { DateRange } from "react-day-picker";
-import { addDays, format } from "date-fns";
+import { addDays, format, parseISO } from "date-fns"; // Added parseISO
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useSalesData } from "@/hooks/useSalesData"; // Import useSalesData
 
 interface jsPDFWithAutoTable extends jsPDF {
   autoTable: (options: any) => jsPDF;
 }
 
+function transformSalesToFullReportEntries(sales: Sale[]): FullReportEntry[] {
+  const reportEntries: FullReportEntry[] = [];
+  sales.forEach(sale => {
+    sale.items.forEach(item => {
+      reportEntries.push({
+        saleId: sale.id,
+        saleDate: format(sale.saleDate, "yyyy-MM-dd"),
+        saleTime: format(sale.saleDate, "HH:mm:ss"),
+        customerName: sale.customerName || "Walk-in",
+        productSku: item.sku || "N/A",
+        productName: item.name,
+        productCategory: item.category,
+        quantity: item.quantity,
+        appliedPrice: item.appliedPrice,
+        lineTotal: item.quantity * item.appliedPrice,
+        saleType: item.saleType,
+        paymentMethod: sale.paymentSummary, // Using new paymentSummary
+        staffId: sale.staffId,
+      });
+    });
+  });
+  return reportEntries.sort((a,b) => new Date(b.saleDate + 'T' + b.saleTime).getTime() - new Date(a.saleDate + 'T' + a.saleTime).getTime());
+}
+
+
 export default function FullReportPage() {
   const { currentUser } = useAuth();
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(true);
+  
+  const { sales: liveSales, isLoading: isLoadingSales, error: salesError } = useSalesData(false); // Fetch all sales, no polling needed here
+
   const [reportData, setReportData] = useState<FullReportEntry[]>([]);
   const [filteredData, setFilteredData] = useState<FullReportEntry[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
-    from: addDays(new Date(), -7),
+    from: addDays(new Date(), -30), // Default to last 30 days
     to: new Date(),
   });
   const [saleTypeFilter, setSaleTypeFilter] = useState<string>("all");
-  const [paymentFilter, setPaymentFilter] = useState<string>("all");
+  const [paymentSummaryFilter, setPaymentSummaryFilter] = useState<string>("all"); // Changed from paymentFilter
 
-  // Simulate data loading
   useEffect(() => {
-    const timer = setTimeout(() => {
-      // Update placeholder data generation if necessary to reflect new payment method
-      const updatedPlaceholderData = placeholderFullReportData.map(entry => ({
-        ...entry,
-        paymentMethod: entry.paymentMethod === "Card" ? "Cheque" : entry.paymentMethod,
-      })) as FullReportEntry[];
-      setReportData(updatedPlaceholderData);
-      setFilteredData(updatedPlaceholderData);
-      setIsLoading(false);
-    }, 1000);
+    if (!isLoadingSales && liveSales) {
+      setReportData(transformSalesToFullReportEntries(liveSales));
+    }
+  }, [liveSales, isLoadingSales]);
 
-    return () => clearTimeout(timer);
-  }, []);
 
   // Apply filters
   useEffect(() => {
@@ -63,7 +82,7 @@ export default function FullReportPage() {
     // Date filter
     if (dateRange?.from && dateRange.to) {
       result = result.filter(entry => {
-        const entryDate = new Date(entry.saleDate);
+        const entryDate = parseISO(entry.saleDate); // parseISO because saleDate is now string "yyyy-MM-dd"
         return entryDate >= dateRange.from! && entryDate <= dateRange.to!;
       });
     }
@@ -76,7 +95,8 @@ export default function FullReportPage() {
         (entry.customerName && entry.customerName.toLowerCase().includes(term)) ||
         entry.productName.toLowerCase().includes(term) ||
         entry.productSku.toLowerCase().includes(term) ||
-        entry.staffId.toLowerCase().includes(term)
+        entry.staffId.toLowerCase().includes(term) ||
+        (entry.paymentMethod && entry.paymentMethod.toLowerCase().includes(term)) // Search in payment summary
       );
     }
     
@@ -85,13 +105,13 @@ export default function FullReportPage() {
       result = result.filter(entry => entry.saleType === saleTypeFilter);
     }
     
-    // Payment filter
-    if (paymentFilter !== "all") {
-      result = result.filter(entry => entry.paymentMethod === paymentFilter);
+    // Payment summary filter
+    if (paymentSummaryFilter !== "all") {
+      result = result.filter(entry => entry.paymentMethod.toLowerCase().includes(paymentSummaryFilter.toLowerCase()));
     }
     
     setFilteredData(result);
-  }, [reportData, searchTerm, dateRange, saleTypeFilter, paymentFilter]);
+  }, [reportData, searchTerm, dateRange, saleTypeFilter, paymentSummaryFilter]);
 
   useEffect(() => {
     if (!currentUser) {
@@ -114,7 +134,7 @@ export default function FullReportPage() {
   }
 
   const handleExportExcel = () => {
-    setIsLoading(true);
+    setIsLoading(true); // Indicate loading for export
     try {
       const worksheet = XLSX.utils.json_to_sheet(filteredData);
       const workbook = XLSX.utils.book_new();
@@ -123,19 +143,19 @@ export default function FullReportPage() {
     } catch (error) {
       console.error("Export failed:", error);
     } finally {
-      setIsLoading(false);
+      setIsLoading(false); // End loading indicator
     }
   };
 
   const handleExportPDF = () => {
-    setIsLoading(true);
+    setIsLoading(true); // Indicate loading for export
     try {
       const doc = new jsPDF('landscape') as jsPDFWithAutoTable; 
       doc.text(`Full Sales Report - ${format(new Date(), 'PP')}`, 14, 16);
       
       doc.autoTable({
         startY: 20,
-        head: [['ID', 'Date', 'Time', 'Customer', 'SKU', 'Product', 'Category', 'Qty', 'Unit Price', 'Total', 'Type', 'Payment', 'Staff']],
+        head: [['ID', 'Date', 'Time', 'Customer', 'SKU', 'Product', 'Category', 'Qty', 'Unit Price', 'Total', 'Type', 'Payment Summary', 'Staff']],
         body: filteredData.map(entry => [
           entry.saleId,
           entry.saleDate,
@@ -148,7 +168,7 @@ export default function FullReportPage() {
           entry.appliedPrice.toFixed(2),
           entry.lineTotal.toFixed(2),
           entry.saleType,
-          entry.paymentMethod,
+          entry.paymentMethod, // This is now paymentSummary
           entry.staffId,
         ]),
         styles: { 
@@ -173,13 +193,21 @@ export default function FullReportPage() {
     } catch (error) {
       console.error("PDF generation failed:", error);
     } finally {
-      setIsLoading(false);
+      setIsLoading(false); // End loading indicator
     }
   };
 
   const handlePrint = () => {
     window.print();
   };
+  
+  // Distinct payment summaries for filter dropdown
+  const paymentSummaryOptions = useMemo(() => {
+    if (isLoadingSales || !reportData) return [{ value: "all", label: "All Payment Summaries" }];
+    const summaries = new Set(reportData.map(entry => entry.paymentMethod));
+    return [{ value: "all", label: "All Payment Summaries" }, ...Array.from(summaries).map(s => ({ value: s, label: s }))];
+  }, [reportData, isLoadingSales]);
+
 
   const reportActions = (
     <div className="flex flex-col sm:flex-row gap-2">
@@ -187,9 +215,9 @@ export default function FullReportPage() {
         onClick={handleExportExcel} 
         variant="outline" 
         size="sm"
-        disabled={isLoading || filteredData.length === 0}
+        disabled={isLoadingSales || filteredData.length === 0}
       >
-        {isLoading ? (
+        {isLoadingSales ? ( // Check main data loading for button disable state
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
         ) : (
           <DownloadCloud className="mr-2 h-4 w-4" />
@@ -200,9 +228,9 @@ export default function FullReportPage() {
         onClick={handleExportPDF} 
         variant="outline" 
         size="sm"
-        disabled={isLoading || filteredData.length === 0}
+        disabled={isLoadingSales || filteredData.length === 0}
       >
-        {isLoading ? (
+        {isLoadingSales ? (
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
         ) : (
           <FileText className="mr-2 h-4 w-4" />
@@ -220,6 +248,10 @@ export default function FullReportPage() {
       </Button>
     </div>
   );
+  
+  if (isLoadingSales && reportData.length === 0) { // Show preloader if initial data is loading
+    return <GlobalPreloaderScreen message="Loading full report data..." />;
+  }
 
   return (
     <div className="space-y-6 print:space-y-0">
@@ -237,6 +269,7 @@ export default function FullReportPage() {
               <CardTitle className="font-headline">Detailed Transaction Log</CardTitle>
               <CardDescription>
                 {filteredData.length} transactions found
+                {salesError && <span className="text-destructive ml-2"> (Error: {salesError})</span>}
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
@@ -270,22 +303,21 @@ export default function FullReportPage() {
               </SelectContent>
             </Select>
             
-            <Select value={paymentFilter} onValueChange={setPaymentFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="Payment Method" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Payment Methods</SelectItem>
-                <SelectItem value="Cash">Cash</SelectItem>
-                <SelectItem value="Cheque">Cheque</SelectItem>
-                <SelectItem value="Credit">Credit</SelectItem>
-              </SelectContent>
+            <Select value={paymentSummaryFilter} onValueChange={setPaymentSummaryFilter}>
+                <SelectTrigger>
+                    <SelectValue placeholder="Payment Summary" />
+                </SelectTrigger>
+                <SelectContent>
+                    {paymentSummaryOptions.map(option => (
+                        <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                    ))}
+                </SelectContent>
             </Select>
           </div>
         </CardHeader>
         
         <CardContent className="print:p-0">
-          <FullReportTable data={filteredData} isLoading={isLoading} />
+          <FullReportTable data={filteredData} isLoading={isLoadingSales && reportData.length === 0} />
         </CardContent>
       </Card>
       

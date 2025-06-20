@@ -1,7 +1,7 @@
 
 "use client";
 
-import type { CartItem, Customer, Sale } from "@/lib/types";
+import type { CartItem, Customer, Sale, ChequeInfo } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -15,13 +15,17 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { AppLogo } from "@/components/AppLogo";
-import { Landmark, Printer, Wallet, AlertTriangle, Gift, Newspaper } from "lucide-react"; // Added Newspaper
+import { Calendar as CalendarIcon, Landmark, Printer, Wallet, AlertTriangle, Gift, Newspaper, Banknote, FileText, CreditCard } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { placeholderCustomers } from "@/lib/placeholder-data"; 
 import { cn } from "@/lib/utils";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { format, isValid, parseISO } from "date-fns";
+
 
 interface BillDialogProps {
   isOpen: boolean;
@@ -32,7 +36,7 @@ interface BillDialogProps {
   discountPercentage?: number;
   currentSubtotal?: number;
   currentDiscountAmount?: number;
-  currentTotalAmount?: number;
+  currentTotalAmount?: number; // This is the total amount *due* for the sale
   saleId?: string; 
   onConfirmSale?: (saleData: Omit<Sale, 'id' | 'saleDate' | 'staffId' | 'items'>) => void;
   offerApplied?: boolean; 
@@ -48,7 +52,7 @@ export function BillDialog({
   discountPercentage: newDiscountPercentage,
   currentSubtotal: newSubtotal,
   currentDiscountAmount: newDiscountAmount,
-  currentTotalAmount: newTotalAmount,
+  currentTotalAmount: newTotalAmountDue, // Renamed for clarity
   saleId: newSaleId,
   onConfirmSale,
   offerApplied: newOfferApplied, 
@@ -58,20 +62,14 @@ export function BillDialog({
   const isReprintMode = !!existingSaleData;
   const offerWasApplied = isReprintMode ? (existingSaleData.offerApplied || false) : (newOfferApplied || false);
 
+  const [cashTendered, setCashTendered] = useState<string>("");
+  const [chequeAmountPaid, setChequeAmountPaid] = useState<string>("");
+  const [chequeNumber, setChequeNumber] = useState<string>("");
+  const [chequeBank, setChequeBank] = useState<string>("");
+  const [chequeDate, setChequeDate] = useState<Date | undefined>(new Date());
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<Sale["paymentMethod"]>(
-    isReprintMode && existingSaleData ? existingSaleData.paymentMethod : "Cash"
-  );
-  const [cashGiven, setCashGiven] = useState<string>(
-    isReprintMode && existingSaleData?.paymentMethod === "Cash" ? (existingSaleData.cashGiven?.toString() || "") : ""
-  );
-  const [amountPaidOnCredit, setAmountPaidOnCredit] = useState<string>(
-    isReprintMode && existingSaleData?.paymentMethod === "Credit" ? (existingSaleData.amountPaidOnCredit?.toString() || "") : ""
-  );
-  const [chequeNumber, setChequeNumber] = useState<string>(
-    isReprintMode && existingSaleData?.paymentMethod === "Cheque" ? (existingSaleData.chequeNumber || "") : ""
-  );
-  
+
   const transactionDate = isReprintMode && existingSaleData ? new Date(existingSaleData.saleDate) : new Date();
   const displaySaleId = isReprintMode && existingSaleData ? existingSaleData.id : (newSaleId || `SALE-${Date.now().toString().slice(-6)}`);
   
@@ -102,43 +100,65 @@ export function BillDialog({
   const subtotalToDisplay = (isReprintMode && existingSaleData ? existingSaleData.subTotal : newSubtotal) || 0;
   const discountPercentageToDisplay = (isReprintMode && existingSaleData ? existingSaleData.discountPercentage : newDiscountPercentage) || 0;
   const discountAmountToDisplay = (isReprintMode && existingSaleData ? existingSaleData.discountAmount : newDiscountAmount) || 0;
-  const totalAmountToDisplay = (isReprintMode && existingSaleData ? existingSaleData.totalAmount : newTotalAmount) || 0;
-
-  const balanceReturned = useMemo(() => {
-    if (isReprintMode && existingSaleData?.paymentMethod === "Cash") return existingSaleData.balanceReturned || 0;
-    if (selectedPaymentMethod === "Cash" && cashGiven) {
-      const given = parseFloat(cashGiven);
-      return given >= totalAmountToDisplay ? given - totalAmountToDisplay : null;
-    }
-    return null;
-  }, [isReprintMode, existingSaleData, selectedPaymentMethod, cashGiven, totalAmountToDisplay]);
-
-  const remainingCreditBalance = useMemo(() => {
-    if (isReprintMode && existingSaleData?.paymentMethod === "Credit") return existingSaleData.remainingCreditBalance || 0;
-    if (selectedPaymentMethod === "Credit" && amountPaidOnCredit) {
-      const paid = parseFloat(amountPaidOnCredit);
-      return paid <= totalAmountToDisplay ? totalAmountToDisplay - paid : null;
-    }
-    return null;
-  }, [isReprintMode, existingSaleData, selectedPaymentMethod, amountPaidOnCredit, totalAmountToDisplay]);
+  const totalAmountDueForDisplay = (isReprintMode && existingSaleData ? existingSaleData.totalAmount : newTotalAmountDue) || 0;
 
   useEffect(() => {
     if (isOpen) {
+      setIsProcessing(false);
       if (isReprintMode && existingSaleData) {
-        setSelectedPaymentMethod(existingSaleData.paymentMethod);
-        setCashGiven(existingSaleData.paymentMethod === "Cash" ? (existingSaleData.cashGiven?.toString() || "") : "");
-        setAmountPaidOnCredit(existingSaleData.paymentMethod === "Credit" ? (existingSaleData.amountPaidOnCredit?.toString() || "") : "");
-        setChequeNumber(existingSaleData.paymentMethod === "Cheque" ? (existingSaleData.chequeNumber || "") : "");
+        setCashTendered(existingSaleData.paidAmountCash?.toString() || "");
+        setChequeAmountPaid(existingSaleData.paidAmountCheque?.toString() || "");
+        setChequeNumber(existingSaleData.chequeDetails?.number || "");
+        setChequeBank(existingSaleData.chequeDetails?.bank || "");
+        setChequeDate(existingSaleData.chequeDetails?.date || new Date());
       } else {
-        setSelectedPaymentMethod("Cash"); 
-        setCashGiven("");
-        setAmountPaidOnCredit("");
+        setCashTendered("");
+        setChequeAmountPaid("");
         setChequeNumber("");
+        setChequeBank("");
+        setChequeDate(new Date());
       }
     }
   }, [isOpen, isReprintMode, existingSaleData]);
 
-  const handlePrimaryAction = () => {
+  const parsedCashTendered = parseFloat(cashTendered) || 0;
+  const parsedChequeAmountPaid = parseFloat(chequeAmountPaid) || 0;
+
+  const totalTenderedAmount = parsedCashTendered + parsedChequeAmountPaid;
+  
+  const changeGiven = useMemo(() => {
+    if (totalTenderedAmount > totalAmountDueForDisplay) {
+      return totalTenderedAmount - totalAmountDueForDisplay;
+    }
+    return 0;
+  }, [totalTenderedAmount, totalAmountDueForDisplay]);
+
+  const totalPaymentApplied = totalTenderedAmount - changeGiven;
+
+  const outstandingBalance = useMemo(() => {
+    return Math.max(0, totalAmountDueForDisplay - totalPaymentApplied);
+  }, [totalAmountDueForDisplay, totalPaymentApplied]);
+
+
+  const getPaymentSummary = useCallback(() => {
+    const cashPaid = parsedCashTendered > 0;
+    const chequePaid = parsedChequeAmountPaid > 0;
+
+    if (outstandingBalance > 0) {
+      if (cashPaid && chequePaid) return "Split (Partial)";
+      if (cashPaid) return "Partial Cash";
+      if (chequePaid) return "Partial Cheque";
+      return "Credit"; // If nothing paid but there's a balance, it's full credit
+    } else { // Paid in full or overpaid (change given)
+      if (cashPaid && chequePaid) return "Split (Cash + Cheque)";
+      if (cashPaid) return "Cash";
+      if (chequePaid) return "Cheque";
+      return "Paid"; // Should not happen if no payment method was used, but as fallback
+    }
+  }, [parsedCashTendered, parsedChequeAmountPaid, outstandingBalance]);
+
+
+  const handlePrimaryAction = async () => {
     if (isReprintMode) {
       window.print();
       onOpenChange(false); 
@@ -146,62 +166,67 @@ export function BillDialog({
     }
 
     if (onConfirmSale) {
+      setIsProcessing(true);
+      if (parsedChequeAmountPaid > 0 && !chequeNumber.trim()) {
+        alert("Cheque number is required if paying by cheque.");
+        setIsProcessing(false);
+        return;
+      }
+      if (totalPaymentApplied <= 0 && totalAmountDueForDisplay > 0 && !customerForDisplay) {
+        alert("A customer must be selected if the sale is on credit or partially paid with an outstanding balance.");
+         setIsProcessing(false);
+        return;
+      }
+
+
       const saleData: Omit<Sale, 'id' | 'saleDate' | 'staffId' | 'items'> = {
         customerId: customerForDisplay?.id,
         customerName: customerForDisplay?.name,
         subTotal: subtotalToDisplay,
         discountPercentage: discountPercentageToDisplay,
         discountAmount: discountAmountToDisplay,
-        totalAmount: totalAmountToDisplay,
-        paymentMethod: selectedPaymentMethod,
+        totalAmount: totalAmountDueForDisplay, // Total amount due
         offerApplied: offerWasApplied, 
+        
+        paidAmountCash: parsedCashTendered > 0 ? (parsedCashTendered - (parsedChequeAmountPaid > 0 ? 0 : changeGiven)) : undefined, // if only cash, deduct change from cash
+        paidAmountCheque: parsedChequeAmountPaid > 0 ? parsedChequeAmountPaid : undefined,
+        chequeDetails: parsedChequeAmountPaid > 0 ? {
+          number: chequeNumber.trim(),
+          bank: chequeBank.trim() || undefined,
+          date: chequeDate,
+          amount: parsedChequeAmountPaid
+        } : undefined,
+        
+        totalAmountPaid: totalPaymentApplied,
+        outstandingBalance: outstandingBalance,
+        changeGiven: changeGiven > 0 ? changeGiven : undefined,
+        paymentSummary: getPaymentSummary(),
       };
-
-      if (selectedPaymentMethod === "Cash") {
-        saleData.cashGiven = parseFloat(cashGiven || "0");
-        saleData.balanceReturned = balanceReturned !== null ? balanceReturned : 0;
-        if (saleData.cashGiven < totalAmountToDisplay) {
-          alert("Cash given is less than total amount.");
-          return;
-        }
-      } else if (selectedPaymentMethod === "Credit") {
-        if (!customerForDisplay) {
-          alert("A customer must be selected for credit sales.");
-          return;
-        }
-        saleData.customerId = customerForDisplay.id; 
-        saleData.customerName = customerForDisplay.name;
-        saleData.amountPaidOnCredit = parseFloat(amountPaidOnCredit || "0");
-        saleData.remainingCreditBalance = remainingCreditBalance !== null ? remainingCreditBalance : totalAmountToDisplay;
-        if (saleData.amountPaidOnCredit > totalAmountToDisplay) {
-          alert("Amount paid cannot exceed total amount for credit sales.");
-          return;
-        }
-      } else if (selectedPaymentMethod === "Cheque") {
-        if (!chequeNumber.trim()) {
-          alert("Cheque number is required for cheque payments.");
-          return;
-        }
-        saleData.chequeNumber = chequeNumber.trim();
+      
+      try {
+        await onConfirmSale(saleData); // Make onConfirmSale async in parent if it does API calls
+        window.print(); 
+        onOpenChange(false);
+      } catch (error) {
+        // Error toast is likely handled by onConfirmSale's implementation
+        console.error("Error during confirm sale:", error);
+      } finally {
+        setIsProcessing(false);
       }
-      onConfirmSale(saleData);
+    } else {
+      // Fallback if onConfirmSale is not provided (e.g., direct print from reprint)
+      window.print(); 
+      onOpenChange(false); 
     }
-    window.print(); 
-    onOpenChange(false); 
   };
-
-  const paymentMethods: { value: Sale["paymentMethod"]; label: string; icon: React.ElementType }[] = [
-    { value: "Cash", label: "Cash", icon: Wallet },
-    { value: "Cheque", label: "Cheque", icon: Newspaper },
-    { value: "Credit", label: "Credit", icon: Landmark },
-  ];
   
   const isPrimaryButtonDisabled = !isReprintMode && (
     itemsToDisplay.filter(item => !item.isOfferItem || (item.isOfferItem && item.quantity > 0)).length === 0 ||
-    (selectedPaymentMethod === "Cash" && (cashGiven === "" || parseFloat(cashGiven) < totalAmountToDisplay)) ||
-    (selectedPaymentMethod === "Credit" && (!customerForDisplay || amountPaidOnCredit === "" || parseFloat(amountPaidOnCredit) > totalAmountToDisplay)) ||
-    (selectedPaymentMethod === "Cheque" && !chequeNumber.trim())
+    (totalPaymentApplied <= 0 && totalAmountDueForDisplay > 0 && !customerForDisplay ) || // Require customer if full credit
+    (parsedChequeAmountPaid > 0 && !chequeNumber.trim()) || // Require cheque number if cheque amount entered
+    isProcessing
   );
+
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -217,7 +242,7 @@ export function BillDialog({
             {isReprintMode ? "View Invoice" : "Transaction Receipt & Payment"}
           </DialogTitle>
           <DialogDescription>
-            {isReprintMode ? `Details for invoice ${displaySaleId}.` : "Finalize payment method and print the receipt."}
+            {isReprintMode ? `Details for invoice ${displaySaleId}.` : "Finalize payment and print the receipt."}
           </DialogDescription>
         </DialogHeader>
         
@@ -288,165 +313,146 @@ export function BillDialog({
                 </div>
               )}
               <Separator className="my-1"/>
-              <div className="flex justify-between font-bold text-sm">
-                <span>Total Amount Due:</span>
-                <span>Rs. {totalAmountToDisplay.toFixed(2)}</span>
+              <div className="flex justify-between font-bold text-lg text-primary">
+                <span>TOTAL AMOUNT DUE:</span>
+                <span>Rs. {totalAmountDueForDisplay.toFixed(2)}</span>
               </div>
             </div>
             
             <Separator className="my-4"/>
 
-            <div className="mb-4">
-              <h3 className="font-semibold mb-2 text-sm">Payment Method:</h3>
-              <RadioGroup 
-                value={selectedPaymentMethod}
-                onValueChange={(value: Sale["paymentMethod"]) => {
-                  if (!isReprintMode) { 
-                    setSelectedPaymentMethod(value);
-                    setCashGiven(""); 
-                    setAmountPaidOnCredit(""); 
-                    setChequeNumber("");
-                  }
-                }}
-                className="grid grid-cols-3 gap-3 print:hidden"
-                disabled={isReprintMode} 
-              >
-                {paymentMethods.map((method) => (
-                  <Label
-                    key={method.value}
-                    htmlFor={`payment-${method.value}`}
-                    className={`flex flex-col items-center justify-center rounded-md border-2 p-3 hover:bg-accent hover:text-accent-foreground transition-all
-                      ${selectedPaymentMethod === method.value ? "border-primary bg-primary/10 shadow-md" : "border-muted"}
-                      ${isReprintMode ? "cursor-not-allowed opacity-70" : "cursor-pointer"}`}
-                  >
-                    <RadioGroupItem value={method.value} id={`payment-${method.value}`} className="sr-only" disabled={isReprintMode}/>
-                    <method.icon className={`mb-1.5 h-5 w-5 ${selectedPaymentMethod === method.value ? "text-primary" : "text-muted-foreground"}`} />
-                    <span className={`text-xs font-medium ${selectedPaymentMethod === method.value ? "text-primary" : ""}`}>{method.label}</span>
-                  </Label>
-                ))}
-              </RadioGroup>
-              <div className="mt-2 text-xs print:block hidden"> 
-                Selected: <span className="font-semibold">{selectedPaymentMethod}</span>
-                {selectedPaymentMethod === "Cheque" && existingSaleData?.chequeNumber && (
-                  <span> (Cheque #: {existingSaleData.chequeNumber})</span>
+            {/* Payment Input Section - Hidden on Reprint */}
+            {!isReprintMode && (
+                <div className="mb-4 space-y-4 print:hidden">
+                    <h3 className="font-semibold text-sm">Payment Details:</h3>
+                    <div>
+                        <Label htmlFor="cashTendered" className="text-xs">Cash Tendered (Rs.)</Label>
+                        <Input 
+                            id="cashTendered" 
+                            type="number" 
+                            value={cashTendered}
+                            onChange={(e) => setCashTendered(e.target.value)}
+                            placeholder="0.00"
+                            className="h-10 mt-1"
+                            min="0"
+                            step="0.01"
+                            disabled={isProcessing}
+                        />
+                    </div>
+                    <div className="border p-3 rounded-md space-y-3 bg-muted/50">
+                        <p className="text-xs font-medium">Cheque Payment (Optional)</p>
+                        <div>
+                            <Label htmlFor="chequeAmountPaid" className="text-xs">Cheque Amount (Rs.)</Label>
+                            <Input 
+                                id="chequeAmountPaid" 
+                                type="number" 
+                                value={chequeAmountPaid}
+                                onChange={(e) => setChequeAmountPaid(e.target.value)}
+                                placeholder="0.00"
+                                className="h-10 mt-1 bg-background"
+                                min="0"
+                                step="0.01"
+                                disabled={isProcessing}
+                            />
+                        </div>
+                        <div>
+                            <Label htmlFor="chequeNumber" className="text-xs">Cheque Number</Label>
+                            <Input 
+                                id="chequeNumber" 
+                                type="text" 
+                                value={chequeNumber}
+                                onChange={(e) => setChequeNumber(e.target.value)}
+                                placeholder="Enter cheque number"
+                                className="h-10 mt-1 bg-background"
+                                disabled={isProcessing || parsedChequeAmountPaid <= 0}
+                                required={parsedChequeAmountPaid > 0}
+                            />
+                        </div>
+                        <div>
+                            <Label htmlFor="chequeBank" className="text-xs">Cheque Bank</Label>
+                            <Input 
+                                id="chequeBank" 
+                                type="text" 
+                                value={chequeBank}
+                                onChange={(e) => setChequeBank(e.target.value)}
+                                placeholder="Enter bank name"
+                                className="h-10 mt-1 bg-background"
+                                disabled={isProcessing || parsedChequeAmountPaid <= 0}
+                            />
+                        </div>
+                        <div>
+                            <Label htmlFor="chequeDate" className="text-xs">Cheque Date</Label>
+                             <Popover>
+                                <PopoverTrigger asChild>
+                                <Button
+                                    variant={"outline"}
+                                    className={cn(
+                                    "w-full justify-start text-left font-normal h-10 mt-1 bg-background",
+                                    !chequeDate && "text-muted-foreground"
+                                    )}
+                                    disabled={isProcessing || parsedChequeAmountPaid <= 0}
+                                >
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {chequeDate ? format(chequeDate, "PPP") : <span>Pick a date</span>}
+                                </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0">
+                                <Calendar
+                                    mode="single"
+                                    selected={chequeDate}
+                                    onSelect={setChequeDate}
+                                    initialFocus
+                                    disabled={isProcessing || parsedChequeAmountPaid <= 0}
+                                />
+                                </PopoverContent>
+                            </Popover>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Payment Summary for Display (Live and Reprint) */}
+            <div className="space-y-1 text-xs mb-4">
+                <Separator className="my-2"/>
+                <div className="flex justify-between font-medium">
+                    <span>Total Tendered:</span>
+                    <span>Rs. {isReprintMode ? (existingSaleData?.totalAmountPaid || 0).toFixed(2) : totalTenderedAmount.toFixed(2)}</span>
+                </div>
+                {isReprintMode && existingSaleData?.paidAmountCash && (
+                     <div className="flex justify-between pl-2"><span>By Cash:</span><span>Rs. {existingSaleData.paidAmountCash.toFixed(2)}</span></div>
                 )}
-              </div>
+                {isReprintMode && existingSaleData?.paidAmountCheque && (
+                     <div className="flex justify-between pl-2">
+                        <span>By Cheque ({existingSaleData.chequeDetails?.number || 'N/A'}):</span>
+                        <span>Rs. {existingSaleData.paidAmountCheque.toFixed(2)}</span>
+                    </div>
+                )}
+
+                {!isReprintMode && changeGiven > 0 && (
+                    <div className="flex justify-between text-green-600">
+                        <span>Change Given:</span>
+                        <span>Rs. {changeGiven.toFixed(2)}</span>
+                    </div>
+                )}
+                {isReprintMode && existingSaleData?.changeGiven && (
+                     <div className="flex justify-between pl-2 text-green-600"><span>Change Given:</span><span>Rs. {existingSaleData.changeGiven.toFixed(2)}</span></div>
+                )}
+                
+                <Separator className="my-1"/>
+                <div className="flex justify-between font-semibold text-sm">
+                    <span>Total Payment Applied:</span>
+                    <span>Rs. {isReprintMode ? (existingSaleData?.totalAmountPaid || 0).toFixed(2) : totalPaymentApplied.toFixed(2)}</span>
+                </div>
+                <div className={cn("flex justify-between font-semibold text-sm", outstandingBalance > 0 ? "text-destructive" : "text-muted-foreground")}>
+                    <span>Balance Due:</span>
+                    <span>Rs. {isReprintMode ? (existingSaleData?.outstandingBalance || 0).toFixed(2) : outstandingBalance.toFixed(2)}</span>
+                </div>
+                 <div className="flex justify-between text-xs text-muted-foreground pt-1">
+                    <span>Payment Summary:</span>
+                    <span>{isReprintMode ? existingSaleData?.paymentSummary : getPaymentSummary()}</span>
+                </div>
             </div>
 
-            {selectedPaymentMethod === "Cash" && (
-              <div className="space-y-3 mt-4">
-                <div className="print:hidden">
-                  <Label htmlFor="cashGiven" className="text-xs">Cash Given (Rs.)</Label>
-                  <Input 
-                    id="cashGiven" 
-                    type="number" 
-                    value={cashGiven}
-                    onChange={(e) => setCashGiven(e.target.value)}
-                    placeholder="Amount received"
-                    className="h-10"
-                    min={!isReprintMode ? totalAmountToDisplay.toString() : undefined}
-                    disabled={isReprintMode}
-                  />
-                </div>
-                {balanceReturned !== null && (isReprintMode || parseFloat(cashGiven) >= totalAmountToDisplay) && (
-                  <p className="text-sm font-medium">Balance to Return: <span className="text-green-600">Rs. {balanceReturned.toFixed(2)}</span></p>
-                )}
-                {!isReprintMode && cashGiven !== "" && parseFloat(cashGiven) < totalAmountToDisplay && (
-                    <Alert variant="destructive" className="p-2 text-xs print:hidden">
-                        <AlertTriangle className="h-4 w-4" />
-                        <AlertDescription>
-                        Cash given is less than total amount.
-                        </AlertDescription>
-                    </Alert>
-                )}
-                <div className="mt-2 text-xs print:block hidden">
-                  {isReprintMode && existingSaleData?.paymentMethod === "Cash" && (
-                    <>
-                      <p>Cash Given: Rs. {(existingSaleData.cashGiven || 0).toFixed(2)}</p>
-                      <p>Balance Returned: Rs. {(existingSaleData.balanceReturned || 0).toFixed(2)}</p>
-                    </>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {selectedPaymentMethod === "Credit" && (
-              <div className="space-y-3 mt-4">
-                {!isReprintMode && !customerForDisplay && ( 
-                   <Alert variant="destructive" className="p-3 text-sm print:hidden">
-                        <AlertTriangle className="h-4 w-4" />
-                        <AlertDescription>
-                        A customer must be selected for credit sales.
-                        </AlertDescription>
-                    </Alert>
-                )}
-                <div className="print:hidden">
-                  <Label htmlFor="amountPaidOnCredit" className="text-xs">Amount Paid Now (Rs.)</Label>
-                  <Input 
-                    id="amountPaidOnCredit" 
-                    type="number" 
-                    value={amountPaidOnCredit}
-                    onChange={(e) => setAmountPaidOnCredit(e.target.value)}
-                    placeholder="Amount paid"
-                    className="h-10"
-                    max={!isReprintMode ? totalAmountToDisplay.toString() : undefined}
-                    disabled={isReprintMode || (!isReprintMode && !customerForDisplay)}
-                  />
-                </div>
-                {remainingCreditBalance !== null && (isReprintMode || (parseFloat(amountPaidOnCredit) <= totalAmountToDisplay && customerForDisplay)) && (
-                  <p className="text-sm font-medium">Remaining Balance: <span className="text-orange-600">Rs. {remainingCreditBalance.toFixed(2)}</span></p>
-                )}
-                 {!isReprintMode && amountPaidOnCredit !== "" && parseFloat(amountPaidOnCredit) > totalAmountToDisplay && (
-                    <Alert variant="destructive" className="p-2 text-xs print:hidden">
-                        <AlertTriangle className="h-4 w-4" />
-                        <AlertDescription>
-                        Amount paid cannot exceed total.
-                        </AlertDescription>
-                    </Alert>
-                )}
-                <div className="mt-2 text-xs print:block hidden">
-                  {isReprintMode && existingSaleData?.paymentMethod === "Credit" && (
-                    <>
-                      <p>Amount Paid: Rs. {(existingSaleData.amountPaidOnCredit || 0).toFixed(2)}</p>
-                      <p>Remaining Credit: Rs. {(existingSaleData.remainingCreditBalance || 0).toFixed(2)}</p>
-                    </>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {selectedPaymentMethod === "Cheque" && (
-              <div className="space-y-3 mt-4">
-                 <div className="print:hidden">
-                  <Label htmlFor="chequeNumber" className="text-xs">Cheque Number *</Label>
-                  <Input 
-                    id="chequeNumber" 
-                    type="text" 
-                    value={chequeNumber}
-                    onChange={(e) => setChequeNumber(e.target.value)}
-                    placeholder="Enter cheque number"
-                    className="h-10"
-                    disabled={isReprintMode}
-                    required={!isReprintMode}
-                  />
-                </div>
-                {!isReprintMode && chequeNumber.trim() === "" && (
-                    <Alert variant="destructive" className="p-2 text-xs print:hidden">
-                        <AlertTriangle className="h-4 w-4" />
-                        <AlertDescription>
-                          Cheque number is required.
-                        </AlertDescription>
-                    </Alert>
-                )}
-                 <div className="mt-2 text-xs print:block hidden">
-                  {isReprintMode && existingSaleData?.paymentMethod === "Cheque" && (
-                    <p>Cheque #: {existingSaleData.chequeNumber || "N/A"}</p>
-                  )}
-                </div>
-              </div>
-            )}
-            
-            <Separator className="my-4 print:hidden"/>
 
             <p className="text-center text-xs mt-6">Thank you for your purchase!</p>
             <p className="text-center text-xs">Please come again.</p>
@@ -454,10 +460,9 @@ export function BillDialog({
         </ScrollArea>
 
         <DialogFooter className="mt-auto p-6 border-t print:hidden flex justify-end gap-2">
-           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-           <Button onClick={handlePrimaryAction} disabled={isPrimaryButtonDisabled}>
-             <Printer className="mr-2 h-4 w-4" /> 
-             {isReprintMode ? "Print Receipt" : "Confirm & Print"}
+           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isProcessing}>Cancel</Button>
+           <Button onClick={handlePrimaryAction} disabled={isPrimaryButtonDisabled || isProcessing}>
+             {isProcessing ? <><Banknote className="mr-2 h-4 w-4 animate-spin" /> Processing...</> : <><Printer className="mr-2 h-4 w-4" /> {isReprintMode ? "Print Receipt" : "Confirm & Print"}</>}
            </Button>
         </DialogFooter>
       </DialogContent>

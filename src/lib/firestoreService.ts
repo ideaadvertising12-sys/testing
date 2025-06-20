@@ -24,7 +24,9 @@ import {
   type FirestoreCartItem, 
   customerConverter,
   type Customer,
-  type FirestoreCustomer
+  type FirestoreCustomer,
+  type ChequeInfo,
+  type FirestoreChequeInfo,
 } from "./types";
 
 
@@ -113,7 +115,10 @@ export const deleteCustomer = async (id: string): Promise<void> => {
 
 
 // Sale Services
-export const addSale = async (saleData: Omit<Sale, 'id' | 'saleDate' | 'items'> & { saleDate: Date, items: CartItem[] }): Promise<string> => {
+export const addSale = async (
+  saleData: Omit<Sale, 'id' | 'saleDate' | 'items' | 'chequeDetails'> & 
+            { saleDate: Date, items: CartItem[], chequeDetails?: ChequeInfo }
+): Promise<string> => {
   checkFirebase();
   const batch = writeBatch(db);
   const salesCol = collection(db, "sales");
@@ -128,22 +133,47 @@ export const addSale = async (saleData: Omit<Sale, 'id' | 'saleDate' | 'items'> 
       productName: item.name, 
       productCategory: item.category,
       productPrice: item.price, 
-      isOfferItem: item.isOfferItem || false, 
+      isOfferItem: item.isOfferItem || false,
     };
-
     if (item.sku !== undefined) {
       firestoreItem.productSku = item.sku;
     }
     return firestoreItem;
   });
 
+  let firestoreChequeDetails: FirestoreChequeInfo | undefined = undefined;
+  if (saleData.chequeDetails) {
+    firestoreChequeDetails = {
+        ...saleData.chequeDetails,
+        date: saleData.chequeDetails.date ? Timestamp.fromDate(saleData.chequeDetails.date) : undefined,
+    };
+    // Remove undefined fields from chequeDetails to prevent Firestore error
+    Object.keys(firestoreChequeDetails).forEach(key => {
+        if ((firestoreChequeDetails as any)[key] === undefined) {
+            delete (firestoreChequeDetails as any)[key];
+        }
+    });
+    if (Object.keys(firestoreChequeDetails).length === 0) {
+        firestoreChequeDetails = undefined;
+    }
+  }
+
+
   const firestoreSaleData: FirestoreSale = {
     items: firestoreSaleItems,
     subTotal: saleData.subTotal,
     discountPercentage: saleData.discountPercentage,
     discountAmount: saleData.discountAmount,
-    totalAmount: saleData.totalAmount,
-    paymentMethod: saleData.paymentMethod,
+    totalAmount: saleData.totalAmount, // Total Amount Due
+    
+    paidAmountCash: saleData.paidAmountCash,
+    paidAmountCheque: saleData.paidAmountCheque,
+    chequeDetails: firestoreChequeDetails, // Use potentially cleaned firestoreChequeDetails
+    totalAmountPaid: saleData.totalAmountPaid,
+    outstandingBalance: saleData.outstandingBalance,
+    changeGiven: saleData.changeGiven,
+    paymentSummary: saleData.paymentSummary,
+
     saleDate: Timestamp.fromDate(saleData.saleDate),
     staffId: saleData.staffId,
     offerApplied: saleData.offerApplied || false,
@@ -151,16 +181,20 @@ export const addSale = async (saleData: Omit<Sale, 'id' | 'saleDate' | 'items'> 
     updatedAt: Timestamp.now()  
   };
 
-  // Optional fields for the main sale document
   if (saleData.customerId !== undefined) firestoreSaleData.customerId = saleData.customerId;
   if (saleData.customerName !== undefined) firestoreSaleData.customerName = saleData.customerName;
-  if (saleData.cashGiven !== undefined) firestoreSaleData.cashGiven = saleData.cashGiven;
-  if (saleData.balanceReturned !== undefined) firestoreSaleData.balanceReturned = saleData.balanceReturned;
-  if (saleData.amountPaidOnCredit !== undefined) firestoreSaleData.amountPaidOnCredit = saleData.amountPaidOnCredit;
-  if (saleData.remainingCreditBalance !== undefined) firestoreSaleData.remainingCreditBalance = saleData.remainingCreditBalance;
-  if (saleData.chequeNumber !== undefined) firestoreSaleData.chequeNumber = saleData.chequeNumber;
+  
+  // Clean undefined root-level fields before setting
+  const cleanedFirestoreSaleData = { ...firestoreSaleData };
+  Object.keys(cleanedFirestoreSaleData).forEach(key => {
+    if ((cleanedFirestoreSaleData as any)[key] === undefined) {
+      delete (cleanedFirestoreSaleData as any)[key];
+    }
+  });
 
-  batch.set(saleDocRef, firestoreSaleData);
+
+  batch.set(saleDocRef, saleConverter.toFirestore(cleanedFirestoreSaleData as FirestoreSale));
+
 
   for (const item of saleData.items) {
     if (!item.isOfferItem) { 

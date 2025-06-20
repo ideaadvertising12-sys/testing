@@ -16,6 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Tooltip,
   TooltipContent,
+  TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { FileText } from "lucide-react"; 
@@ -49,6 +50,7 @@ export function FullReportTable({ data, isLoading }: FullReportTableProps) {
   }
 
   return (
+    <TooltipProvider>
     <div className="relative">
       <ScrollArea className="h-[calc(100vh-20rem)] lg:h-[calc(100vh-15rem)] w-full">
         <div className="min-w-[1200px] md:min-w-0">
@@ -66,7 +68,7 @@ export function FullReportTable({ data, isLoading }: FullReportTableProps) {
                 <TableHead className="w-[90px] text-right">Unit Price</TableHead>
                 <TableHead className="w-[100px] text-right">Total</TableHead>
                 <TableHead className="w-[100px]">Type</TableHead>
-                <TableHead className="w-[100px]">Payment</TableHead>
+                <TableHead className="w-[150px]">Payment Summary</TableHead> 
                 <TableHead className="w-[80px]">Staff</TableHead>
               </TableRow>
             </TableHeader>
@@ -122,10 +124,11 @@ export function FullReportTable({ data, isLoading }: FullReportTableProps) {
                       {entry.saleType}
                     </Badge>
                   </TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="capitalize">
-                      {entry.paymentMethod}
-                    </Badge>
+                  <TableCell className="text-xs">
+                     <Tooltip>
+                        <TooltipTrigger className="truncate block max-w-[140px] cursor-default">{entry.paymentMethod}</TooltipTrigger>
+                        <TooltipContent>{entry.paymentMethod}</TooltipContent>
+                    </Tooltip>
                   </TableCell>
                   <TableCell className="font-mono text-xs">
                     {entry.staffId}
@@ -137,5 +140,6 @@ export function FullReportTable({ data, isLoading }: FullReportTableProps) {
         </div>
       </ScrollArea>
     </div>
+    </TooltipProvider>
   );
 }
