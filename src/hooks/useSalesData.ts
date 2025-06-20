@@ -1,4 +1,4 @@
-
+//location src/components/dashboard/useSalesData.tsx
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 
 const API_BASE_URL = "/api/sales";
 
-export function useSalesData() {
+export function useSalesData(realTime = true) {
   const [sales, setSales] = useState<Sale[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -23,10 +23,9 @@ export function useSalesData() {
         throw new Error(errorData.message || "Failed to fetch sales data");
       }
       const data = await response.json();
-      // Ensure numerical values are correctly parsed, defaulting to 0 if invalid
       const processedSales = data.map((sale: any) => ({
         ...sale,
-        saleDate: new Date(sale.saleDate), // Ensure saleDate is a Date object
+        saleDate: new Date(sale.saleDate),
         totalAmount: Number(sale.totalAmount) || 0,
         subTotal: Number(sale.subTotal) || 0,
         discountAmount: Number(sale.discountAmount) || 0,
@@ -53,11 +52,27 @@ export function useSalesData() {
   useEffect(() => {
     fetchSales();
 
-    // Optional: Refetch on window focus for pseudo-real-time update
-    const handleFocus = () => fetchSales();
-    window.addEventListener("focus", handleFocus);
-    return () => window.removeEventListener("focus", handleFocus);
-  }, [fetchSales]);
+    if (realTime) {
+      // Set up polling for real-time updates (every 30 seconds)
+      const pollInterval = setInterval(fetchSales, 30000);
+      
+      // Alternatively, set up WebSocket connection here if your backend supports it
+      // const ws = new WebSocket('wss://your-api/ws');
+      // ws.onmessage = (event) => {
+      //   const newSale = JSON.parse(event.data);
+      //   setSales(prev => [...prev, newSale]);
+      // };
+      
+      return () => {
+        clearInterval(pollInterval);
+        // ws.close();
+      };
+    }
+  }, [fetchSales, realTime]);
+
+  const addNewSale = useCallback((newSale: Sale) => {
+    setSales(prevSales => [newSale, ...prevSales]);
+  }, []);
 
   const totalRevenue = sales.reduce((sum, sale) => sum + sale.totalAmount, 0);
 
@@ -65,7 +80,8 @@ export function useSalesData() {
     sales,
     isLoading,
     error,
-    totalRevenue, // Export the calculated totalRevenue
+    totalRevenue,
     refetchSales: fetchSales,
+    addNewSale, // Export function to manually add new sales
   };
 }

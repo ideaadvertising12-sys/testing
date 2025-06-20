@@ -17,39 +17,40 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { CalendarIcon, FilterX, Search, ReceiptText, Printer, Eye, ChevronDown, ChevronUp } from "lucide-react";
+import { CalendarIcon, FilterX, Search, ReceiptText, Printer, Eye, ChevronDown, ChevronUp, Loader2, AlertTriangle } from "lucide-react";
 import { format, isValid, parseISO, isWithinInterval, startOfDay, endOfDay } from "date-fns";
-import type { Sale, Customer } from "@/lib/types";
+import type { Sale } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { BillDialog } from "@/components/sales/BillDialog";
-import { placeholderCustomers } from "@/lib/placeholder-data";
 import { useMediaQuery } from "@/hooks/use-media-query";
 
 interface InvoiceDataTableProps {
-  initialSales: Sale[];
+  sales: Sale[]; // Accept sales as a prop
+  isLoading: boolean;
+  error?: string | null;
+  onRefetch?: () => void;
 }
 
-export function InvoiceDataTable({ initialSales }: InvoiceDataTableProps) {
+export function InvoiceDataTable({ sales: initialSales, isLoading, error, onRefetch }: InvoiceDataTableProps) {
   const isMobile = useMediaQuery("(max-width: 768px)");
-  const [sales, setSales] = useState<Sale[]>(initialSales);
   const [searchTerm, setSearchTerm] = useState("");
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [expandedInvoice, setExpandedInvoice] = useState<string | null>(null);
-  
   const [selectedInvoiceForReprint, setSelectedInvoiceForReprint] = useState<Sale | null>(null);
   const [isBillDialogOpen, setIsBillDialogOpen] = useState(false);
 
-  useEffect(() => {
-    setSales(initialSales.sort((a, b) => {
+  // Sort sales by date (newest first)
+  const sortedSales = useMemo(() => {
+    return [...initialSales].sort((a, b) => {
       const dateA = a.saleDate instanceof Date ? a.saleDate : new Date(a.saleDate || 0);
       const dateB = b.saleDate instanceof Date ? b.saleDate : new Date(b.saleDate || 0);
       return dateB.getTime() - dateA.getTime();
-    }));
+    });
   }, [initialSales]);
 
   const filteredSales = useMemo(() => {
-    return sales.filter(sale => {
+    return sortedSales.filter(sale => {
       const saleDateObj = typeof sale.saleDate === 'string' ? parseISO(sale.saleDate) : sale.saleDate;
       
       const lowerSearchTerm = searchTerm.toLowerCase();
@@ -68,13 +69,12 @@ export function InvoiceDataTable({ initialSales }: InvoiceDataTableProps) {
             matchesDateRange = saleDateObj <= endOfDay(endDate);
           }
       } else {
-        // If saleDate is invalid, it won't match any date range filter
-        if (startDate || endDate) matchesDateRange = false;
+        if (startDate || endDate) matchesDateRange = false; // If date is invalid, it doesn't match if a range is set
       }
       
       return matchesSearchTerm && matchesDateRange;
     });
-  }, [sales, searchTerm, startDate, endDate]);
+  }, [sortedSales, searchTerm, startDate, endDate]);
 
   const clearFilters = () => {
     setSearchTerm("");
@@ -93,13 +93,16 @@ export function InvoiceDataTable({ initialSales }: InvoiceDataTableProps) {
 
   const formatCurrency = (amount: number | undefined) => {
     if (typeof amount !== 'number' || isNaN(amount)) return 'Rs. 0.00';
-    return new Intl.NumberFormat('en-LK', { // Changed to en-LK for LKR default
+    return new Intl.NumberFormat('en-LK', {
       style: 'currency',
       currency: 'LKR', 
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
-    }).format(amount).replace('LKR', 'Rs.'); // Replace LKR with Rs.
+    }).format(amount).replace('LKR', 'Rs.');
   };
+  
+  // Loading and error states are now handled by the parent component (InvoicingPage)
+  // The table itself will show a loading indicator or message via props if needed.
 
   return (
     <>
@@ -179,109 +182,41 @@ export function InvoiceDataTable({ initialSales }: InvoiceDataTableProps) {
           )}
         </CardHeader>
         <CardContent>
-          <ScrollArea className={isMobile ? "h-[calc(100vh-24rem)]" : "h-[calc(100vh-24rem)]"}>
-            {filteredSales.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
-                  <ReceiptText className="w-16 h-16 mb-4 opacity-50" />
-                  <p className="text-lg font-medium">No invoices found</p>
-                  {(searchTerm || startDate || endDate) && <p className="text-sm">Try adjusting your search or date filters</p>}
-              </div>
-            ) : isMobile ? (
-              <div className="space-y-2">
-                {filteredSales.map((sale) => (
-                  <Card key={sale.id} className="p-4">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <p className="font-medium text-sm">{sale.id}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {format(typeof sale.saleDate === 'string' ? parseISO(sale.saleDate) : sale.saleDate, "PP")}
-                        </p>
-                        <p className="text-sm mt-1">{sale.customerName || "Walk-in"}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-medium">{formatCurrency(sale.totalAmount)}</p>
-                        <Badge 
-                          variant={
-                              sale.paymentMethod === "Credit" ? "destructive" : 
-                              sale.paymentMethod === "Card" ? "secondary" : "default"
-                          }
-                          className={cn(
-                              "text-xs",
-                              sale.paymentMethod === "Credit" && "bg-orange-500 text-white",
-                              sale.paymentMethod === "Card" && "bg-blue-500 text-white"
-                          )}
-                        >
-                          {sale.paymentMethod}
-                        </Badge>
-                      </div>
-                    </div>
-                    
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="w-full mt-2 justify-between text-primary hover:text-primary"
-                      onClick={() => toggleExpandInvoice(sale.id)}
-                    >
-                      {expandedInvoice === sale.id ? "Hide details" : "Show details"}
-                      {expandedInvoice === sale.id ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                    </Button>
-                    
-                    {expandedInvoice === sale.id && (
-                      <div className="mt-3 space-y-1 text-xs border-t pt-2">
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Paid/Given:</span>
-                          <span>
-                            {sale.paymentMethod === "Cash" && sale.cashGiven !== undefined ? formatCurrency(sale.cashGiven) : ""}
-                            {sale.paymentMethod === "Credit" && sale.amountPaidOnCredit !== undefined ? formatCurrency(sale.amountPaidOnCredit) : ""}
-                            {sale.paymentMethod === "Card" ? "N/A" : ""}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Balance:</span>
-                          <span>
-                            {sale.paymentMethod === "Cash" && sale.balanceReturned !== undefined ? `${formatCurrency(sale.balanceReturned)} (Ret)` : ""}
-                            {sale.paymentMethod === "Credit" && sale.remainingCreditBalance !== undefined ? `${formatCurrency(sale.remainingCreditBalance)} (Rem)` : ""}
-                            {sale.paymentMethod === "Card" ? "N/A" : ""}
-                          </span>
-                        </div>
-                         <p className="text-muted-foreground mt-1 pt-1 border-t">Items: {sale.items.length}</p>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="w-full mt-2"
-                          onClick={() => handleReprintInvoice(sale)}
-                        >
-                          <Printer className="h-4 w-4 mr-2" />
-                          Print Invoice
-                        </Button>
-                      </div>
-                    )}
-                  </Card>
-                ))}
-              </div>
-            ) : (
-              <Table>
-                <TableHeader className="sticky top-0 bg-card z-10">
-                  <TableRow>
-                    <TableHead className="w-[120px]">ID</TableHead>
-                    <TableHead className="w-[150px]">Date</TableHead>
-                    <TableHead>Customer</TableHead>
-                    <TableHead className="text-right">Total</TableHead>
-                    <TableHead>Payment</TableHead>
-                    <TableHead className="text-right">Paid/Given</TableHead>
-                    <TableHead className="text-right">Balance</TableHead>
-                    <TableHead className="text-center w-[100px]">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
+          {isLoading ? (
+             <div className="flex flex-col items-center justify-center h-64">
+                <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+                <p className="text-lg text-muted-foreground">Loading invoices...</p>
+            </div>
+          ) : error ? (
+            <div className="flex flex-col items-center justify-center h-64 text-destructive">
+                <AlertTriangle className="h-12 w-12 mb-4" />
+                <p className="text-lg font-medium">Error loading invoices</p>
+                <p className="text-sm">{error}</p>
+                {onRefetch && <Button onClick={onRefetch} variant="outline" className="mt-4">Try Again</Button>}
+            </div>
+          ) : (
+            <ScrollArea className={isMobile ? "h-[calc(100vh-24rem)]" : "h-[calc(100vh-24rem)]"}>
+              {filteredSales.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
+                    <ReceiptText className="w-16 h-16 mb-4 opacity-50" />
+                    <p className="text-lg font-medium">No invoices found</p>
+                    {(searchTerm || startDate || endDate) && <p className="text-sm">Try adjusting your search or date filters</p>}
+                </div>
+              ) : isMobile ? (
+                <div className="space-y-2">
                   {filteredSales.map((sale) => (
-                    <TableRow key={sale.id}>
-                      <TableCell className="font-mono text-xs">{sale.id}</TableCell>
-                      <TableCell>{format(typeof sale.saleDate === 'string' ? parseISO(sale.saleDate) : sale.saleDate, "PPp")}</TableCell>
-                      <TableCell>{sale.customerName || "Walk-in"}</TableCell>
-                      <TableCell className="text-right font-medium">{formatCurrency(sale.totalAmount)}</TableCell>
-                      <TableCell>
-                        <Badge 
+                    <Card key={sale.id} className="p-4">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="font-medium text-sm">{sale.id}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {format(typeof sale.saleDate === 'string' ? parseISO(sale.saleDate) : sale.saleDate, "PP")}
+                          </p>
+                          <p className="text-sm mt-1">{sale.customerName || "Walk-in"}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-medium">{formatCurrency(sale.totalAmount)}</p>
+                          <Badge 
                             variant={
                                 sale.paymentMethod === "Credit" ? "destructive" : 
                                 sale.paymentMethod === "Card" ? "secondary" : "default"
@@ -291,32 +226,114 @@ export function InvoiceDataTable({ initialSales }: InvoiceDataTableProps) {
                                 sale.paymentMethod === "Credit" && "bg-orange-500 text-white",
                                 sale.paymentMethod === "Card" && "bg-blue-500 text-white"
                             )}
-                        >
+                          >
                             {sale.paymentMethod}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {sale.paymentMethod === "Cash" && sale.cashGiven !== undefined ? formatCurrency(sale.cashGiven) : ""}
-                        {sale.paymentMethod === "Credit" && sale.amountPaidOnCredit !== undefined ? formatCurrency(sale.amountPaidOnCredit) : ""}
-                        {sale.paymentMethod === "Card" ? "N/A" : ""}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {sale.paymentMethod === "Cash" && sale.balanceReturned !== undefined ? `${formatCurrency(sale.balanceReturned)} (Ret)` : ""}
-                        {sale.paymentMethod === "Credit" && sale.remainingCreditBalance !== undefined ? `${formatCurrency(sale.remainingCreditBalance)} (Rem)` : ""}
-                        {sale.paymentMethod === "Card" ? "N/A" : ""}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Button variant="ghost" size="icon" onClick={() => handleReprintInvoice(sale)} title="View / Print Invoice">
-                          <Printer className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
+                          </Badge>
+                        </div>
+                      </div>
+                      
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="w-full mt-2 justify-between text-primary hover:text-primary"
+                        onClick={() => toggleExpandInvoice(sale.id)}
+                      >
+                        {expandedInvoice === sale.id ? "Hide details" : "Show details"}
+                        {expandedInvoice === sale.id ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                      </Button>
+                      
+                      {expandedInvoice === sale.id && (
+                        <div className="mt-3 space-y-1 text-xs border-t pt-2">
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Paid/Given:</span>
+                            <span>
+                              {sale.paymentMethod === "Cash" && sale.cashGiven !== undefined ? formatCurrency(sale.cashGiven) : ""}
+                              {sale.paymentMethod === "Credit" && sale.amountPaidOnCredit !== undefined ? formatCurrency(sale.amountPaidOnCredit) : ""}
+                              {sale.paymentMethod === "Card" ? "N/A" : ""}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Balance:</span>
+                            <span>
+                              {sale.paymentMethod === "Cash" && sale.balanceReturned !== undefined ? `${formatCurrency(sale.balanceReturned)} (Ret)` : ""}
+                              {sale.paymentMethod === "Credit" && sale.remainingCreditBalance !== undefined ? `${formatCurrency(sale.remainingCreditBalance)} (Rem)` : ""}
+                              {sale.paymentMethod === "Card" ? "N/A" : ""}
+                            </span>
+                          </div>
+                           <p className="text-muted-foreground mt-1 pt-1 border-t">Items: {sale.items.length}</p>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="w-full mt-2"
+                            onClick={() => handleReprintInvoice(sale)}
+                          >
+                            <Printer className="h-4 w-4 mr-2" />
+                            Print Invoice
+                          </Button>
+                        </div>
+                      )}
+                    </Card>
                   ))}
-                </TableBody>
-              </Table>
-            )}
-          </ScrollArea>
-          {filteredSales.length > 0 && (
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader className="sticky top-0 bg-card z-10">
+                    <TableRow>
+                      <TableHead className="w-[120px]">ID</TableHead>
+                      <TableHead className="w-[150px]">Date</TableHead>
+                      <TableHead>Customer</TableHead>
+                      <TableHead className="text-right">Total</TableHead>
+                      <TableHead>Payment</TableHead>
+                      <TableHead className="text-right">Paid/Given</TableHead>
+                      <TableHead className="text-right">Balance</TableHead>
+                      <TableHead className="text-center w-[100px]">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredSales.map((sale) => (
+                      <TableRow key={sale.id}>
+                        <TableCell className="font-mono text-xs">{sale.id}</TableCell>
+                        <TableCell>{format(typeof sale.saleDate === 'string' ? parseISO(sale.saleDate) : sale.saleDate, "PPp")}</TableCell>
+                        <TableCell>{sale.customerName || "Walk-in"}</TableCell>
+                        <TableCell className="text-right font-medium">{formatCurrency(sale.totalAmount)}</TableCell>
+                        <TableCell>
+                          <Badge 
+                              variant={
+                                  sale.paymentMethod === "Credit" ? "destructive" : 
+                                  sale.paymentMethod === "Card" ? "secondary" : "default"
+                              }
+                              className={cn(
+                                  "text-xs",
+                                  sale.paymentMethod === "Credit" && "bg-orange-500 text-white",
+                                  sale.paymentMethod === "Card" && "bg-blue-500 text-white"
+                              )}
+                          >
+                              {sale.paymentMethod}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {sale.paymentMethod === "Cash" && sale.cashGiven !== undefined ? formatCurrency(sale.cashGiven) : ""}
+                          {sale.paymentMethod === "Credit" && sale.amountPaidOnCredit !== undefined ? formatCurrency(sale.amountPaidOnCredit) : ""}
+                          {sale.paymentMethod === "Card" ? "N/A" : ""}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {sale.paymentMethod === "Cash" && sale.balanceReturned !== undefined ? `${formatCurrency(sale.balanceReturned)} (Ret)` : ""}
+                          {sale.paymentMethod === "Credit" && sale.remainingCreditBalance !== undefined ? `${formatCurrency(sale.remainingCreditBalance)} (Rem)` : ""}
+                          {sale.paymentMethod === "Card" ? "N/A" : ""}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Button variant="ghost" size="icon" onClick={() => handleReprintInvoice(sale)} title="View / Print Invoice">
+                            <Printer className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </ScrollArea>
+          )}
+          {filteredSales.length > 0 && !isLoading && (
             <div className="mt-2 text-sm text-muted-foreground text-center">
               Showing {filteredSales.length} invoice{filteredSales.length !== 1 ? 's' : ''}
             </div>
@@ -338,4 +355,3 @@ export function InvoiceDataTable({ initialSales }: InvoiceDataTableProps) {
     </>
   );
 }
-
