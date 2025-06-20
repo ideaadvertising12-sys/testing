@@ -237,20 +237,19 @@ export default function SalesPage() {
     setIsProcessingSale(true);
     const salePayload = {
       ...saleDetails,
-      items: cartItems.map(item => ({ // Ensure all necessary fields for FirestoreCartItem are present
-        id: item.id, // Product ID
-        name: item.name, // Denormalized name
-        category: item.category, // Denormalized category
-        price: item.price, // Denormalized original retail price
-        sku: item.sku, // Denormalized SKU
+      items: cartItems.map(item => ({ 
+        id: item.id,
+        name: item.name, 
+        category: item.category, 
+        price: item.price, 
+        sku: item.sku, 
         quantity: item.quantity,
         appliedPrice: item.appliedPrice,
         saleType: item.saleType,
         isOfferItem: item.isOfferItem || false,
-        // imageUrl is not typically stored in FirestoreCartItem to save space, but productRef is
       })),
       saleDate: new Date().toISOString(), 
-      staffId: "staff001", // Replace with actual staff ID from auth context if available
+      staffId: "staff001", 
       offerApplied: isBuy12Get1FreeActive,
     };
 
@@ -262,8 +261,15 @@ export default function SalesPage() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `Sale failed with status ${response.status}`);
+        let errorMessage = `Sale failed with status ${response.status}`;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorData.message || errorMessage;
+        } catch (jsonError) {
+          // If response is not JSON, use statusText or a generic message
+          errorMessage = response.statusText || errorMessage;
+        }
+        throw new Error(errorMessage);
       }
 
       const newSaleResponse = await response.json();
@@ -529,3 +535,4 @@ export default function SalesPage() {
     </div>
   );
 }
+
