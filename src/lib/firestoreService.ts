@@ -117,21 +117,25 @@ export const addSale = async (saleData: Omit<Sale, 'id' | 'saleDate' | 'items'> 
   checkFirebase();
   const batch = writeBatch(db);
   const salesCol = collection(db, "sales");
-  const saleDocRef = doc(salesCol); // Automatically generates a new ID
+  const saleDocRef = doc(salesCol); 
   
-  // Map CartItem[] from client to FirestoreCartItem[] for storage
-  const firestoreSaleItems: FirestoreCartItem[] = saleData.items.map(item => ({
-    productRef: doc(db, "products", item.id).path, // Store reference to product
-    quantity: item.quantity,
-    appliedPrice: item.appliedPrice,
-    saleType: item.saleType,
-    // Denormalized fields for historical accuracy
-    productName: item.name, 
-    productCategory: item.category,
-    productPrice: item.price, // Original retail price of the product at time of sale
-    productSku: item.sku, // Original SKU
-    isOfferItem: item.isOfferItem || false,
-  }));
+  const firestoreSaleItems: FirestoreCartItem[] = saleData.items.map(item => {
+    const firestoreItem: FirestoreCartItem = {
+      productRef: doc(db, "products", item.id).path, 
+      quantity: item.quantity,
+      appliedPrice: item.appliedPrice,
+      saleType: item.saleType,
+      productName: item.name, 
+      productCategory: item.category,
+      productPrice: item.price, 
+      isOfferItem: item.isOfferItem || false, 
+    };
+
+    if (item.sku !== undefined) {
+      firestoreItem.productSku = item.sku;
+    }
+    return firestoreItem;
+  });
 
   const firestoreSaleData: FirestoreSale = {
     items: firestoreSaleItems,
@@ -147,7 +151,7 @@ export const addSale = async (saleData: Omit<Sale, 'id' | 'saleDate' | 'items'> 
     updatedAt: Timestamp.now()  
   };
 
-  // Optional fields
+  // Optional fields for the main sale document
   if (saleData.customerId !== undefined) firestoreSaleData.customerId = saleData.customerId;
   if (saleData.customerName !== undefined) firestoreSaleData.customerName = saleData.customerName;
   if (saleData.cashGiven !== undefined) firestoreSaleData.cashGiven = saleData.cashGiven;
@@ -157,7 +161,6 @@ export const addSale = async (saleData: Omit<Sale, 'id' | 'saleDate' | 'items'> 
 
   batch.set(saleDocRef, firestoreSaleData);
 
-  // Update stock for non-offer items
   for (const item of saleData.items) {
     if (!item.isOfferItem) { 
       const productDocRefToUpdate = doc(db, "products", item.id);
@@ -217,3 +220,4 @@ export const updateProductStockTransactional = async (productId: string, quantit
     throw e; 
   }
 };
+
