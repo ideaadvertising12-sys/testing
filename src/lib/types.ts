@@ -1,3 +1,4 @@
+
 //location src/lib/types.ts
 import { Timestamp } from 'firebase/firestore';
 
@@ -26,13 +27,18 @@ export interface Customer {
 }
 
 export interface CartItem {
-  id: string;
+  id: string; // Product ID
   quantity: number;
-  appliedPrice: number;
+  appliedPrice: number; // Price after any sale-specific adjustments (usually same as original or wholesale)
   saleType: 'retail' | 'wholesale';
-  name: string;
+  
+  // Denormalized product details at the time of sale
+  name: string; 
   category: Product["category"];
-  price: number;
+  price: number; // Original retail price of the product at time of sale
+  sku?: string; // Original SKU
+  imageUrl?: string; // Original Image URL
+  
   isOfferItem?: boolean; // Added for "Buy 12 Get 1 Free"
 }
 
@@ -52,7 +58,7 @@ export interface Sale {
   remainingCreditBalance?: number;
   saleDate: Date;
   staffId: string;
-  offerApplied?: boolean; // Added for "Buy 12 Get 1 Free"
+  offerApplied?: boolean; 
 }
 
 // Stock Transaction Types
@@ -96,15 +102,20 @@ export interface FirestoreCustomer extends Omit<Customer, 'id'> {
   updatedAt?: Timestamp;
 }
 
+// Stored in Firestore for each item in a sale
 export interface FirestoreCartItem {
-  productRef: string;
+  productRef: string; // Reference to the original product document
   quantity: number;
   appliedPrice: number;
   saleType: 'retail' | 'wholesale';
-  productName: string;
+  
+  // Denormalized fields stored at the time of sale for historical accuracy
+  productName: string; 
   productCategory: Product["category"];
-  productPrice: number;
-  isOfferItem?: boolean; // Added for "Buy 12 Get 1 Free"
+  productPrice: number; // Original retail price of the product at the time of sale
+  productSku?: string; // Original SKU at time of sale
+  
+  isOfferItem?: boolean;
 }
 
 export interface FirestoreSale extends Omit<Sale, 'id' | 'saleDate' | 'items'> {
@@ -112,7 +123,7 @@ export interface FirestoreSale extends Omit<Sale, 'id' | 'saleDate' | 'items'> {
   saleDate: Timestamp;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
-  offerApplied?: boolean; // Added for "Buy 12 Get 1 Free"
+  offerApplied?: boolean; 
 }
 
 export interface FirestoreStockTransaction {
@@ -142,7 +153,6 @@ export const productConverter = {
       updatedAt: Timestamp.now(),
     };
 
-    // Optional fields
     if (product.wholesalePrice !== undefined) firestoreProduct.wholesalePrice = product.wholesalePrice;
     if (product.imageUrl) firestoreProduct.imageUrl = product.imageUrl;
     if (product.description) firestoreProduct.description = product.description;
@@ -179,7 +189,6 @@ export const customerConverter = {
       updatedAt: Timestamp.now(),
     };
 
-    // Optional fields
     if (customer.avatar) firestoreCustomer.avatar = customer.avatar;
     if (customer.address) firestoreCustomer.address = customer.address;
     if (customer.shopName) firestoreCustomer.shopName = customer.shopName;
@@ -203,50 +212,46 @@ export const customerConverter = {
 export const saleConverter = {
   toFirestore: (sale: FirestoreSale): Partial<FirestoreSale> => {
     const firestoreSale: Partial<FirestoreSale> = {
-      items: sale.items,
+      items: sale.items, // Assumes items are already FirestoreCartItem[]
       subTotal: sale.subTotal,
       discountPercentage: sale.discountPercentage,
       discountAmount: sale.discountAmount,
       totalAmount: sale.totalAmount,
       paymentMethod: sale.paymentMethod,
-      saleDate: sale.saleDate,
+      saleDate: sale.saleDate, // Should be a Firestore Timestamp
       staffId: sale.staffId,
       updatedAt: Timestamp.now(),
     };
 
-    // Optional fields
     if (sale.customerId) firestoreSale.customerId = sale.customerId;
     if (sale.customerName) firestoreSale.customerName = sale.customerName;
     if (sale.cashGiven !== undefined) firestoreSale.cashGiven = sale.cashGiven;
     if (sale.balanceReturned !== undefined) firestoreSale.balanceReturned = sale.balanceReturned;
     if (sale.amountPaidOnCredit !== undefined) firestoreSale.amountPaidOnCredit = sale.amountPaidOnCredit;
     if (sale.remainingCreditBalance !== undefined) firestoreSale.remainingCreditBalance = sale.remainingCreditBalance;
-    if (sale.offerApplied !== undefined) firestoreSale.offerApplied = sale.offerApplied; // Handle offerApplied
+    if (sale.offerApplied !== undefined) firestoreSale.offerApplied = sale.offerApplied;
     if (!sale.createdAt) firestoreSale.createdAt = Timestamp.now();
 
     return firestoreSale;
   },
-  fromFirestore: async (snapshot: any, options: any): Promise<Sale> => {
+  fromFirestore: (snapshot: any, options: any): Sale => { // Removed async for direct conversion
     const data = snapshot.data(options);
     return {
       id: snapshot.id,
-      items: data.items.map((item: FirestoreCartItem) => ({
-        id: item.productRef.split('/')[1], // Assuming productRef is 'products/productId'
+      items: data.items.map((item: FirestoreCartItem): CartItem => ({
+        id: item.productRef.split('/')[1], // Product ID from ref
         quantity: item.quantity,
         appliedPrice: item.appliedPrice,
         saleType: item.saleType,
-        name: item.productName,
+        // Denormalized fields from FirestoreCartItem
+        name: item.productName, 
         category: item.productCategory,
-        price: item.productPrice,
-        isOfferItem: item.isOfferItem || false, // Handle isOfferItem
-        // These are not stored in FirestoreCartItem but are part of CartItem type, provide defaults
-        stock: 0, 
-        wholesalePrice: undefined,
-        imageUrl: undefined,
-        description: undefined,
-        sku: undefined,
-        reorderLevel: undefined,
-        aiHint: undefined 
+        price: item.productPrice, // Original retail price
+        sku: item.productSku, // Original SKU
+        isOfferItem: item.isOfferItem || false,
+        // imageUrl can be added to FirestoreCartItem if needed for reprint without fetching product
+        // For now, these are not on FirestoreCartItem, so they'd be undefined or default here.
+        // imageUrl: item.productImageUrl || undefined, 
       })),
       subTotal: data.subTotal,
       discountPercentage: data.discountPercentage,
@@ -261,7 +266,7 @@ export const saleConverter = {
       staffId: data.staffId,
       customerId: data.customerId,
       customerName: data.customerName,
-      offerApplied: data.offerApplied || false, // Handle offerApplied
+      offerApplied: data.offerApplied || false,
     };
   }
 };

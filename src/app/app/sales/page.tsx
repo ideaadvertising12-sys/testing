@@ -32,8 +32,8 @@ function reconcileOfferItems(
 ): CartItem[] {
   const paidItems = currentCart.filter(item => !item.isOfferItem);
 
-  if (!offerActive) {
-    return paidItems; // If offer is off, return only paid items
+  if (!offerActive || !allProductsForLookup || allProductsForLookup.length === 0) {
+    return paidItems; // If offer is off or no products to lookup, return only paid items
   }
 
   const newOfferItems: CartItem[] = [];
@@ -53,13 +53,15 @@ function reconcileOfferItems(
     const numberOfFreeUnits = Math.floor(group.count / 12);
     if (numberOfFreeUnits > 0) {
       newOfferItems.push({
-        ...group.productDetails,
-        id: group.productDetails.id, // Ensure ID is present
-        name: group.productDetails.name, // Ensure name is present
-        category: group.productDetails.category, // Ensure category is present
-        price: group.productDetails.price, // Ensure original price is present for reference
+        ...group.productDetails, // Spread all product details for consistency
+        id: group.productDetails.id,
+        name: group.productDetails.name,
+        category: group.productDetails.category,
+        price: group.productDetails.price, // Original price for reference (though appliedPrice is 0)
+        sku: group.productDetails.sku,
+        imageUrl: group.productDetails.imageUrl,
         quantity: numberOfFreeUnits,
-        appliedPrice: 0,
+        appliedPrice: 0, // Free item
         saleType: group.saleType,
         isOfferItem: true,
       });
@@ -94,7 +96,7 @@ export default function SalesPage() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isSalesPageFullScreen, setIsSalesPageFullScreen] = useState(false);
   const [isProcessingSale, setIsProcessingSale] = useState(false);
-  const [isBuy12Get1FreeActive, setIsBuy12Get1FreeActive] = useState(false); // Offer state
+  const [isBuy12Get1FreeActive, setIsBuy12Get1FreeActive] = useState(false);
   const { toast } = useToast();
 
   const isMobile = useMediaQuery("(max-width: 768px)");
@@ -124,9 +126,8 @@ export default function SalesPage() {
     }
   }, [searchTerm, selectedCategory, allProducts, isLoadingProducts]);
 
-  // Effect to update cart when offer status changes
   useEffect(() => {
-    if (allProducts && allProducts.length > 0) { // Ensure allProducts is available
+    if (allProducts && allProducts.length > 0) {
         setCartItems(prevCart => reconcileOfferItems(prevCart, isBuy12Get1FreeActive, allProducts));
     }
   }, [isBuy12Get1FreeActive, allProducts]);
@@ -149,20 +150,20 @@ export default function SalesPage() {
           updatedCart[existingItemIndex] = { ...existingItem, quantity: existingItem.quantity + 1 };
         } else {
           toast({ variant: "destructive", title: "Out of Stock", description: `Cannot add more ${productToAdd.name}. Maximum stock reached.`});
-          return reconcileOfferItems(prevItems, isBuy12Get1FreeActive, allProducts); // Return reconciled original if no change
+          return reconcileOfferItems(prevItems, isBuy12Get1FreeActive, allProducts); 
         }
       } else {
         if (productToAdd.stock > 0) {
           updatedCart.push({
-            ...productToAdd,
+            ...productToAdd, // Spreads all Product fields, including name, category, price, sku, imageUrl
             quantity: 1,
             appliedPrice: priceToUse,
             saleType: currentSaleType,
-            isOfferItem: false // Explicitly false for new paid items
+            isOfferItem: false 
           });
         } else {
           toast({ variant: "destructive", title: "Out of Stock", description: `${productToAdd.name} is currently out of stock.`});
-          return reconcileOfferItems(prevItems, isBuy12Get1FreeActive, allProducts); // Return reconciled original if no change
+          return reconcileOfferItems(prevItems, isBuy12Get1FreeActive, allProducts); 
         }
       }
       return reconcileOfferItems(updatedCart, isBuy12Get1FreeActive, allProducts);
@@ -186,7 +187,7 @@ export default function SalesPage() {
             ? { ...item, quantity: targetQuantity }
             : item
         )
-        .filter(item => (item.isOfferItem) || (!item.isOfferItem && item.quantity > 0)); // Keep offer items, remove paid if qty is 0
+        .filter(item => (item.isOfferItem) || (!item.isOfferItem && item.quantity > 0)); 
         
       return reconcileOfferItems(updatedCart, isBuy12Get1FreeActive, allProducts);
     });
@@ -195,7 +196,7 @@ export default function SalesPage() {
   const handleRemoveItem = (productId: string, saleType: 'retail' | 'wholesale') => {
     setCartItems(prevItems => {
       const updatedCart = prevItems.filter(item =>
-        !(item.id === productId && item.saleType === saleType && !item.isOfferItem) // Remove only the specific paid item
+        !(item.id === productId && item.saleType === saleType && !item.isOfferItem) 
       );
       return reconcileOfferItems(updatedCart, isBuy12Get1FreeActive, allProducts);
     });
@@ -222,11 +223,10 @@ export default function SalesPage() {
   };
 
   const handleCancelOrder = () => {
-    setCartItems([]); // This will be reconciled by useEffect if offer is active, so it will become empty.
+    setCartItems([]); 
     setSelectedCustomer(null);
     setDiscountPercentage(0);
     setCurrentSaleType('retail');
-    // setIsBuy12Get1FreeActive(false); // Optionally reset offer too
   };
 
   const currentSubtotal = useMemo(() => cartItems.filter(item => !item.isOfferItem).reduce((sum, item) => sum + item.appliedPrice * item.quantity, 0), [cartItems]);
@@ -237,20 +237,20 @@ export default function SalesPage() {
     setIsProcessingSale(true);
     const salePayload = {
       ...saleDetails,
-      items: cartItems.map(item => ({ 
-        id: item.id,
-        name: item.name,
-        category: item.category,
-        price: item.price,
+      items: cartItems.map(item => ({ // Ensure all necessary fields for FirestoreCartItem are present
+        id: item.id, // Product ID
+        name: item.name, // Denormalized name
+        category: item.category, // Denormalized category
+        price: item.price, // Denormalized original retail price
+        sku: item.sku, // Denormalized SKU
         quantity: item.quantity,
         appliedPrice: item.appliedPrice,
         saleType: item.saleType,
-        sku: item.sku, 
-        imageUrl: item.imageUrl,
         isOfferItem: item.isOfferItem || false,
+        // imageUrl is not typically stored in FirestoreCartItem to save space, but productRef is
       })),
       saleDate: new Date().toISOString(), 
-      staffId: "staff001",
+      staffId: "staff001", // Replace with actual staff ID from auth context if available
       offerApplied: isBuy12Get1FreeActive,
     };
 
@@ -277,7 +277,6 @@ export default function SalesPage() {
       setSelectedCustomer(null);
       setDiscountPercentage(0);
       setCurrentSaleType('retail');
-      // setIsBuy12Get1FreeActive(false); // Optionally reset offer
       await refetchProducts(); 
 
     } catch (error: any) {
@@ -467,7 +466,6 @@ export default function SalesPage() {
         )}
       </div>
 
-      {/* Mobile Cart Drawer */}
       <Drawer open={isCartOpen} onOpenChange={setIsCartOpen}>
         {isMobile && !isSalesPageFullScreen && (
          <DrawerTrigger asChild>
@@ -526,7 +524,7 @@ export default function SalesPage() {
         currentTotalAmount={currentTotalAmount}
         saleId={`SALE-${Date.now().toString().slice(-6)}`} 
         onConfirmSale={handleSuccessfulSale}
-        offerApplied={isBuy12Get1FreeActive} // Pass offer status
+        offerApplied={isBuy12Get1FreeActive} 
       />
     </div>
   );

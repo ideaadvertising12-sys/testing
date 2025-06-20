@@ -117,17 +117,20 @@ export const addSale = async (saleData: Omit<Sale, 'id' | 'saleDate' | 'items'> 
   checkFirebase();
   const batch = writeBatch(db);
   const salesCol = collection(db, "sales");
-  const saleDocRef = doc(salesCol);
+  const saleDocRef = doc(salesCol); // Automatically generates a new ID
   
+  // Map CartItem[] from client to FirestoreCartItem[] for storage
   const firestoreSaleItems: FirestoreCartItem[] = saleData.items.map(item => ({
-    productRef: doc(db, "products", item.id).path,
+    productRef: doc(db, "products", item.id).path, // Store reference to product
     quantity: item.quantity,
     appliedPrice: item.appliedPrice,
     saleType: item.saleType,
+    // Denormalized fields for historical accuracy
     productName: item.name, 
     productCategory: item.category,
-    productPrice: item.price,
-    isOfferItem: item.isOfferItem || false, // Include offer item flag
+    productPrice: item.price, // Original retail price of the product at time of sale
+    productSku: item.sku, // Original SKU
+    isOfferItem: item.isOfferItem || false,
   }));
 
   const firestoreSaleData: FirestoreSale = {
@@ -139,11 +142,12 @@ export const addSale = async (saleData: Omit<Sale, 'id' | 'saleDate' | 'items'> 
     paymentMethod: saleData.paymentMethod,
     saleDate: Timestamp.fromDate(saleData.saleDate),
     staffId: saleData.staffId,
-    offerApplied: saleData.offerApplied || false, // Include offer applied flag
+    offerApplied: saleData.offerApplied || false,
     createdAt: Timestamp.now(), 
     updatedAt: Timestamp.now()  
   };
 
+  // Optional fields
   if (saleData.customerId !== undefined) firestoreSaleData.customerId = saleData.customerId;
   if (saleData.customerName !== undefined) firestoreSaleData.customerName = saleData.customerName;
   if (saleData.cashGiven !== undefined) firestoreSaleData.cashGiven = saleData.cashGiven;
@@ -153,17 +157,18 @@ export const addSale = async (saleData: Omit<Sale, 'id' | 'saleDate' | 'items'> 
 
   batch.set(saleDocRef, firestoreSaleData);
 
+  // Update stock for non-offer items
   for (const item of saleData.items) {
-    if (!item.isOfferItem) { // Only update stock for non-offer items
-      const productDocRef = doc(db, "products", item.id);
-      const productSnap = await getDoc(productDocRef.withConverter(productConverter));
+    if (!item.isOfferItem) { 
+      const productDocRefToUpdate = doc(db, "products", item.id);
+      const productSnap = await getDoc(productDocRefToUpdate.withConverter(productConverter));
       if (productSnap.exists()) {
         const currentProduct = productSnap.data();
         const newStock = currentProduct.stock - item.quantity;
         if (newStock < 0) {
-          throw new Error(`Insufficient stock for ${item.name} (ID: ${item.id}).`);
+          throw new Error(`Insufficient stock for ${item.name} (ID: ${item.id}). Available: ${currentProduct.stock}, Tried to sell: ${item.quantity}`);
         }
-        batch.update(productDocRef, { stock: newStock, updatedAt: Timestamp.now() });
+        batch.update(productDocRefToUpdate, { stock: newStock, updatedAt: Timestamp.now() });
       } else {
         throw new Error(`Product ${item.name} (ID: ${item.id}) not found for stock update.`);
       }
