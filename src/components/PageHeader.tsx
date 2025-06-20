@@ -14,7 +14,7 @@ export function PageHeader({ title, description, icon: Icon, action }: PageHeade
         {Icon && <Icon className="h-7 w-7 text-primary" />}
         <div>
           <h1 className="text-2xl md:text-3xl font-bold font-headline text-foreground">{title}</h1>
-          {description && <p className="text-muted-foreground">{description}</p>}
+          {description && <div className="text-muted-foreground">{description}</div>}
         </div>
       </div>
       {action && <div className="shrink-0">{action}</div>}
