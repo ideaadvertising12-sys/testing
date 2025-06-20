@@ -17,7 +17,7 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable'; 
 import { GlobalPreloaderScreen } from "@/components/GlobalPreloaderScreen";
 import { Input } from "@/components/ui/input";
-import { DateRangePicker } from "@/components/ui/date-range-picker"; // Corrected import path if needed, but component will exist now
+import { DateRangePicker } from "@/components/ui/date-range-picker"; 
 import type { DateRange } from "react-day-picker";
 import { addDays, format } from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -43,8 +43,13 @@ export default function FullReportPage() {
   // Simulate data loading
   useEffect(() => {
     const timer = setTimeout(() => {
-      setReportData(placeholderFullReportData);
-      setFilteredData(placeholderFullReportData);
+      // Update placeholder data generation if necessary to reflect new payment method
+      const updatedPlaceholderData = placeholderFullReportData.map(entry => ({
+        ...entry,
+        paymentMethod: entry.paymentMethod === "Card" ? "Cheque" : entry.paymentMethod,
+      })) as FullReportEntry[];
+      setReportData(updatedPlaceholderData);
+      setFilteredData(updatedPlaceholderData);
       setIsLoading(false);
     }, 1000);
 
@@ -152,7 +157,7 @@ export default function FullReportPage() {
           overflow: 'linebreak'
         },
         headStyles: { 
-          fillColor: [30, 18, 57], // Corresponds to primary color, adjust if theme changes
+          fillColor: [30, 18, 57], 
           textColor: 255,
           fontStyle: 'bold'
         },
@@ -271,9 +276,9 @@ export default function FullReportPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Payment Methods</SelectItem>
-                <SelectItem value="cash">Cash</SelectItem>
-                <SelectItem value="card">Card</SelectItem>
-                <SelectItem value="upi">UPI</SelectItem> {/* Assuming UPI might be a payment method */}
+                <SelectItem value="Cash">Cash</SelectItem>
+                <SelectItem value="Cheque">Cheque</SelectItem>
+                <SelectItem value="Credit">Credit</SelectItem>
               </SelectContent>
             </Select>
           </div>

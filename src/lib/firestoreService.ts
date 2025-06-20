@@ -158,6 +158,7 @@ export const addSale = async (saleData: Omit<Sale, 'id' | 'saleDate' | 'items'> 
   if (saleData.balanceReturned !== undefined) firestoreSaleData.balanceReturned = saleData.balanceReturned;
   if (saleData.amountPaidOnCredit !== undefined) firestoreSaleData.amountPaidOnCredit = saleData.amountPaidOnCredit;
   if (saleData.remainingCreditBalance !== undefined) firestoreSaleData.remainingCreditBalance = saleData.remainingCreditBalance;
+  if (saleData.chequeNumber !== undefined) firestoreSaleData.chequeNumber = saleData.chequeNumber;
 
   batch.set(saleDocRef, firestoreSaleData);
 
@@ -220,4 +221,3 @@ export const updateProductStockTransactional = async (productId: string, quantit
     throw e; 
   }
 };
-

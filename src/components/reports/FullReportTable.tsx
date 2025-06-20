@@ -18,7 +18,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { FileText } from "lucide-react"; // Added import
+import { FileText } from "lucide-react"; 
 
 interface FullReportTableProps {
   data: FullReportEntry[];

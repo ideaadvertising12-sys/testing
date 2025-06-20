@@ -51,7 +51,8 @@ export interface Sale {
   discountPercentage: number;
   discountAmount: number;
   totalAmount: number;
-  paymentMethod: "Cash" | "Card" | "Credit";
+  paymentMethod: "Cash" | "Cheque" | "Credit";
+  chequeNumber?: string;
   cashGiven?: number;
   balanceReturned?: number;
   amountPaidOnCredit?: number;
@@ -121,6 +122,7 @@ export interface FirestoreCartItem {
 export interface FirestoreSale extends Omit<Sale, 'id' | 'saleDate' | 'items'> {
   items: FirestoreCartItem[];
   saleDate: Timestamp;
+  chequeNumber?: string;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
   offerApplied?: boolean; 
@@ -229,29 +231,26 @@ export const saleConverter = {
     if (sale.balanceReturned !== undefined) firestoreSale.balanceReturned = sale.balanceReturned;
     if (sale.amountPaidOnCredit !== undefined) firestoreSale.amountPaidOnCredit = sale.amountPaidOnCredit;
     if (sale.remainingCreditBalance !== undefined) firestoreSale.remainingCreditBalance = sale.remainingCreditBalance;
+    if (sale.chequeNumber) firestoreSale.chequeNumber = sale.chequeNumber;
     if (sale.offerApplied !== undefined) firestoreSale.offerApplied = sale.offerApplied;
     if (!sale.createdAt) firestoreSale.createdAt = Timestamp.now();
 
     return firestoreSale;
   },
-  fromFirestore: (snapshot: any, options: any): Sale => { // Removed async for direct conversion
+  fromFirestore: (snapshot: any, options: any): Sale => { 
     const data = snapshot.data(options);
     return {
       id: snapshot.id,
       items: data.items.map((item: FirestoreCartItem): CartItem => ({
-        id: item.productRef.split('/')[1], // Product ID from ref
+        id: item.productRef.split('/')[1], 
         quantity: item.quantity,
         appliedPrice: item.appliedPrice,
         saleType: item.saleType,
-        // Denormalized fields from FirestoreCartItem
         name: item.productName, 
         category: item.productCategory,
-        price: item.productPrice, // Original retail price
-        sku: item.productSku, // Original SKU
+        price: item.productPrice, 
+        sku: item.productSku, 
         isOfferItem: item.isOfferItem || false,
-        // imageUrl can be added to FirestoreCartItem if needed for reprint without fetching product
-        // For now, these are not on FirestoreCartItem, so they'd be undefined or default here.
-        // imageUrl: item.productImageUrl || undefined, 
       })),
       subTotal: data.subTotal,
       discountPercentage: data.discountPercentage,
@@ -262,6 +261,7 @@ export const saleConverter = {
       balanceReturned: data.balanceReturned,
       amountPaidOnCredit: data.amountPaidOnCredit,
       remainingCreditBalance: data.remainingCreditBalance,
+      chequeNumber: data.chequeNumber,
       saleDate: data.saleDate.toDate(),
       staffId: data.staffId,
       customerId: data.customerId,
@@ -370,7 +370,7 @@ export interface ActivityItem {
 export interface DayEndReportSummary {
   reportDate: Date;
   cashSales: { count: number; amount: number; cashReceived: number; balanceReturned: number };
-  cardSales: { count: number; amount: number };
+  chequeSales: { count: number; amount: number; chequeNumbers: string[] };
   creditSales: { count: number; amount: number; amountPaidOnCredit: number; remainingCreditBalance: number };
   overallTotalSales: number;
   overallTotalCashReceived: number;

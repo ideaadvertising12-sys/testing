@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { AppLogo } from "@/components/AppLogo";
-import { CreditCard, Landmark, Printer, Wallet, AlertTriangle, Gift } from "lucide-react";
+import { Landmark, Printer, Wallet, AlertTriangle, Gift, Newspaper } from "lucide-react"; // Added Newspaper
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import React, { useState, useEffect, useMemo } from "react";
@@ -68,20 +68,21 @@ export function BillDialog({
   const [amountPaidOnCredit, setAmountPaidOnCredit] = useState<string>(
     isReprintMode && existingSaleData?.paymentMethod === "Credit" ? (existingSaleData.amountPaidOnCredit?.toString() || "") : ""
   );
+  const [chequeNumber, setChequeNumber] = useState<string>(
+    isReprintMode && existingSaleData?.paymentMethod === "Cheque" ? (existingSaleData.chequeNumber || "") : ""
+  );
   
   const transactionDate = isReprintMode && existingSaleData ? new Date(existingSaleData.saleDate) : new Date();
   const displaySaleId = isReprintMode && existingSaleData ? existingSaleData.id : (newSaleId || `SALE-${Date.now().toString().slice(-6)}`);
   
-  // Use items from existingSaleData if reprinting, otherwise from newCartItems
   const itemsToDisplay: CartItem[] = useMemo(() => {
     if (isReprintMode && existingSaleData) {
       return existingSaleData.items.map(item => ({
-        ...item, // Spread existing item data from Sale object
-        // Ensure all CartItem fields are present, especially those potentially missing from older data
+        ...item,
         name: item.name || `ID: ${item.id}` || "Product Name Unavailable",
         category: item.category || "Other",
-        price: typeof item.price === 'number' ? item.price : 0, // Ensure price is a number
-        appliedPrice: typeof item.appliedPrice === 'number' ? item.appliedPrice : 0, // Ensure appliedPrice is a number
+        price: typeof item.price === 'number' ? item.price : 0,
+        appliedPrice: typeof item.appliedPrice === 'number' ? item.appliedPrice : 0,
       }));
     }
     return newCartItems || [];
@@ -127,10 +128,12 @@ export function BillDialog({
         setSelectedPaymentMethod(existingSaleData.paymentMethod);
         setCashGiven(existingSaleData.paymentMethod === "Cash" ? (existingSaleData.cashGiven?.toString() || "") : "");
         setAmountPaidOnCredit(existingSaleData.paymentMethod === "Credit" ? (existingSaleData.amountPaidOnCredit?.toString() || "") : "");
+        setChequeNumber(existingSaleData.paymentMethod === "Cheque" ? (existingSaleData.chequeNumber || "") : "");
       } else {
         setSelectedPaymentMethod("Cash"); 
         setCashGiven("");
         setAmountPaidOnCredit("");
+        setChequeNumber("");
       }
     }
   }, [isOpen, isReprintMode, existingSaleData]);
@@ -174,6 +177,12 @@ export function BillDialog({
           alert("Amount paid cannot exceed total amount for credit sales.");
           return;
         }
+      } else if (selectedPaymentMethod === "Cheque") {
+        if (!chequeNumber.trim()) {
+          alert("Cheque number is required for cheque payments.");
+          return;
+        }
+        saleData.chequeNumber = chequeNumber.trim();
       }
       onConfirmSale(saleData);
     }
@@ -183,14 +192,15 @@ export function BillDialog({
 
   const paymentMethods: { value: Sale["paymentMethod"]; label: string; icon: React.ElementType }[] = [
     { value: "Cash", label: "Cash", icon: Wallet },
-    { value: "Card", label: "Card", icon: CreditCard },
+    { value: "Cheque", label: "Cheque", icon: Newspaper },
     { value: "Credit", label: "Credit", icon: Landmark },
   ];
   
   const isPrimaryButtonDisabled = !isReprintMode && (
     itemsToDisplay.filter(item => !item.isOfferItem || (item.isOfferItem && item.quantity > 0)).length === 0 ||
     (selectedPaymentMethod === "Cash" && (cashGiven === "" || parseFloat(cashGiven) < totalAmountToDisplay)) ||
-    (selectedPaymentMethod === "Credit" && (!customerForDisplay || amountPaidOnCredit === "" || parseFloat(amountPaidOnCredit) > totalAmountToDisplay))
+    (selectedPaymentMethod === "Credit" && (!customerForDisplay || amountPaidOnCredit === "" || parseFloat(amountPaidOnCredit) > totalAmountToDisplay)) ||
+    (selectedPaymentMethod === "Cheque" && !chequeNumber.trim())
   );
 
   return (
@@ -295,6 +305,7 @@ export function BillDialog({
                     setSelectedPaymentMethod(value);
                     setCashGiven(""); 
                     setAmountPaidOnCredit(""); 
+                    setChequeNumber("");
                   }
                 }}
                 className="grid grid-cols-3 gap-3 print:hidden"
@@ -316,6 +327,9 @@ export function BillDialog({
               </RadioGroup>
               <div className="mt-2 text-xs print:block hidden"> 
                 Selected: <span className="font-semibold">{selectedPaymentMethod}</span>
+                {selectedPaymentMethod === "Cheque" && existingSaleData?.chequeNumber && (
+                  <span> (Cheque #: {existingSaleData.chequeNumber})</span>
+                )}
               </div>
             </div>
 
@@ -396,6 +410,37 @@ export function BillDialog({
                       <p>Amount Paid: Rs. {(existingSaleData.amountPaidOnCredit || 0).toFixed(2)}</p>
                       <p>Remaining Credit: Rs. {(existingSaleData.remainingCreditBalance || 0).toFixed(2)}</p>
                     </>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {selectedPaymentMethod === "Cheque" && (
+              <div className="space-y-3 mt-4">
+                 <div className="print:hidden">
+                  <Label htmlFor="chequeNumber" className="text-xs">Cheque Number *</Label>
+                  <Input 
+                    id="chequeNumber" 
+                    type="text" 
+                    value={chequeNumber}
+                    onChange={(e) => setChequeNumber(e.target.value)}
+                    placeholder="Enter cheque number"
+                    className="h-10"
+                    disabled={isReprintMode}
+                    required={!isReprintMode}
+                  />
+                </div>
+                {!isReprintMode && chequeNumber.trim() === "" && (
+                    <Alert variant="destructive" className="p-2 text-xs print:hidden">
+                        <AlertTriangle className="h-4 w-4" />
+                        <AlertDescription>
+                          Cheque number is required.
+                        </AlertDescription>
+                    </Alert>
+                )}
+                 <div className="mt-2 text-xs print:block hidden">
+                  {isReprintMode && existingSaleData?.paymentMethod === "Cheque" && (
+                    <p>Cheque #: {existingSaleData.chequeNumber || "N/A"}</p>
                   )}
                 </div>
               </div>

@@ -50,14 +50,15 @@ export default function DayEndReportPage() {
       });
 
       const cashSalesList = salesForDay.filter(s => s.paymentMethod === "Cash");
-      const cardSalesList = salesForDay.filter(s => s.paymentMethod === "Card");
+      const chequeSalesList = salesForDay.filter(s => s.paymentMethod === "Cheque");
       const creditSalesList = salesForDay.filter(s => s.paymentMethod === "Credit");
 
       const cashAmount = cashSalesList.reduce((sum, s) => sum + s.totalAmount, 0);
-      const cashReceived = cashSalesList.reduce((sum, s) => sum + (s.cashGiven || s.totalAmount), 0); // If cashGiven not present, assume exact
+      const cashReceived = cashSalesList.reduce((sum, s) => sum + (s.cashGiven || s.totalAmount), 0);
       const balanceReturned = cashSalesList.reduce((sum, s) => sum + (s.balanceReturned || 0), 0);
 
-      const cardAmount = cardSalesList.reduce((sum, s) => sum + s.totalAmount, 0);
+      const chequeAmount = chequeSalesList.reduce((sum, s) => sum + s.totalAmount, 0);
+      const chequeNumbers = chequeSalesList.map(s => s.chequeNumber || "N/A");
       
       const creditAmount = creditSalesList.reduce((sum, s) => sum + s.totalAmount, 0);
       const amountPaidOnCredit = creditSalesList.reduce((sum, s) => sum + (s.amountPaidOnCredit || 0), 0);
@@ -67,7 +68,7 @@ export default function DayEndReportPage() {
       setReportSummary({
         reportDate: selectedDate,
         cashSales: { count: cashSalesList.length, amount: cashAmount, cashReceived: cashReceived, balanceReturned: balanceReturned },
-        cardSales: { count: cardSalesList.length, amount: cardAmount },
+        chequeSales: { count: chequeSalesList.length, amount: chequeAmount, chequeNumbers },
         creditSales: { count: creditSalesList.length, amount: creditAmount, amountPaidOnCredit: amountPaidOnCredit, remainingCreditBalance: remainingCreditBalance },
         overallTotalSales: salesForDay.reduce((sum, s) => sum + s.totalAmount, 0),
         overallTotalCashReceived: cashReceived + amountPaidOnCredit, // Cash from cash sales + amount paid on credit sales
@@ -108,7 +109,11 @@ export default function DayEndReportPage() {
 
     doc.text(`Cash Sales: ${reportSummary.cashSales.count} invoices, Amount: ${formatCurrency(reportSummary.cashSales.amount)}`, 18, yPos);
     yPos += lineSpacing;
-    doc.text(`Card Sales: ${reportSummary.cardSales.count} invoices, Amount: ${formatCurrency(reportSummary.cardSales.amount)}`, 18, yPos);
+    doc.text(`Cheque Sales: ${reportSummary.chequeSales.count} invoices, Amount: ${formatCurrency(reportSummary.chequeSales.amount)}`, 18, yPos);
+    if(reportSummary.chequeSales.count > 0) {
+        yPos += lineSpacing;
+        doc.text(` (Cheque Nos: ${reportSummary.chequeSales.chequeNumbers.join(', ')})`, 22, yPos);
+    }
     yPos += lineSpacing;
     doc.text(`Credit Sales: ${reportSummary.creditSales.count} invoices, Amount: ${formatCurrency(reportSummary.creditSales.amount)}`, 18, yPos);
     yPos += sectionSpacing;
@@ -193,11 +198,14 @@ export default function DayEndReportPage() {
             </Card>
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Card Sales</CardTitle>
-                <CardDescription>{reportSummary.cardSales.count} invoices</CardDescription>
+                <CardTitle className="text-lg">Cheque Sales</CardTitle>
+                <CardDescription>{reportSummary.chequeSales.count} invoices</CardDescription>
               </CardHeader>
               <CardContent className="space-y-1 text-sm">
-                <p>Total Amount: <span className="font-semibold">{formatCurrency(reportSummary.cardSales.amount)}</span></p>
+                <p>Total Amount: <span className="font-semibold">{formatCurrency(reportSummary.chequeSales.amount)}</span></p>
+                {reportSummary.chequeSales.count > 0 && (
+                  <p className="text-xs text-muted-foreground">Cheque Nos: {reportSummary.chequeSales.chequeNumbers.join(', ')}</p>
+                )}
               </CardContent>
             </Card>
             <Card>

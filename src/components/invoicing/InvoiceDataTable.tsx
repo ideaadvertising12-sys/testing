@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
@@ -61,7 +62,9 @@ export function InvoiceDataTable({ sales: initialSales, isLoading, error }: Invo
       const matchesSearchTerm = 
         (sale.id && sale.id.toLowerCase().includes(lowerSearchTerm)) ||
         (sale.customerName && sale.customerName.toLowerCase().includes(lowerSearchTerm)) ||
-        (sale.paymentMethod && sale.paymentMethod.toLowerCase().includes(lowerSearchTerm));
+        (sale.paymentMethod && sale.paymentMethod.toLowerCase().includes(lowerSearchTerm)) ||
+        (sale.chequeNumber && sale.chequeNumber.toLowerCase().includes(lowerSearchTerm));
+
 
       let matchesDateRange = true;
       if (isValid(saleDateObj)) {
@@ -120,7 +123,7 @@ export function InvoiceDataTable({ sales: initialSales, isLoading, error }: Invo
             <div className="relative flex-grow">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search ID, Customer, Payment..."
+                placeholder="Search ID, Customer, Payment, Cheque#..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-9 h-10 w-full"
@@ -224,12 +227,12 @@ export function InvoiceDataTable({ sales: initialSales, isLoading, error }: Invo
                           <Badge 
                             variant={
                                 sale.paymentMethod === "Credit" ? "destructive" : 
-                                sale.paymentMethod === "Card" ? "secondary" : "default"
+                                sale.paymentMethod === "Cheque" ? "secondary" : "default"
                             }
                             className={cn(
                                 "text-xs",
                                 sale.paymentMethod === "Credit" && "bg-orange-500 text-white",
-                                sale.paymentMethod === "Card" && "bg-blue-500 text-white"
+                                sale.paymentMethod === "Cheque" && "bg-blue-500 text-white"
                             )}
                           >
                             {sale.paymentMethod}
@@ -254,7 +257,7 @@ export function InvoiceDataTable({ sales: initialSales, isLoading, error }: Invo
                             <span>
                               {sale.paymentMethod === "Cash" && sale.cashGiven !== undefined ? formatCurrency(sale.cashGiven) : ""}
                               {sale.paymentMethod === "Credit" && sale.amountPaidOnCredit !== undefined ? formatCurrency(sale.amountPaidOnCredit) : ""}
-                              {sale.paymentMethod === "Card" ? "N/A" : ""}
+                              {sale.paymentMethod === "Cheque" ? `Cheque #: ${sale.chequeNumber || "N/A"}` : ""}
                             </span>
                           </div>
                           <div className="flex justify-between">
@@ -262,7 +265,7 @@ export function InvoiceDataTable({ sales: initialSales, isLoading, error }: Invo
                             <span>
                               {sale.paymentMethod === "Cash" && sale.balanceReturned !== undefined ? `${formatCurrency(sale.balanceReturned)} (Ret)` : ""}
                               {sale.paymentMethod === "Credit" && sale.remainingCreditBalance !== undefined ? `${formatCurrency(sale.remainingCreditBalance)} (Rem)` : ""}
-                              {sale.paymentMethod === "Card" ? "N/A" : ""}
+                              {sale.paymentMethod === "Cheque" ? "N/A" : ""}
                             </span>
                           </div>
                            <p className="text-muted-foreground mt-1 pt-1 border-t">Items: {sale.items.length}</p>
@@ -289,7 +292,7 @@ export function InvoiceDataTable({ sales: initialSales, isLoading, error }: Invo
                       <TableHead>Customer</TableHead>
                       <TableHead className="text-right">Total</TableHead>
                       <TableHead>Payment</TableHead>
-                      <TableHead className="text-right">Paid/Given</TableHead>
+                      <TableHead className="text-right">Paid/Given/Cheque#</TableHead>
                       <TableHead className="text-right">Balance</TableHead>
                       <TableHead className="text-center w-[100px]">Actions</TableHead>
                     </TableRow>
@@ -305,12 +308,12 @@ export function InvoiceDataTable({ sales: initialSales, isLoading, error }: Invo
                           <Badge 
                               variant={
                                   sale.paymentMethod === "Credit" ? "destructive" : 
-                                  sale.paymentMethod === "Card" ? "secondary" : "default"
+                                  sale.paymentMethod === "Cheque" ? "secondary" : "default"
                               }
                               className={cn(
                                   "text-xs",
                                   sale.paymentMethod === "Credit" && "bg-orange-500 text-white",
-                                  sale.paymentMethod === "Card" && "bg-blue-500 text-white"
+                                  sale.paymentMethod === "Cheque" && "bg-blue-500 text-white"
                               )}
                           >
                               {sale.paymentMethod}
@@ -319,12 +322,12 @@ export function InvoiceDataTable({ sales: initialSales, isLoading, error }: Invo
                         <TableCell className="text-right">
                           {sale.paymentMethod === "Cash" && sale.cashGiven !== undefined ? formatCurrency(sale.cashGiven) : ""}
                           {sale.paymentMethod === "Credit" && sale.amountPaidOnCredit !== undefined ? formatCurrency(sale.amountPaidOnCredit) : ""}
-                          {sale.paymentMethod === "Card" ? "N/A" : ""}
+                          {sale.paymentMethod === "Cheque" ? `Chq: ${sale.chequeNumber || "N/A"}` : ""}
                         </TableCell>
                         <TableCell className="text-right">
                           {sale.paymentMethod === "Cash" && sale.balanceReturned !== undefined ? `${formatCurrency(sale.balanceReturned)} (Ret)` : ""}
                           {sale.paymentMethod === "Credit" && sale.remainingCreditBalance !== undefined ? `${formatCurrency(sale.remainingCreditBalance)} (Rem)` : ""}
-                          {sale.paymentMethod === "Card" ? "N/A" : ""}
+                          {sale.paymentMethod === "Cheque" ? "N/A" : ""}
                         </TableCell>
                         <TableCell className="text-center">
                           <Button variant="ghost" size="icon" onClick={() => handleReprintInvoice(sale)} title="View / Print Invoice">
