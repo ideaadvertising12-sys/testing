@@ -1,3 +1,4 @@
+
 "use client";
 
 import Image from "next/image";
@@ -12,27 +13,31 @@ import {
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import type { Product } from "@/lib/types";
-import { placeholderProducts } from "@/lib/placeholder-data";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Input } from "@/components/ui/input";
-import { PackageSearch } from "lucide-react";
+import { PackageSearch, Loader2, AlertTriangle } from "lucide-react";
+import { useProducts } from "@/hooks/useProducts"; // Import the hook
+import { Skeleton } from "@/components/ui/skeleton"; // For loading state
 
 export function InventoryDataTable() {
-  const [products] = useState<Product[]>(placeholderProducts); // Use placeholder data
+  const { products, isLoading, error } = useProducts(); // Use the hook
   const [searchTerm, setSearchTerm] = useState("");
 
   const getStockStatus = (stock: number, reorderLevel?: number) => {
     if (reorderLevel === undefined) reorderLevel = 10; // Default reorder level
     if (stock <= 0) return { text: "Out of Stock", color: "bg-red-500 text-destructive-foreground", variant: "destructive" as const };
-    if (stock <= reorderLevel) return { text: "Low Stock", color: "bg-orange-500 text-destructive-foreground", variant: "default" as const };
+    if (stock <= reorderLevel) return { text: "Low Stock", color: "bg-orange-500 text-destructive-foreground", variant: "default" as const }; // Changed color for better visibility
     return { text: "In Stock", color: "bg-green-500 text-primary-foreground", variant: "default" as const };
   };
 
-  const filteredProducts = products.filter(product =>
-    product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (product.sku && product.sku.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const filteredProducts = useMemo(() => {
+    if (isLoading || !products) return [];
+    return products.filter(product =>
+      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (product.sku && product.sku.toLowerCase().includes(searchTerm.toLowerCase()))
+    );
+  }, [products, searchTerm, isLoading]);
 
   return (
     <Card className="shadow-lg">
@@ -46,14 +51,40 @@ export function InventoryDataTable() {
             className="pl-10 w-full sm:w-1/2 lg:w-1/3"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
+            disabled={isLoading}
           />
         </div>
       </CardHeader>
       <CardContent>
-        {filteredProducts.length === 0 ? (
+        {isLoading ? (
+          <div className="space-y-2">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="flex items-center space-x-4 p-4 border rounded-md">
+                <Skeleton className="h-12 w-12 rounded-md" />
+                <div className="space-y-2 flex-1">
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-4 w-1/2" />
+                </div>
+                <Skeleton className="h-6 w-20 rounded-full" />
+              </div>
+            ))}
+          </div>
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center h-[200px] text-destructive">
+              <AlertTriangle className="w-16 h-16 mb-4" />
+              <p className="text-xl font-semibold">Error loading products</p>
+              <p className="text-sm">{error}</p>
+          </div>
+        ) : filteredProducts.length === 0 && products.length > 0 ? (
           <div className="flex flex-col items-center justify-center h-[200px] text-muted-foreground">
               <PackageSearch className="w-16 h-16 mb-4" />
               <p className="text-xl">No products found matching your search.</p>
+          </div>
+        ) : products.length === 0 && !searchTerm ? (
+           <div className="flex flex-col items-center justify-center h-[200px] text-muted-foreground">
+              <PackageSearch className="w-16 h-16 mb-4" />
+              <p className="text-xl">No products in inventory.</p>
+              <p className="text-sm">Add products via the Product Management page.</p>
           </div>
         ) : (
         <Table>
