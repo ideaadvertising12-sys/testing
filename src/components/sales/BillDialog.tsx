@@ -35,7 +35,7 @@ interface BillDialogProps {
   currentTotalAmount?: number;
   saleId?: string; 
   onConfirmSale?: (saleData: Omit<Sale, 'id' | 'saleDate' | 'staffId' | 'items'>) => void;
-  offerApplied?: boolean; // New prop
+  offerApplied?: boolean; 
 
   existingSaleData?: Sale;
 }
@@ -51,7 +51,7 @@ export function BillDialog({
   currentTotalAmount: newTotalAmount,
   saleId: newSaleId,
   onConfirmSale,
-  offerApplied: newOfferApplied, // Destructure new prop
+  offerApplied: newOfferApplied, 
   existingSaleData
 }: BillDialogProps) {
   
@@ -77,7 +77,10 @@ export function BillDialog({
   const customerForDisplay = useMemo(() => {
     if (isReprintMode && existingSaleData) {
       if (existingSaleData.customerId) {
-        return placeholderCustomers.find(c => c.id === existingSaleData.customerId) || null;
+        // In a real app, you might fetch customer details if only ID is present.
+        // For now, we'll use placeholderCustomers or construct from existingSaleData.customerName.
+        return placeholderCustomers.find(c => c.id === existingSaleData.customerId) || 
+               (existingSaleData.customerName ? { id: existingSaleData.customerId || '', name: existingSaleData.customerName, phone: '', shopName: '' } as Customer : null);
       }
       return existingSaleData.customerName ? { id: '', name: existingSaleData.customerName, phone: '', shopName: '' } as Customer : null;
     }
@@ -114,6 +117,7 @@ export function BillDialog({
         setCashGiven(existingSaleData.paymentMethod === "Cash" ? (existingSaleData.cashGiven?.toString() || "") : "");
         setAmountPaidOnCredit(existingSaleData.paymentMethod === "Credit" ? (existingSaleData.amountPaidOnCredit?.toString() || "") : "");
       } else {
+        // Reset for new sale
         setSelectedPaymentMethod("Cash"); 
         setCashGiven("");
         setAmountPaidOnCredit("");
@@ -124,10 +128,11 @@ export function BillDialog({
   const handlePrimaryAction = () => {
     if (isReprintMode) {
       window.print();
-      onOpenChange(false);
+      onOpenChange(false); // Close dialog after initiating print for reprint
       return;
     }
 
+    // Logic for new sale confirmation
     if (onConfirmSale) {
       const saleData: Omit<Sale, 'id' | 'saleDate' | 'staffId' | 'items'> = {
         customerId: customerForDisplay?.id,
@@ -137,12 +142,12 @@ export function BillDialog({
         discountAmount: discountAmountToDisplay,
         totalAmount: totalAmountToDisplay,
         paymentMethod: selectedPaymentMethod,
-        offerApplied: offerWasApplied, // Pass offer status
+        offerApplied: offerWasApplied, 
       };
 
       if (selectedPaymentMethod === "Cash") {
         saleData.cashGiven = parseFloat(cashGiven || "0");
-        saleData.balanceReturned = balanceReturned !== null ? balanceReturned : 0;
+        saleData.balanceReturned = balanceReturned !== null ? balanceReturned : 0; // Default to 0 if null
         if (saleData.cashGiven < totalAmountToDisplay) {
           alert("Cash given is less than total amount.");
           return;
@@ -155,7 +160,7 @@ export function BillDialog({
         saleData.customerId = customerForDisplay.id; 
         saleData.customerName = customerForDisplay.name;
         saleData.amountPaidOnCredit = parseFloat(amountPaidOnCredit || "0");
-        saleData.remainingCreditBalance = remainingCreditBalance !== null ? remainingCreditBalance : totalAmountToDisplay;
+        saleData.remainingCreditBalance = remainingCreditBalance !== null ? remainingCreditBalance : totalAmountToDisplay; // Default to total if null
         if (saleData.amountPaidOnCredit > totalAmountToDisplay) {
           alert("Amount paid cannot exceed total amount for credit sales.");
           return;
@@ -163,8 +168,8 @@ export function BillDialog({
       }
       onConfirmSale(saleData);
     }
-    window.print();
-    onOpenChange(false); 
+    window.print(); // Print for new sale as well
+    onOpenChange(false); // Close dialog after initiating print & confirm for new sale
   };
 
   const paymentMethods: { value: Sale["paymentMethod"]; label: string; icon: React.ElementType }[] = [
@@ -174,7 +179,7 @@ export function BillDialog({
   ];
   
   const isPrimaryButtonDisabled = !isReprintMode && (
-    itemsToDisplay.filter(item => !item.isOfferItem || (item.isOfferItem && item.quantity > 0)).length === 0 ||
+    itemsToDisplay.filter(item => !item.isOfferItem || (item.isOfferItem && item.quantity > 0)).length === 0 || // Ensure there are non-free items or free items with quantity
     (selectedPaymentMethod === "Cash" && (cashGiven === "" || parseFloat(cashGiven) < totalAmountToDisplay)) ||
     (selectedPaymentMethod === "Credit" && (!customerForDisplay || amountPaidOnCredit === "" || parseFloat(amountPaidOnCredit) > totalAmountToDisplay))
   );
@@ -184,6 +189,8 @@ export function BillDialog({
       <DialogContent 
         className={cn(
           "sm:max-w-lg flex flex-col",
+          // Ensure the dialog itself allows for its content to overflow for scrolling,
+          // but the bill-content area has specific max-height for its scroll area
           "print:shadow-none print:border-none print:max-w-full print:max-h-full print:m-0 print:p-0 print:h-auto print:overflow-visible",
           isOpen ? "max-h-[90vh]" : "" 
         )}
@@ -197,35 +204,40 @@ export function BillDialog({
           </DialogDescription>
         </DialogHeader>
         
-        <ScrollArea className="flex-grow print:overflow-visible print:flex-grow-0 print:h-auto">
+        <ScrollArea className="flex-grow print:overflow-visible print:flex-grow-0 print:h-auto"> {/* This ScrollArea handles the whole dialog content scroll */}
           <div 
             id="bill-content" 
             className={cn(
                 "p-6 bg-card text-card-foreground rounded-md",
-                "print:p-0 print:bg-transparent print:text-black print:max-h-none print:overflow-visible"
+                "print:p-0 print:bg-transparent print:text-black print:max-h-none print:overflow-visible" // Styles for printing the bill content
             )}
           >
+            {/* Bill Header */}
             <div className="text-center mb-6">
               <div className="flex justify-center mb-2">
                  <AppLogo size="md"/>
               </div>
+              {/* Placeholder business details - replace with dynamic data if needed */}
               <p className="text-sm">4/1 Bujjampala, Dankotuwa</p>
               <p className="text-sm">Hotline: 077-3383721, 077-1066595</p>
             </div>
 
             <Separator className="my-4"/>
 
+            {/* Transaction Details */}
             <div className="text-xs mb-4">
               <p>Date: {transactionDate.toLocaleDateString()} {transactionDate.toLocaleTimeString()}</p>
               {displaySaleId && <p>Transaction ID: {displaySaleId}</p>}
               {customerForDisplay && <p>Customer: {customerForDisplay.name} {customerForDisplay.shopName ? `(${customerForDisplay.shopName})` : ''}</p>}
-              <p>Served by: Staff Member</p> 
+              <p>Served by: Staff Member</p> {/* Replace with actual staff name if available */}
               {offerWasApplied && <p className="font-semibold text-green-600">Offer: Buy 12 Get 1 Free Applied!</p>}
             </div>
 
             <Separator className="my-4"/>
             
+            {/* Items Table */}
             <h3 className="font-semibold mb-2 text-sm">Order Summary:</h3>
+            {/* This ScrollArea is specifically for the items table IF it needs to be scrollable within the dialog view (not for print) */}
             <div className="max-h-[150px] overflow-y-auto print:max-h-none print:overflow-visible mb-4">
               <table className="w-full text-xs">
                 <thead>
@@ -240,7 +252,7 @@ export function BillDialog({
                   {itemsToDisplay.map((item, index) => (
                     <tr key={`${item.id}-${item.saleType}-${item.isOfferItem ? 'offer' : 'paid'}-${index}`} className="border-b border-dashed">
                       <td className="py-1.5">
-                        {item.name}
+                        {item.name || `Product ID: ${item.id}` || "Product Name Unavailable"}
                         {item.isOfferItem && <Gift className="inline-block h-3 w-3 ml-1 text-green-600" />}
                       </td>
                       <td className="text-center py-1.5">{item.quantity}</td>
@@ -252,6 +264,7 @@ export function BillDialog({
               </table>
             </div>
 
+            {/* Totals Section */}
             <div className="space-y-1 text-xs mb-4">
               <div className="flex justify-between">
                 <span>Subtotal (Paid Items):</span>
@@ -272,19 +285,20 @@ export function BillDialog({
             
             <Separator className="my-4"/>
 
+            {/* Payment Method Section (Interactive part, hidden on print for clarity if needed) */}
             <div className="mb-4">
               <h3 className="font-semibold mb-2 text-sm">Payment Method:</h3>
               <RadioGroup 
                 value={selectedPaymentMethod}
                 onValueChange={(value: Sale["paymentMethod"]) => {
-                  if (!isReprintMode) {
+                  if (!isReprintMode) { // Only allow changing payment method for new sales
                     setSelectedPaymentMethod(value);
-                    setCashGiven("");
-                    setAmountPaidOnCredit("");
+                    setCashGiven(""); // Reset cash given when payment method changes
+                    setAmountPaidOnCredit(""); // Reset credit paid when payment method changes
                   }
                 }}
                 className="grid grid-cols-3 gap-3 print:hidden"
-                disabled={isReprintMode}
+                disabled={isReprintMode} // Disable for reprint mode
               >
                 {paymentMethods.map((method) => (
                   <Label
@@ -300,11 +314,13 @@ export function BillDialog({
                   </Label>
                 ))}
               </RadioGroup>
+              {/* Display selected payment method for print */}
               <div className="mt-2 text-xs print:block hidden"> 
                 Selected: <span className="font-semibold">{selectedPaymentMethod}</span>
               </div>
             </div>
 
+            {/* Cash Payment Details */}
             {selectedPaymentMethod === "Cash" && (
               <div className="space-y-3 mt-4">
                 <div className="print:hidden">
@@ -316,7 +332,7 @@ export function BillDialog({
                     onChange={(e) => setCashGiven(e.target.value)}
                     placeholder="Amount received"
                     className="h-10"
-                    min={!isReprintMode ? totalAmountToDisplay.toString() : undefined}
+                    min={!isReprintMode ? totalAmountToDisplay.toString() : undefined} // Suggest minimum for new sales
                     disabled={isReprintMode}
                   />
                 </div>
@@ -331,6 +347,7 @@ export function BillDialog({
                         </AlertDescription>
                     </Alert>
                 )}
+                {/* For Print: Show cash given and balance if in reprint mode and method was cash */}
                 <div className="mt-2 text-xs print:block hidden">
                   {isReprintMode && existingSaleData?.paymentMethod === "Cash" && (
                     <>
@@ -342,9 +359,10 @@ export function BillDialog({
               </div>
             )}
 
+            {/* Credit Payment Details */}
             {selectedPaymentMethod === "Credit" && (
               <div className="space-y-3 mt-4">
-                {!isReprintMode && !customerForDisplay && (
+                {!isReprintMode && !customerForDisplay && ( // Only show warning for new sales if no customer selected
                    <Alert variant="destructive" className="p-3 text-sm print:hidden">
                         <AlertTriangle className="h-4 w-4" />
                         <AlertDescription>
@@ -361,8 +379,8 @@ export function BillDialog({
                     onChange={(e) => setAmountPaidOnCredit(e.target.value)}
                     placeholder="Amount paid"
                     className="h-10"
-                    max={!isReprintMode ? totalAmountToDisplay.toString() : undefined}
-                    disabled={isReprintMode || (!isReprintMode && !customerForDisplay)}
+                    max={!isReprintMode ? totalAmountToDisplay.toString() : undefined} // Cannot pay more than total
+                    disabled={isReprintMode || (!isReprintMode && !customerForDisplay)} // Disable if no customer for new sale
                   />
                 </div>
                 {remainingCreditBalance !== null && (isReprintMode || (parseFloat(amountPaidOnCredit) <= totalAmountToDisplay && customerForDisplay)) && (
@@ -376,6 +394,7 @@ export function BillDialog({
                         </AlertDescription>
                     </Alert>
                 )}
+                {/* For Print: Show paid and remaining if in reprint mode and method was credit */}
                 <div className="mt-2 text-xs print:block hidden">
                   {isReprintMode && existingSaleData?.paymentMethod === "Credit" && (
                     <>
@@ -387,13 +406,15 @@ export function BillDialog({
               </div>
             )}
             
-            <Separator className="my-4 print:hidden"/>
+            <Separator className="my-4 print:hidden"/> {/* Hide separator on print */}
 
+            {/* Bill Footer */}
             <p className="text-center text-xs mt-6">Thank you for your purchase!</p>
             <p className="text-center text-xs">Please come again.</p>
           </div>
         </ScrollArea>
 
+        {/* Dialog Footer - Hidden on Print */}
         <DialogFooter className="mt-auto p-6 border-t print:hidden flex justify-end gap-2">
            <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
            <Button onClick={handlePrimaryAction} disabled={isPrimaryButtonDisabled}>
