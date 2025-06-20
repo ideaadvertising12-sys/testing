@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
@@ -40,17 +41,22 @@ export function InvoiceDataTable({ initialSales }: InvoiceDataTableProps) {
   const [isBillDialogOpen, setIsBillDialogOpen] = useState(false);
 
   useEffect(() => {
-    setSales(initialSales.sort((a, b) => new Date(b.saleDate).getTime() - new Date(a.saleDate).getTime()));
+    setSales(initialSales.sort((a, b) => {
+      const dateA = a.saleDate instanceof Date ? a.saleDate : new Date(a.saleDate || 0);
+      const dateB = b.saleDate instanceof Date ? b.saleDate : new Date(b.saleDate || 0);
+      return dateB.getTime() - dateA.getTime();
+    }));
   }, [initialSales]);
 
   const filteredSales = useMemo(() => {
     return sales.filter(sale => {
       const saleDateObj = typeof sale.saleDate === 'string' ? parseISO(sale.saleDate) : sale.saleDate;
       
+      const lowerSearchTerm = searchTerm.toLowerCase();
       const matchesSearchTerm = 
-        sale.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (sale.customerName && sale.customerName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        sale.paymentMethod.toLowerCase().includes(searchTerm.toLowerCase());
+        (sale.id && sale.id.toLowerCase().includes(lowerSearchTerm)) ||
+        (sale.customerName && sale.customerName.toLowerCase().includes(lowerSearchTerm)) ||
+        (sale.paymentMethod && sale.paymentMethod.toLowerCase().includes(lowerSearchTerm));
 
       let matchesDateRange = true;
       if (isValid(saleDateObj)) {
@@ -61,6 +67,9 @@ export function InvoiceDataTable({ initialSales }: InvoiceDataTableProps) {
           } else if (endDate) {
             matchesDateRange = saleDateObj <= endOfDay(endDate);
           }
+      } else {
+        // If saleDate is invalid, it won't match any date range filter
+        if (startDate || endDate) matchesDateRange = false;
       }
       
       return matchesSearchTerm && matchesDateRange;
@@ -82,13 +91,14 @@ export function InvoiceDataTable({ initialSales }: InvoiceDataTableProps) {
     setExpandedInvoice(expandedInvoice === invoiceId ? null : invoiceId);
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
+  const formatCurrency = (amount: number | undefined) => {
+    if (typeof amount !== 'number' || isNaN(amount)) return 'Rs. 0.00';
+    return new Intl.NumberFormat('en-LK', { // Changed to en-LK for LKR default
       style: 'currency',
-      currency: 'LKR',
+      currency: 'LKR', 
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
-    }).format(amount).replace('LKR', 'Rs.');
+    }).format(amount).replace('LKR', 'Rs.'); // Replace LKR with Rs.
   };
 
   return (
@@ -138,10 +148,10 @@ export function InvoiceDataTable({ initialSales }: InvoiceDataTableProps) {
             )}
           </div>
           {isMobile && (
-            <div className="flex gap-3">
+            <div className="mt-3 flex gap-3">
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className={cn("justify-start text-left font-normal", !startDate && "text-muted-foreground")}>
+                  <Button variant="outline" size="sm" className={cn("justify-start text-left font-normal flex-1", !startDate && "text-muted-foreground")}>
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {startDate ? format(startDate, "PP") : "Start"}
                   </Button>
@@ -152,7 +162,7 @@ export function InvoiceDataTable({ initialSales }: InvoiceDataTableProps) {
               </Popover>
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className={cn("justify-start text-left font-normal", !endDate && "text-muted-foreground")}>
+                  <Button variant="outline" size="sm" className={cn("justify-start text-left font-normal flex-1", !endDate && "text-muted-foreground")}>
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {endDate ? format(endDate, "PP") : "End"}
                   </Button>
@@ -169,7 +179,7 @@ export function InvoiceDataTable({ initialSales }: InvoiceDataTableProps) {
           )}
         </CardHeader>
         <CardContent>
-          <ScrollArea className={isMobile ? "h-[calc(100vh-20rem)]" : "h-[calc(100vh-24rem)]"}>
+          <ScrollArea className={isMobile ? "h-[calc(100vh-24rem)]" : "h-[calc(100vh-24rem)]"}>
             {filteredSales.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
                   <ReceiptText className="w-16 h-16 mb-4 opacity-50" />
@@ -195,10 +205,11 @@ export function InvoiceDataTable({ initialSales }: InvoiceDataTableProps) {
                               sale.paymentMethod === "Credit" ? "destructive" : 
                               sale.paymentMethod === "Card" ? "secondary" : "default"
                           }
-                          className={
-                              sale.paymentMethod === "Credit" ? "bg-orange-500 text-white" :
-                              sale.paymentMethod === "Card" ? "bg-blue-500 text-white" : ""
-                          }
+                          className={cn(
+                              "text-xs",
+                              sale.paymentMethod === "Credit" && "bg-orange-500 text-white",
+                              sale.paymentMethod === "Card" && "bg-blue-500 text-white"
+                          )}
                         >
                           {sale.paymentMethod}
                         </Badge>
@@ -208,7 +219,7 @@ export function InvoiceDataTable({ initialSales }: InvoiceDataTableProps) {
                     <Button 
                       variant="ghost" 
                       size="sm" 
-                      className="w-full mt-2 justify-between"
+                      className="w-full mt-2 justify-between text-primary hover:text-primary"
                       onClick={() => toggleExpandInvoice(sale.id)}
                     >
                       {expandedInvoice === sale.id ? "Hide details" : "Show details"}
@@ -216,7 +227,7 @@ export function InvoiceDataTable({ initialSales }: InvoiceDataTableProps) {
                     </Button>
                     
                     {expandedInvoice === sale.id && (
-                      <div className="mt-3 space-y-2 text-sm">
+                      <div className="mt-3 space-y-1 text-xs border-t pt-2">
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Paid/Given:</span>
                           <span>
@@ -233,6 +244,7 @@ export function InvoiceDataTable({ initialSales }: InvoiceDataTableProps) {
                             {sale.paymentMethod === "Card" ? "N/A" : ""}
                           </span>
                         </div>
+                         <p className="text-muted-foreground mt-1 pt-1 border-t">Items: {sale.items.length}</p>
                         <Button 
                           variant="outline" 
                           size="sm" 
@@ -251,14 +263,14 @@ export function InvoiceDataTable({ initialSales }: InvoiceDataTableProps) {
               <Table>
                 <TableHeader className="sticky top-0 bg-card z-10">
                   <TableRow>
-                    <TableHead>ID</TableHead>
-                    <TableHead>Date</TableHead>
+                    <TableHead className="w-[120px]">ID</TableHead>
+                    <TableHead className="w-[150px]">Date</TableHead>
                     <TableHead>Customer</TableHead>
                     <TableHead className="text-right">Total</TableHead>
                     <TableHead>Payment</TableHead>
                     <TableHead className="text-right">Paid/Given</TableHead>
                     <TableHead className="text-right">Balance</TableHead>
-                    <TableHead className="text-center">Actions</TableHead>
+                    <TableHead className="text-center w-[100px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -274,10 +286,11 @@ export function InvoiceDataTable({ initialSales }: InvoiceDataTableProps) {
                                 sale.paymentMethod === "Credit" ? "destructive" : 
                                 sale.paymentMethod === "Card" ? "secondary" : "default"
                             }
-                            className={
-                                sale.paymentMethod === "Credit" ? "bg-orange-500 text-white" :
-                                sale.paymentMethod === "Card" ? "bg-blue-500 text-white" : ""
-                            }
+                            className={cn(
+                                "text-xs",
+                                sale.paymentMethod === "Credit" && "bg-orange-500 text-white",
+                                sale.paymentMethod === "Card" && "bg-blue-500 text-white"
+                            )}
                         >
                             {sale.paymentMethod}
                         </Badge>
@@ -319,9 +332,10 @@ export function InvoiceDataTable({ initialSales }: InvoiceDataTableProps) {
             setIsBillDialogOpen(open);
           }}
           existingSaleData={selectedInvoiceForReprint}
-          onConfirmSale={() => {}}
+          onConfirmSale={() => { /* No confirm action needed for reprint */ }}
         />
       )}
     </>
   );
 }
+
