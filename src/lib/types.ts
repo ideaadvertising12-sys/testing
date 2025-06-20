@@ -45,13 +45,23 @@ export interface CartItem {
 export interface ChequeInfo {
   number?: string;
   bank?: string;
-  date?: Date; // For Sale object
-  amount?: number; // For Sale object, amount covered by this specific cheque
+  date?: Date; 
+  amount?: number; 
 }
 
 export interface FirestoreChequeInfo extends Omit<ChequeInfo, 'date' | 'amount'> {
-  date?: Timestamp; // For FirestoreSale object
+  date?: Timestamp; 
   amount?: number;
+}
+
+export interface BankTransferInfo {
+  bankName?: string;
+  referenceNumber?: string;
+  amount?: number;
+}
+
+export interface FirestoreBankTransferInfo extends Omit<BankTransferInfo, 'amount'> {
+   amount?: number;
 }
 
 
@@ -67,13 +77,15 @@ export interface Sale {
   
   paidAmountCash?: number;
   paidAmountCheque?: number;
-  chequeDetails?: ChequeInfo; // For a single cheque scenario first
+  chequeDetails?: ChequeInfo; 
+  paidAmountBankTransfer?: number;
+  bankTransferDetails?: BankTransferInfo;
 
   totalAmountPaid: number; // Sum of all payments made
   outstandingBalance: number; // totalAmount - totalAmountPaid (if positive, amount due)
-  changeGiven?: number; // If cash_tendered > totalAmount and paid fully by cash
+  changeGiven?: number; // If cash_tendered > totalAmount and paid fully by cash (considering cash was the only or last part of payment)
 
-  paymentSummary: string; // e.g., "Cash", "Cheque", "Partial Cash", "Split (Cash+Cheque)", "Credit"
+  paymentSummary: string; // e.g., "Cash", "Cheque (123)", "Partial (Cash + Cheque)", "Full Credit"
   
   saleDate: Date;
   staffId: string;
@@ -137,10 +149,11 @@ export interface FirestoreCartItem {
   isOfferItem?: boolean;
 }
 
-export interface FirestoreSale extends Omit<Sale, 'id' | 'saleDate' | 'items' | 'chequeDetails'> {
+export interface FirestoreSale extends Omit<Sale, 'id' | 'saleDate' | 'items' | 'chequeDetails' | 'bankTransferDetails'> {
   items: FirestoreCartItem[];
   saleDate: Timestamp;
   chequeDetails?: FirestoreChequeInfo;
+  bankTransferDetails?: FirestoreBankTransferInfo;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
   offerApplied?: boolean; 
@@ -240,6 +253,8 @@ export const saleConverter = {
       
       paidAmountCash: sale.paidAmountCash,
       paidAmountCheque: sale.paidAmountCheque,
+      paidAmountBankTransfer: sale.paidAmountBankTransfer,
+      
       totalAmountPaid: sale.totalAmountPaid,
       outstandingBalance: sale.outstandingBalance,
       changeGiven: sale.changeGiven,
@@ -251,11 +266,16 @@ export const saleConverter = {
     };
     
     if (sale.chequeDetails) {
-      firestoreSale.chequeDetails = {
-        ...sale.chequeDetails,
-        date: sale.chequeDetails.date ? Timestamp.fromDate(sale.chequeDetails.date) : undefined,
-      };
+      const chequeDetailsToSave: Partial<FirestoreChequeInfo> = {...sale.chequeDetails};
+       if (sale.chequeDetails.date && !(sale.chequeDetails.date instanceof Timestamp)) {
+        chequeDetailsToSave.date = Timestamp.fromDate(sale.chequeDetails.date);
+      }
+      firestoreSale.chequeDetails = chequeDetailsToSave as FirestoreChequeInfo;
     }
+    if (sale.bankTransferDetails) {
+      firestoreSale.bankTransferDetails = sale.bankTransferDetails;
+    }
+
 
     if (sale.customerId) firestoreSale.customerId = sale.customerId;
     if (sale.customerName) firestoreSale.customerName = sale.customerName;
@@ -278,6 +298,16 @@ export const saleConverter = {
         delete firestoreSale.chequeDetails;
       }
     }
+    if (firestoreSale.bankTransferDetails) {
+      Object.keys(firestoreSale.bankTransferDetails).forEach(key => {
+        if ((firestoreSale.bankTransferDetails as any)[key] === undefined) {
+          delete (firestoreSale.bankTransferDetails as any)[key];
+        }
+      });
+      if (Object.keys(firestoreSale.bankTransferDetails).length === 0) {
+        delete firestoreSale.bankTransferDetails;
+      }
+    }
 
 
     return firestoreSale;
@@ -291,11 +321,15 @@ export const saleConverter = {
             date: data.chequeDetails.date instanceof Timestamp ? data.chequeDetails.date.toDate() : undefined,
         }
     }
+    let bankTransferDetails;
+    if (data.bankTransferDetails) {
+        bankTransferDetails = { ...data.bankTransferDetails };
+    }
 
     return {
       id: snapshot.id,
       items: data.items.map((item: FirestoreCartItem): CartItem => ({
-        id: item.productRef ? item.productRef.split('/')[1] : 'unknown_id', // Handle missing productRef gracefully
+        id: item.productRef ? item.productRef.split('/')[1] : 'unknown_id', 
         quantity: item.quantity,
         appliedPrice: item.appliedPrice,
         saleType: item.saleType,
@@ -304,6 +338,7 @@ export const saleConverter = {
         price: typeof item.productPrice === 'number' ? item.productPrice : 0, 
         sku: item.productSku, 
         isOfferItem: item.isOfferItem || false,
+        imageUrl: undefined, // Not typically stored per item in sale, but CartItem requires it.
       })),
       subTotal: data.subTotal,
       discountPercentage: data.discountPercentage,
@@ -313,6 +348,9 @@ export const saleConverter = {
       paidAmountCash: data.paidAmountCash,
       paidAmountCheque: data.paidAmountCheque,
       chequeDetails: chequeDetails,
+      paidAmountBankTransfer: data.paidAmountBankTransfer,
+      bankTransferDetails: bankTransferDetails,
+
       totalAmountPaid: data.totalAmountPaid,
       outstandingBalance: data.outstandingBalance,
       changeGiven: data.changeGiven,
@@ -407,7 +445,7 @@ export interface FullReportEntry {
   appliedPrice: number;
   lineTotal: number;
   saleType: 'retail' | 'wholesale';
-  paymentMethod: Sale["paymentSummary"]; // Changed from Sale["paymentMethod"]
+  paymentMethod: Sale["paymentSummary"]; 
   staffId: string;
 }
 
@@ -425,22 +463,20 @@ export interface ActivityItem {
 
 export interface DayEndReportSummary {
   reportDate: Date;
-  // Old structure - will need significant update based on new payment model
   cashSales: { count: number; amount: number; cashReceived: number; balanceReturned: number };
   chequeSales: { count: number; amount: number; chequeNumbers: string[] };
   creditSales: { count: number; amount: number; amountPaidOnCredit: number; remainingCreditBalance: number };
   
-  // New aggregated fields
-  totalSalesAmount: number; // This is totalAmountDue from sales
+  totalSalesAmount: number; 
   totalAmountCollectedByCash: number;
   totalAmountCollectedByCheque: number;
   totalChangeGiven: number;
-  totalOutstandingAmount: number; // Sum of all outstanding balances
+  totalOutstandingAmount: number; 
   
-  overallTotalSales: number; // This might be same as totalSalesAmount
-  overallTotalCashReceived: number; // This needs to be sum of cash portions
-  overallTotalBalanceReturned: number; // This is totalChangeGiven
-  overallTotalCreditOutstanding: number; // This is totalOutstandingAmount
+  overallTotalSales: number; 
+  overallTotalCashReceived: number; 
+  overallTotalBalanceReturned: number; 
+  overallTotalCreditOutstanding: number; 
 
   totalTransactions: number;
 }

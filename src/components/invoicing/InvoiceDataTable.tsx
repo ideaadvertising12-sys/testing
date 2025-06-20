@@ -63,7 +63,8 @@ export function InvoiceDataTable({ sales: initialSales, isLoading, error }: Invo
         (sale.id && sale.id.toLowerCase().includes(lowerSearchTerm)) ||
         (sale.customerName && sale.customerName.toLowerCase().includes(lowerSearchTerm)) ||
         (sale.paymentSummary && sale.paymentSummary.toLowerCase().includes(lowerSearchTerm)) ||
-        (sale.chequeDetails?.number && sale.chequeDetails.number.toLowerCase().includes(lowerSearchTerm));
+        (sale.chequeDetails?.number && sale.chequeDetails.number.toLowerCase().includes(lowerSearchTerm)) ||
+        (sale.bankTransferDetails?.referenceNumber && sale.bankTransferDetails.referenceNumber.toLowerCase().includes(lowerSearchTerm));
 
 
       let matchesDateRange = true;
@@ -113,9 +114,9 @@ export function InvoiceDataTable({ sales: initialSales, isLoading, error }: Invo
   }, [localSales]);
 
   const getPaymentStatusBadge = (sale: Sale) => {
-    if (sale.outstandingBalance <= 0 && sale.totalAmountPaid >= sale.totalAmount) {
+    if (sale.outstandingBalance != undefined && sale.outstandingBalance <= 0 && sale.totalAmountPaid >= sale.totalAmount) {
       return <Badge variant="default" className="bg-green-600 hover:bg-green-700 text-white text-xs">Paid</Badge>;
-    } else if (sale.totalAmountPaid > 0 && sale.outstandingBalance > 0) {
+    } else if (sale.totalAmountPaid > 0 && sale.outstandingBalance != undefined && sale.outstandingBalance > 0) {
       return <Badge variant="default" className="bg-yellow-500 hover:bg-yellow-600 text-black text-xs">Partial</Badge>;
     } else if (sale.totalAmount > 0 && sale.totalAmountPaid === 0) {
       return <Badge variant="destructive" className="text-xs">Credit</Badge>;
@@ -135,7 +136,7 @@ export function InvoiceDataTable({ sales: initialSales, isLoading, error }: Invo
             <div className="relative flex-grow">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search ID, Customer, Payment Summary, Cheque#..."
+                placeholder="Search ID, Customer, Payment Summary, Cheque#, Ref#"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-9 h-10 w-full"
@@ -256,6 +257,7 @@ export function InvoiceDataTable({ sales: initialSales, isLoading, error }: Invo
                           <div className="flex justify-between"><span className="text-muted-foreground">Total Paid:</span><span>{formatCurrency(sale.totalAmountPaid)}</span></div>
                           {sale.paidAmountCash && <div className="flex justify-between pl-2"><span className="text-muted-foreground">Cash:</span><span>{formatCurrency(sale.paidAmountCash)}</span></div>}
                           {sale.paidAmountCheque && <div className="flex justify-between pl-2"><span className="text-muted-foreground">Cheque ({sale.chequeDetails?.number || 'N/A'}):</span><span>{formatCurrency(sale.paidAmountCheque)}</span></div>}
+                          {sale.paidAmountBankTransfer && <div className="flex justify-between pl-2"><span className="text-muted-foreground">Bank Transfer ({sale.bankTransferDetails?.referenceNumber || 'N/A'}):</span><span>{formatCurrency(sale.paidAmountBankTransfer)}</span></div>}
                           {sale.changeGiven && <div className="flex justify-between pl-2"><span className="text-muted-foreground">Change:</span><span>{formatCurrency(sale.changeGiven)}</span></div>}
                           {sale.outstandingBalance > 0 && <div className="flex justify-between text-destructive"><span className="text-muted-foreground">Outstanding:</span><span>{formatCurrency(sale.outstandingBalance)}</span></div>}
                            <p className="text-muted-foreground mt-1 pt-1 border-t text-xs">Items: {sale.items.length}</p>
@@ -302,11 +304,12 @@ export function InvoiceDataTable({ sales: initialSales, isLoading, error }: Invo
                                 <TooltipTrigger asChild>
                                     <span className="truncate block max-w-[140px] cursor-default">{sale.paymentSummary}</span>
                                 </TooltipTrigger>
-                                <TooltipContent className="text-xs">
+                                <TooltipContent className="text-xs max-w-xs">
                                     <p>{sale.paymentSummary}</p>
-                                    {sale.paidAmountCash && <p>Cash: {formatCurrency(sale.paidAmountCash)}</p>}
-                                    {sale.paidAmountCheque && <p>Cheque: {formatCurrency(sale.paidAmountCheque)} (No: {sale.chequeDetails?.number || 'N/A'})</p>}
-                                    {sale.changeGiven && <p>Change: {formatCurrency(sale.changeGiven)}</p>}
+                                    {sale.paidAmountCash ? <p>Cash: {formatCurrency(sale.paidAmountCash)}</p> : null}
+                                    {sale.paidAmountCheque ? <p>Cheque: {formatCurrency(sale.paidAmountCheque)} (No: {sale.chequeDetails?.number || 'N/A'}, Bank: {sale.chequeDetails?.bank || 'N/A'})</p> : null}
+                                    {sale.paidAmountBankTransfer ? <p>Bank Transfer: {formatCurrency(sale.paidAmountBankTransfer)} (Ref: {sale.bankTransferDetails?.referenceNumber || 'N/A'}, Bank: {sale.bankTransferDetails?.bankName || 'N/A'})</p> : null}
+                                    {sale.changeGiven ? <p>Change: {formatCurrency(sale.changeGiven)}</p> : null}
                                 </TooltipContent>
                             </Tooltip>
                         </TableCell>

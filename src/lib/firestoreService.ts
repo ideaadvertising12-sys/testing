@@ -27,6 +27,8 @@ import {
   type FirestoreCustomer,
   type ChequeInfo,
   type FirestoreChequeInfo,
+  type BankTransferInfo,
+  type FirestoreBankTransferInfo,
 } from "./types";
 
 
@@ -116,8 +118,8 @@ export const deleteCustomer = async (id: string): Promise<void> => {
 
 // Sale Services
 export const addSale = async (
-  saleData: Omit<Sale, 'id' | 'saleDate' | 'items' | 'chequeDetails'> & 
-            { saleDate: Date, items: CartItem[], chequeDetails?: ChequeInfo }
+  saleData: Omit<Sale, 'id' | 'saleDate' | 'items' | 'chequeDetails' | 'bankTransferDetails'> & 
+            { saleDate: Date, items: CartItem[], chequeDetails?: ChequeInfo, bankTransferDetails?: BankTransferInfo }
 ): Promise<string> => {
   checkFirebase();
   const batch = writeBatch(db);
@@ -143,19 +145,23 @@ export const addSale = async (
 
   let firestoreChequeDetails: FirestoreChequeInfo | undefined = undefined;
   if (saleData.chequeDetails) {
-    firestoreChequeDetails = {
-        ...saleData.chequeDetails,
-        date: saleData.chequeDetails.date ? Timestamp.fromDate(saleData.chequeDetails.date) : undefined,
-    };
-    // Remove undefined fields from chequeDetails to prevent Firestore error
-    Object.keys(firestoreChequeDetails).forEach(key => {
-        if ((firestoreChequeDetails as any)[key] === undefined) {
-            delete (firestoreChequeDetails as any)[key];
-        }
-    });
-    if (Object.keys(firestoreChequeDetails).length === 0) {
-        firestoreChequeDetails = undefined;
-    }
+      firestoreChequeDetails = {
+          ...saleData.chequeDetails,
+          date: saleData.chequeDetails.date ? Timestamp.fromDate(saleData.chequeDetails.date) : undefined,
+      };
+      Object.keys(firestoreChequeDetails).forEach(key => {
+          if ((firestoreChequeDetails as any)[key] === undefined) delete (firestoreChequeDetails as any)[key];
+      });
+      if (Object.keys(firestoreChequeDetails).length === 0) firestoreChequeDetails = undefined;
+  }
+
+  let firestoreBankTransferDetails: FirestoreBankTransferInfo | undefined = undefined;
+  if (saleData.bankTransferDetails) {
+      firestoreBankTransferDetails = { ...saleData.bankTransferDetails };
+      Object.keys(firestoreBankTransferDetails).forEach(key => {
+          if ((firestoreBankTransferDetails as any)[key] === undefined) delete (firestoreBankTransferDetails as any)[key];
+      });
+      if (Object.keys(firestoreBankTransferDetails).length === 0) firestoreBankTransferDetails = undefined;
   }
 
 
@@ -164,11 +170,13 @@ export const addSale = async (
     subTotal: saleData.subTotal,
     discountPercentage: saleData.discountPercentage,
     discountAmount: saleData.discountAmount,
-    totalAmount: saleData.totalAmount, // Total Amount Due
+    totalAmount: saleData.totalAmount, 
     
     paidAmountCash: saleData.paidAmountCash,
     paidAmountCheque: saleData.paidAmountCheque,
-    chequeDetails: firestoreChequeDetails, // Use potentially cleaned firestoreChequeDetails
+    chequeDetails: firestoreChequeDetails,
+    paidAmountBankTransfer: saleData.paidAmountBankTransfer,
+    bankTransferDetails: firestoreBankTransferDetails,
     totalAmountPaid: saleData.totalAmountPaid,
     outstandingBalance: saleData.outstandingBalance,
     changeGiven: saleData.changeGiven,
@@ -184,14 +192,12 @@ export const addSale = async (
   if (saleData.customerId !== undefined) firestoreSaleData.customerId = saleData.customerId;
   if (saleData.customerName !== undefined) firestoreSaleData.customerName = saleData.customerName;
   
-  // Clean undefined root-level fields before setting
   const cleanedFirestoreSaleData = { ...firestoreSaleData };
   Object.keys(cleanedFirestoreSaleData).forEach(key => {
     if ((cleanedFirestoreSaleData as any)[key] === undefined) {
       delete (cleanedFirestoreSaleData as any)[key];
     }
   });
-
 
   batch.set(saleDocRef, saleConverter.toFirestore(cleanedFirestoreSaleData as FirestoreSale));
 

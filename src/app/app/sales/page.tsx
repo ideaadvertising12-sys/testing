@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Drawer, DrawerContent, DrawerTrigger, DrawerHeader, DrawerTitle, DrawerClose } from "@/components/ui/drawer";
 import { useMediaQuery } from "@/hooks/use-media-query";
-import type { Product, CartItem, Customer, Sale, ChequeInfo } from "@/lib/types";
+import type { Product, CartItem, Customer, Sale, ChequeInfo, BankTransferInfo } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useProducts } from "@/hooks/useProducts";
@@ -155,7 +155,7 @@ export default function SalesPage() {
       } else {
         if (productToAdd.stock > 0) {
           updatedCart.push({
-            ...productToAdd, // Spreads all Product fields, including name, category, price, sku, imageUrl
+            ...productToAdd, 
             quantity: 1,
             appliedPrice: priceToUse,
             saleType: currentSaleType,
@@ -227,17 +227,16 @@ export default function SalesPage() {
     setSelectedCustomer(null);
     setDiscountPercentage(0);
     setCurrentSaleType('retail');
-    setIsBuy12Get1FreeActive(false); // Also reset the offer switch
+    setIsBuy12Get1FreeActive(false); 
   };
 
   const currentSubtotal = useMemo(() => cartItems.filter(item => !item.isOfferItem).reduce((sum, item) => sum + item.appliedPrice * item.quantity, 0), [cartItems]);
   const currentDiscountAmount = useMemo(() => currentSubtotal * (discountPercentage / 100), [currentSubtotal, discountPercentage]);
-  const currentTotalAmountDue = useMemo(() => Math.max(0, currentSubtotal - currentDiscountAmount), [currentSubtotal, currentDiscountAmount]); // This is the final amount due
+  const currentTotalAmountDue = useMemo(() => Math.max(0, currentSubtotal - currentDiscountAmount), [currentSubtotal, currentDiscountAmount]); 
 
-  // Updated handleSuccessfulSale
   const handleSuccessfulSale = async (
     salePaymentDetails: Omit<Sale, 'id' | 'saleDate' | 'staffId' | 'items' | 'subTotal' | 'discountPercentage' | 'discountAmount' | 'totalAmount' | 'offerApplied'> & 
-                        Pick<Sale, 'paidAmountCash' | 'paidAmountCheque' | 'chequeDetails' | 'totalAmountPaid' | 'outstandingBalance' | 'changeGiven' | 'paymentSummary'>
+                        Pick<Sale, 'paidAmountCash' | 'paidAmountCheque' | 'chequeDetails' | 'paidAmountBankTransfer' | 'bankTransferDetails' | 'totalAmountPaid' | 'outstandingBalance' | 'changeGiven' | 'paymentSummary'>
   ) => {
     setIsProcessingSale(true);
     const salePayload = {
@@ -257,18 +256,20 @@ export default function SalesPage() {
       subTotal: currentSubtotal,
       discountPercentage: discountPercentage,
       discountAmount: currentDiscountAmount,
-      totalAmount: currentTotalAmountDue, // Total amount due for the sale
+      totalAmount: currentTotalAmountDue,
       
       paidAmountCash: salePaymentDetails.paidAmountCash,
       paidAmountCheque: salePaymentDetails.paidAmountCheque,
       chequeDetails: salePaymentDetails.chequeDetails,
+      paidAmountBankTransfer: salePaymentDetails.paidAmountBankTransfer,
+      bankTransferDetails: salePaymentDetails.bankTransferDetails,
       totalAmountPaid: salePaymentDetails.totalAmountPaid,
       outstandingBalance: salePaymentDetails.outstandingBalance,
       changeGiven: salePaymentDetails.changeGiven,
       paymentSummary: salePaymentDetails.paymentSummary,
 
       saleDate: new Date().toISOString(), 
-      staffId: "staff001", // Replace with actual staff ID from auth context if available
+      staffId: "staff001", 
       offerApplied: isBuy12Get1FreeActive,
     };
 
@@ -280,31 +281,25 @@ export default function SalesPage() {
       });
 
       if (!response.ok) {
-        let detailedErrorMessage = `Sale processing failed. Status: ${response.status}`; // Default
+        let detailedErrorMessage = `Sale processing failed. Status: ${response.status}`; 
+        const responseText = await response.text();
         try {
-          const responseText = await response.text(); 
-          try {
-            const errorData = JSON.parse(responseText); 
-            if (errorData.error) {
-              detailedErrorMessage = errorData.error;
-              if (errorData.details) {
-                detailedErrorMessage += ` (Details: ${errorData.details})`;
-              }
-            } else if (errorData.message) {
-              detailedErrorMessage = errorData.message;
-            } else if (responseText) { 
-              detailedErrorMessage = responseText;
+          const errorData = JSON.parse(responseText); 
+          if (errorData.error) {
+            detailedErrorMessage = errorData.error;
+            if (errorData.details) {
+              detailedErrorMessage += ` (Details: ${errorData.details})`;
             }
-          } catch (jsonParseError) {
-            if (responseText.trim()) {
-              detailedErrorMessage = responseText.trim();
-            } else if (response.statusText) { 
-                detailedErrorMessage = response.statusText;
-            }
+          } else if (errorData.message) {
+            detailedErrorMessage = errorData.message;
+          } else if (responseText) { 
+            detailedErrorMessage = responseText;
           }
-        } catch (textReadError) {
-          if(response.statusText) {
-            detailedErrorMessage = response.statusText;
+        } catch (jsonParseError) {
+          if (responseText.trim()) {
+            detailedErrorMessage = responseText.trim();
+          } else if (response.statusText) { 
+              detailedErrorMessage = response.statusText;
           }
         }
         throw new Error(detailedErrorMessage);
@@ -556,14 +551,14 @@ export default function SalesPage() {
         isOpen={isBillOpen}
         onOpenChange={(isOpenDialog) => {
           setIsBillOpen(isOpenDialog);
-          if (!isOpenDialog) setIsProcessingSale(false); // Reset processing state if dialog is closed
+          if (!isOpenDialog) setIsProcessingSale(false); 
         }}
         cartItems={cartItems}
         customer={selectedCustomer}
         discountPercentage={discountPercentage}
         currentSubtotal={currentSubtotal}
         currentDiscountAmount={currentDiscountAmount}
-        currentTotalAmount={currentTotalAmountDue} // Pass total amount due
+        currentTotalAmount={currentTotalAmountDue} 
         saleId={`SALE-${Date.now().toString().slice(-6)}`} 
         onConfirmSale={handleSuccessfulSale}
         offerApplied={isBuy12Get1FreeActive} 

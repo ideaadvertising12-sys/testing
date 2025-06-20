@@ -1,7 +1,7 @@
 
 "use client";
 
-import type { CartItem, Customer, Sale, ChequeInfo } from "@/lib/types";
+import type { CartItem, Customer, Sale, ChequeInfo, BankTransferInfo } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -15,11 +15,9 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { AppLogo } from "@/components/AppLogo";
-import { Calendar as CalendarIcon, Landmark, Printer, Wallet, AlertTriangle, Gift, Newspaper, Banknote, FileText, CreditCard } from "lucide-react";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Calendar as CalendarIcon, Landmark, Printer, Wallet, AlertTriangle, Gift, Newspaper, Banknote, FileText, CreditCard, Building } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { placeholderCustomers } from "@/lib/placeholder-data"; 
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -36,7 +34,7 @@ interface BillDialogProps {
   discountPercentage?: number;
   currentSubtotal?: number;
   currentDiscountAmount?: number;
-  currentTotalAmount?: number; // This is the total amount *due* for the sale
+  currentTotalAmount?: number; 
   saleId?: string; 
   onConfirmSale?: (saleData: Omit<Sale, 'id' | 'saleDate' | 'staffId' | 'items'>) => void;
   offerApplied?: boolean; 
@@ -52,7 +50,7 @@ export function BillDialog({
   discountPercentage: newDiscountPercentage,
   currentSubtotal: newSubtotal,
   currentDiscountAmount: newDiscountAmount,
-  currentTotalAmount: newTotalAmountDue, // Renamed for clarity
+  currentTotalAmount: newTotalAmountDue, 
   saleId: newSaleId,
   onConfirmSale,
   offerApplied: newOfferApplied, 
@@ -67,6 +65,11 @@ export function BillDialog({
   const [chequeNumber, setChequeNumber] = useState<string>("");
   const [chequeBank, setChequeBank] = useState<string>("");
   const [chequeDate, setChequeDate] = useState<Date | undefined>(new Date());
+  
+  const [bankTransferAmountPaid, setBankTransferAmountPaid] = useState<string>("");
+  const [bankTransferBankName, setBankTransferBankName] = useState<string>("");
+  const [bankTransferReference, setBankTransferReference] = useState<string>("");
+
   const [isProcessing, setIsProcessing] = useState(false);
 
 
@@ -77,7 +80,7 @@ export function BillDialog({
     if (isReprintMode && existingSaleData) {
       return existingSaleData.items.map(item => ({
         ...item,
-        name: item.name || `ID: ${item.id}` || "Product Name Unavailable",
+        name: item.name || `Product ID: ${item.id}` || "Product Name Unavailable",
         category: item.category || "Other",
         price: typeof item.price === 'number' ? item.price : 0,
         appliedPrice: typeof item.appliedPrice === 'number' ? item.appliedPrice : 0,
@@ -111,29 +114,39 @@ export function BillDialog({
         setChequeNumber(existingSaleData.chequeDetails?.number || "");
         setChequeBank(existingSaleData.chequeDetails?.bank || "");
         setChequeDate(existingSaleData.chequeDetails?.date || new Date());
+        setBankTransferAmountPaid(existingSaleData.paidAmountBankTransfer?.toString() || "");
+        setBankTransferBankName(existingSaleData.bankTransferDetails?.bankName || "");
+        setBankTransferReference(existingSaleData.bankTransferDetails?.referenceNumber || "");
+
       } else {
         setCashTendered("");
         setChequeAmountPaid("");
         setChequeNumber("");
         setChequeBank("");
         setChequeDate(new Date());
+        setBankTransferAmountPaid("");
+        setBankTransferBankName("");
+        setBankTransferReference("");
       }
     }
   }, [isOpen, isReprintMode, existingSaleData]);
 
   const parsedCashTendered = parseFloat(cashTendered) || 0;
   const parsedChequeAmountPaid = parseFloat(chequeAmountPaid) || 0;
+  const parsedBankTransferAmountPaid = parseFloat(bankTransferAmountPaid) || 0;
 
-  const totalTenderedAmount = parsedCashTendered + parsedChequeAmountPaid;
+  const totalTenderedByMethods = parsedCashTendered + parsedChequeAmountPaid + parsedBankTransferAmountPaid;
   
   const changeGiven = useMemo(() => {
-    if (totalTenderedAmount > totalAmountDueForDisplay) {
-      return totalTenderedAmount - totalAmountDueForDisplay;
+    if (parsedCashTendered > 0 && totalTenderedByMethods > totalAmountDueForDisplay) {
+      // Change is typically given from cash payment if cash was part of the tender
+      const cashExcess = parsedCashTendered - (totalAmountDueForDisplay - (parsedChequeAmountPaid + parsedBankTransferAmountPaid));
+      return Math.max(0, cashExcess);
     }
     return 0;
-  }, [totalTenderedAmount, totalAmountDueForDisplay]);
+  }, [parsedCashTendered, parsedChequeAmountPaid, parsedBankTransferAmountPaid, totalTenderedByMethods, totalAmountDueForDisplay]);
 
-  const totalPaymentApplied = totalTenderedAmount - changeGiven;
+  const totalPaymentApplied = totalTenderedByMethods - changeGiven;
 
   const outstandingBalance = useMemo(() => {
     return Math.max(0, totalAmountDueForDisplay - totalPaymentApplied);
@@ -141,21 +154,20 @@ export function BillDialog({
 
 
   const getPaymentSummary = useCallback(() => {
-    const cashPaid = parsedCashTendered > 0;
-    const chequePaid = parsedChequeAmountPaid > 0;
+    const methodsUsed: string[] = [];
+    if (parsedCashTendered > 0) methodsUsed.push("Cash");
+    if (parsedChequeAmountPaid > 0) methodsUsed.push(`Cheque (${chequeNumber.trim() || 'N/A'})`);
+    if (parsedBankTransferAmountPaid > 0) methodsUsed.push("Bank Transfer");
 
     if (outstandingBalance > 0) {
-      if (cashPaid && chequePaid) return "Split (Partial)";
-      if (cashPaid) return "Partial Cash";
-      if (chequePaid) return "Partial Cheque";
-      return "Credit"; // If nothing paid but there's a balance, it's full credit
-    } else { // Paid in full or overpaid (change given)
-      if (cashPaid && chequePaid) return "Split (Cash + Cheque)";
-      if (cashPaid) return "Cash";
-      if (chequePaid) return "Cheque";
-      return "Paid"; // Should not happen if no payment method was used, but as fallback
+      if (methodsUsed.length === 0) return "Full Credit";
+      return `Partial (${methodsUsed.join(' + ')})`;
+    } else {
+      if (methodsUsed.length === 0 && totalAmountDueForDisplay > 0) return "Error - No Payment"; // Should not happen
+      if (methodsUsed.length === 0 && totalAmountDueForDisplay === 0) return "Paid (Zero Value)";
+      return methodsUsed.join(' + ');
     }
-  }, [parsedCashTendered, parsedChequeAmountPaid, outstandingBalance]);
+  }, [parsedCashTendered, parsedChequeAmountPaid, parsedBankTransferAmountPaid, chequeNumber, outstandingBalance, totalAmountDueForDisplay]);
 
 
   const handlePrimaryAction = async () => {
@@ -172,12 +184,16 @@ export function BillDialog({
         setIsProcessing(false);
         return;
       }
+      if (parsedBankTransferAmountPaid > 0 && (!bankTransferBankName.trim() && !bankTransferReference.trim())) {
+        alert("Bank Name or Reference Number is required for bank transfers.");
+        //setIsProcessing(false); // Allow if at least one is there
+        // return;
+      }
       if (totalPaymentApplied <= 0 && totalAmountDueForDisplay > 0 && !customerForDisplay) {
         alert("A customer must be selected if the sale is on credit or partially paid with an outstanding balance.");
          setIsProcessing(false);
         return;
       }
-
 
       const saleData: Omit<Sale, 'id' | 'saleDate' | 'staffId' | 'items'> = {
         customerId: customerForDisplay?.id,
@@ -185,16 +201,22 @@ export function BillDialog({
         subTotal: subtotalToDisplay,
         discountPercentage: discountPercentageToDisplay,
         discountAmount: discountAmountToDisplay,
-        totalAmount: totalAmountDueForDisplay, // Total amount due
+        totalAmount: totalAmountDueForDisplay, 
         offerApplied: offerWasApplied, 
         
-        paidAmountCash: parsedCashTendered > 0 ? (parsedCashTendered - (parsedChequeAmountPaid > 0 ? 0 : changeGiven)) : undefined, // if only cash, deduct change from cash
+        paidAmountCash: parsedCashTendered > 0 ? parsedCashTendered : undefined,
         paidAmountCheque: parsedChequeAmountPaid > 0 ? parsedChequeAmountPaid : undefined,
         chequeDetails: parsedChequeAmountPaid > 0 ? {
           number: chequeNumber.trim(),
           bank: chequeBank.trim() || undefined,
           date: chequeDate,
           amount: parsedChequeAmountPaid
+        } : undefined,
+        paidAmountBankTransfer: parsedBankTransferAmountPaid > 0 ? parsedBankTransferAmountPaid : undefined,
+        bankTransferDetails: parsedBankTransferAmountPaid > 0 ? {
+            bankName: bankTransferBankName.trim() || undefined,
+            referenceNumber: bankTransferReference.trim() || undefined,
+            amount: parsedBankTransferAmountPaid
         } : undefined,
         
         totalAmountPaid: totalPaymentApplied,
@@ -204,17 +226,15 @@ export function BillDialog({
       };
       
       try {
-        await onConfirmSale(saleData); // Make onConfirmSale async in parent if it does API calls
+        await onConfirmSale(saleData); 
         window.print(); 
         onOpenChange(false);
       } catch (error) {
-        // Error toast is likely handled by onConfirmSale's implementation
         console.error("Error during confirm sale:", error);
       } finally {
         setIsProcessing(false);
       }
     } else {
-      // Fallback if onConfirmSale is not provided (e.g., direct print from reprint)
       window.print(); 
       onOpenChange(false); 
     }
@@ -222,8 +242,8 @@ export function BillDialog({
   
   const isPrimaryButtonDisabled = !isReprintMode && (
     itemsToDisplay.filter(item => !item.isOfferItem || (item.isOfferItem && item.quantity > 0)).length === 0 ||
-    (totalPaymentApplied <= 0 && totalAmountDueForDisplay > 0 && !customerForDisplay ) || // Require customer if full credit
-    (parsedChequeAmountPaid > 0 && !chequeNumber.trim()) || // Require cheque number if cheque amount entered
+    (totalPaymentApplied <= 0 && totalAmountDueForDisplay > 0 && !customerForDisplay ) || 
+    (parsedChequeAmountPaid > 0 && !chequeNumber.trim()) || 
     isProcessing
   );
 
@@ -326,7 +346,7 @@ export function BillDialog({
                 <div className="mb-4 space-y-4 print:hidden">
                     <h3 className="font-semibold text-sm">Payment Details:</h3>
                     <div>
-                        <Label htmlFor="cashTendered" className="text-xs">Cash Tendered (Rs.)</Label>
+                        <Label htmlFor="cashTendered" className="text-xs">Cash Paid (Rs.)</Label>
                         <Input 
                             id="cashTendered" 
                             type="number" 
@@ -408,6 +428,47 @@ export function BillDialog({
                             </Popover>
                         </div>
                     </div>
+                     <div className="border p-3 rounded-md space-y-3 bg-muted/50">
+                        <p className="text-xs font-medium">Bank Transfer (Optional)</p>
+                        <div>
+                            <Label htmlFor="bankTransferAmountPaid" className="text-xs">Transfer Amount (Rs.)</Label>
+                            <Input 
+                                id="bankTransferAmountPaid" 
+                                type="number" 
+                                value={bankTransferAmountPaid}
+                                onChange={(e) => setBankTransferAmountPaid(e.target.value)}
+                                placeholder="0.00"
+                                className="h-10 mt-1 bg-background"
+                                min="0"
+                                step="0.01"
+                                disabled={isProcessing}
+                            />
+                        </div>
+                        <div>
+                            <Label htmlFor="bankTransferBankName" className="text-xs">Bank Name</Label>
+                            <Input 
+                                id="bankTransferBankName" 
+                                type="text" 
+                                value={bankTransferBankName}
+                                onChange={(e) => setBankTransferBankName(e.target.value)}
+                                placeholder="Enter bank name"
+                                className="h-10 mt-1 bg-background"
+                                disabled={isProcessing || parsedBankTransferAmountPaid <= 0}
+                            />
+                        </div>
+                        <div>
+                            <Label htmlFor="bankTransferReference" className="text-xs">Reference Number</Label>
+                            <Input 
+                                id="bankTransferReference" 
+                                type="text" 
+                                value={bankTransferReference}
+                                onChange={(e) => setBankTransferReference(e.target.value)}
+                                placeholder="Enter reference number"
+                                className="h-10 mt-1 bg-background"
+                                disabled={isProcessing || parsedBankTransferAmountPaid <= 0}
+                            />
+                        </div>
+                    </div>
                 </div>
             )}
 
@@ -416,17 +477,24 @@ export function BillDialog({
                 <Separator className="my-2"/>
                 <div className="flex justify-between font-medium">
                     <span>Total Tendered:</span>
-                    <span>Rs. {isReprintMode ? (existingSaleData?.totalAmountPaid || 0).toFixed(2) : totalTenderedAmount.toFixed(2)}</span>
+                    <span>Rs. {isReprintMode ? ((existingSaleData?.paidAmountCash || 0) + (existingSaleData?.paidAmountCheque || 0) + (existingSaleData?.paidAmountBankTransfer || 0)).toFixed(2) : totalTenderedByMethods.toFixed(2)}</span>
                 </div>
-                {isReprintMode && existingSaleData?.paidAmountCash && (
-                     <div className="flex justify-between pl-2"><span>By Cash:</span><span>Rs. {existingSaleData.paidAmountCash.toFixed(2)}</span></div>
+                {(isReprintMode ? existingSaleData?.paidAmountCash : parsedCashTendered) > 0 && (
+                     <div className="flex justify-between pl-2"><span className="text-muted-foreground">By Cash:</span><span>Rs. {(isReprintMode ? existingSaleData?.paidAmountCash : parsedCashTendered)?.toFixed(2)}</span></div>
                 )}
-                {isReprintMode && existingSaleData?.paidAmountCheque && (
+                {(isReprintMode ? existingSaleData?.paidAmountCheque : parsedChequeAmountPaid) > 0 && (
                      <div className="flex justify-between pl-2">
-                        <span>By Cheque ({existingSaleData.chequeDetails?.number || 'N/A'}):</span>
-                        <span>Rs. {existingSaleData.paidAmountCheque.toFixed(2)}</span>
+                        <span className="text-muted-foreground">By Cheque ({isReprintMode ? existingSaleData?.chequeDetails?.number : chequeNumber.trim() || 'N/A'}):</span>
+                        <span>Rs. {(isReprintMode ? existingSaleData?.paidAmountCheque : parsedChequeAmountPaid)?.toFixed(2)}</span>
                     </div>
                 )}
+                 {(isReprintMode ? existingSaleData?.paidAmountBankTransfer : parsedBankTransferAmountPaid) > 0 && (
+                     <div className="flex justify-between pl-2">
+                        <span className="text-muted-foreground">By Bank Transfer:</span>
+                        <span>Rs. {(isReprintMode ? existingSaleData?.paidAmountBankTransfer : parsedBankTransferAmountPaid)?.toFixed(2)}</span>
+                    </div>
+                )}
+
 
                 {!isReprintMode && changeGiven > 0 && (
                     <div className="flex justify-between text-green-600">
@@ -443,9 +511,9 @@ export function BillDialog({
                     <span>Total Payment Applied:</span>
                     <span>Rs. {isReprintMode ? (existingSaleData?.totalAmountPaid || 0).toFixed(2) : totalPaymentApplied.toFixed(2)}</span>
                 </div>
-                <div className={cn("flex justify-between font-semibold text-sm", outstandingBalance > 0 ? "text-destructive" : "text-muted-foreground")}>
+                <div className={cn("flex justify-between font-semibold text-sm", (isReprintMode ? (existingSaleData?.outstandingBalance || 0) : outstandingBalance) > 0 ? "text-destructive" : "text-muted-foreground")}>
                     <span>Balance Due:</span>
-                    <span>Rs. {isReprintMode ? (existingSaleData?.outstandingBalance || 0).toFixed(2) : outstandingBalance.toFixed(2)}</span>
+                    <span>Rs. {(isReprintMode ? (existingSaleData?.outstandingBalance || 0) : outstandingBalance).toFixed(2)}</span>
                 </div>
                  <div className="flex justify-between text-xs text-muted-foreground pt-1">
                     <span>Payment Summary:</span>

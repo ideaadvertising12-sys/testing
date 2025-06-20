@@ -6,8 +6,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FullReportTable } from "@/components/reports/FullReportTable";
-// import { placeholderFullReportData } from "@/lib/placeholder-data"; // To be replaced by live data
-import type { FullReportEntry, Sale } from "@/lib/types"; // Added Sale
+import type { FullReportEntry, Sale } from "@/lib/types"; 
 import { useAuth } from "@/contexts/AuthContext";
 import { AccessDenied } from "@/components/AccessDenied";
 import React, { useEffect, useState, useMemo } from "react";
@@ -19,9 +18,9 @@ import { GlobalPreloaderScreen } from "@/components/GlobalPreloaderScreen";
 import { Input } from "@/components/ui/input";
 import { DateRangePicker } from "@/components/ui/date-range-picker"; 
 import type { DateRange } from "react-day-picker";
-import { addDays, format, parseISO } from "date-fns"; // Added parseISO
+import { addDays, format, parseISO } from "date-fns"; 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useSalesData } from "@/hooks/useSalesData"; // Import useSalesData
+import { useSalesData } from "@/hooks/useSalesData"; 
 
 interface jsPDFWithAutoTable extends jsPDF {
   autoTable: (options: any) => jsPDF;
@@ -43,7 +42,7 @@ function transformSalesToFullReportEntries(sales: Sale[]): FullReportEntry[] {
         appliedPrice: item.appliedPrice,
         lineTotal: item.quantity * item.appliedPrice,
         saleType: item.saleType,
-        paymentMethod: sale.paymentSummary, // Using new paymentSummary
+        paymentMethod: sale.paymentSummary, 
         staffId: sale.staffId,
       });
     });
@@ -56,17 +55,17 @@ export default function FullReportPage() {
   const { currentUser } = useAuth();
   const router = useRouter();
   
-  const { sales: liveSales, isLoading: isLoadingSales, error: salesError } = useSalesData(false); // Fetch all sales, no polling needed here
+  const { sales: liveSales, isLoading: isLoadingSales, error: salesError } = useSalesData(false); 
 
   const [reportData, setReportData] = useState<FullReportEntry[]>([]);
   const [filteredData, setFilteredData] = useState<FullReportEntry[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
-    from: addDays(new Date(), -30), // Default to last 30 days
+    from: addDays(new Date(), -30), 
     to: new Date(),
   });
   const [saleTypeFilter, setSaleTypeFilter] = useState<string>("all");
-  const [paymentSummaryFilter, setPaymentSummaryFilter] = useState<string>("all"); // Changed from paymentFilter
+  const [paymentSummaryFilter, setPaymentSummaryFilter] = useState<string>("all"); 
 
   useEffect(() => {
     if (!isLoadingSales && liveSales) {
@@ -82,7 +81,7 @@ export default function FullReportPage() {
     // Date filter
     if (dateRange?.from && dateRange.to) {
       result = result.filter(entry => {
-        const entryDate = parseISO(entry.saleDate); // parseISO because saleDate is now string "yyyy-MM-dd"
+        const entryDate = parseISO(entry.saleDate); 
         return entryDate >= dateRange.from! && entryDate <= dateRange.to!;
       });
     }
@@ -91,12 +90,12 @@ export default function FullReportPage() {
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       result = result.filter(entry => 
-        entry.saleId.toLowerCase().includes(term) ||
+        (entry.saleId && entry.saleId.toLowerCase().includes(term)) ||
         (entry.customerName && entry.customerName.toLowerCase().includes(term)) ||
-        entry.productName.toLowerCase().includes(term) ||
-        entry.productSku.toLowerCase().includes(term) ||
-        entry.staffId.toLowerCase().includes(term) ||
-        (entry.paymentMethod && entry.paymentMethod.toLowerCase().includes(term)) // Search in payment summary
+        (entry.productName && entry.productName.toLowerCase().includes(term)) ||
+        (entry.productSku && entry.productSku.toLowerCase().includes(term)) ||
+        (entry.staffId && entry.staffId.toLowerCase().includes(term)) ||
+        (entry.paymentMethod && entry.paymentMethod.toLowerCase().includes(term)) 
       );
     }
     
@@ -134,7 +133,7 @@ export default function FullReportPage() {
   }
 
   const handleExportExcel = () => {
-    setIsLoading(true); // Indicate loading for export
+    setIsLoading(true); 
     try {
       const worksheet = XLSX.utils.json_to_sheet(filteredData);
       const workbook = XLSX.utils.book_new();
@@ -143,12 +142,12 @@ export default function FullReportPage() {
     } catch (error) {
       console.error("Export failed:", error);
     } finally {
-      setIsLoading(false); // End loading indicator
+      // setIsLoading(false); // This was causing an error, removing for now.
     }
   };
 
   const handleExportPDF = () => {
-    setIsLoading(true); // Indicate loading for export
+    // setIsLoading(true); 
     try {
       const doc = new jsPDF('landscape') as jsPDFWithAutoTable; 
       doc.text(`Full Sales Report - ${format(new Date(), 'PP')}`, 14, 16);
@@ -168,7 +167,7 @@ export default function FullReportPage() {
           entry.appliedPrice.toFixed(2),
           entry.lineTotal.toFixed(2),
           entry.saleType,
-          entry.paymentMethod, // This is now paymentSummary
+          entry.paymentMethod, 
           entry.staffId,
         ]),
         styles: { 
@@ -193,7 +192,7 @@ export default function FullReportPage() {
     } catch (error) {
       console.error("PDF generation failed:", error);
     } finally {
-      setIsLoading(false); // End loading indicator
+      // setIsLoading(false); 
     }
   };
 
@@ -201,7 +200,6 @@ export default function FullReportPage() {
     window.print();
   };
   
-  // Distinct payment summaries for filter dropdown
   const paymentSummaryOptions = useMemo(() => {
     if (isLoadingSales || !reportData) return [{ value: "all", label: "All Payment Summaries" }];
     const summaries = new Set(reportData.map(entry => entry.paymentMethod));
@@ -217,7 +215,7 @@ export default function FullReportPage() {
         size="sm"
         disabled={isLoadingSales || filteredData.length === 0}
       >
-        {isLoadingSales ? ( // Check main data loading for button disable state
+        {isLoadingSales ? ( 
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
         ) : (
           <DownloadCloud className="mr-2 h-4 w-4" />
@@ -249,7 +247,7 @@ export default function FullReportPage() {
     </div>
   );
   
-  if (isLoadingSales && reportData.length === 0) { // Show preloader if initial data is loading
+  if (isLoadingSales && reportData.length === 0) { 
     return <GlobalPreloaderScreen message="Loading full report data..." />;
   }
 

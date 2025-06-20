@@ -1,7 +1,7 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { addSale, getSales } from '@/lib/firestoreService';
-import type { Sale, CartItem, ChequeInfo } from '@/lib/types'; // Added ChequeInfo
+import type { Sale, CartItem, ChequeInfo, BankTransferInfo } from '@/lib/types'; 
 import { adminDb } from '@/lib/firebase-admin';
 
 // GET /api/sales - Fetch all sales
@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     if (!saleDataFromClient || !Array.isArray(saleDataFromClient.items) || saleDataFromClient.items.length === 0) {
       return NextResponse.json({ error: 'Invalid sale data: Items are missing or empty.' }, { status: 400 });
     }
-    if (typeof saleDataFromClient.totalAmount !== 'number' || // totalAmount is total DUE
+    if (typeof saleDataFromClient.totalAmount !== 'number' || 
         typeof saleDataFromClient.totalAmountPaid !== 'number' ||
         typeof saleDataFromClient.outstandingBalance !== 'number' ||
         typeof saleDataFromClient.paymentSummary !== 'string') {
@@ -39,11 +39,19 @@ export async function POST(request: NextRequest) {
     if (saleDataFromClient.paidAmountCheque !== undefined && typeof saleDataFromClient.paidAmountCheque !== 'number') {
         return NextResponse.json({ error: 'Invalid cheque payment amount.' }, { status: 400 });
     }
+    if (saleDataFromClient.paidAmountBankTransfer !== undefined && typeof saleDataFromClient.paidAmountBankTransfer !== 'number') {
+        return NextResponse.json({ error: 'Invalid bank transfer payment amount.' }, { status: 400 });
+    }
+
     if (saleDataFromClient.paidAmountCheque > 0 && (!saleDataFromClient.chequeDetails || !saleDataFromClient.chequeDetails.number)) {
         return NextResponse.json({ error: 'Cheque number is required for cheque payments.' }, { status: 400 });
     }
-     if (saleDataFromClient.chequeDetails && saleDataFromClient.chequeDetails.date && isNaN(new Date(saleDataFromClient.chequeDetails.date).getTime())) {
+    if (saleDataFromClient.chequeDetails && saleDataFromClient.chequeDetails.date && isNaN(new Date(saleDataFromClient.chequeDetails.date).getTime())) {
         return NextResponse.json({ error: 'Invalid cheque date provided.' }, { status: 400 });
+    }
+    if (saleDataFromClient.paidAmountBankTransfer > 0 && !saleDataFromClient.bankTransferDetails) {
+        // Basic check, can be more granular (e.g. require bankName or referenceNumber)
+        return NextResponse.json({ error: 'Bank transfer details are required for bank transfer payments.' }, { status: 400 });
     }
 
 
@@ -59,19 +67,30 @@ export async function POST(request: NextRequest) {
         };
     }
 
+    let bankTransferDetailsForDb: BankTransferInfo | undefined = undefined;
+    if (saleDataFromClient.bankTransferDetails) {
+        bankTransferDetailsForDb = {
+            bankName: saleDataFromClient.bankTransferDetails.bankName,
+            referenceNumber: saleDataFromClient.bankTransferDetails.referenceNumber,
+            amount: saleDataFromClient.bankTransferDetails.amount,
+        };
+    }
+
 
     const salePayload = {
       customerId: saleDataFromClient.customerId,
       customerName: saleDataFromClient.customerName,
-      items: saleDataFromClient.items as CartItem[], // Assume items are already in correct CartItem structure
+      items: saleDataFromClient.items as CartItem[],
       subTotal: saleDataFromClient.subTotal,
       discountPercentage: saleDataFromClient.discountPercentage,
       discountAmount: saleDataFromClient.discountAmount,
-      totalAmount: saleDataFromClient.totalAmount, // Total amount due
+      totalAmount: saleDataFromClient.totalAmount, 
 
       paidAmountCash: saleDataFromClient.paidAmountCash,
       paidAmountCheque: saleDataFromClient.paidAmountCheque,
       chequeDetails: chequeDetailsForDb,
+      paidAmountBankTransfer: saleDataFromClient.paidAmountBankTransfer,
+      bankTransferDetails: bankTransferDetailsForDb,
       totalAmountPaid: saleDataFromClient.totalAmountPaid,
       outstandingBalance: saleDataFromClient.outstandingBalance,
       changeGiven: saleDataFromClient.changeGiven,
@@ -79,12 +98,11 @@ export async function POST(request: NextRequest) {
       
       offerApplied: saleDataFromClient.offerApplied || false,
       saleDate: saleDate,
-      staffId: saleDataFromClient.staffId || "staff001", // Default or get from auth
+      staffId: saleDataFromClient.staffId || "staff001", 
     };
 
     const saleId = await addSale(salePayload);
     
-    // Return the full sale object as it was processed/stored, including the ID
     return NextResponse.json({ id: saleId, ...salePayload, saleDate: saleDate.toISOString() }, { status: 201 });
 
   } catch (error) {

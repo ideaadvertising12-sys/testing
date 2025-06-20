@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { CalendarClock, FileText, DownloadCloud, ReceiptText } from "lucide-react";
+import { CalendarClock, FileText, DownloadCloud, ReceiptText, Banknote, Building } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,17 +12,25 @@ import { useAuth } from "@/contexts/AuthContext";
 import { AccessDenied } from "@/components/AccessDenied";
 import { useRouter } from "next/navigation";
 import { GlobalPreloaderScreen } from "@/components/GlobalPreloaderScreen";
-import { placeholderSales } from "@/lib/placeholder-data"; // Keep for structure, but will use live data
-import type { Sale, DayEndReportSummary } from "@/lib/types";
-import { format, startOfDay, endOfDay, isSameDay, parseISO } from "date-fns";
+import type { Sale, DayEndReportSummary } from "@/lib/types"; // Updated DayEndReportSummary type might be needed
+import { format, startOfDay, endOfDay } from "date-fns";
 import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 import { cn } from "@/lib/utils";
-import { useSalesData } from "@/hooks/useSalesData"; // Import useSalesData
+import { useSalesData } from "@/hooks/useSalesData"; 
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { AlertTriangle } from "lucide-react";
+
 
 const formatCurrency = (amount: number | undefined): string => {
   if (amount === undefined || isNaN(amount)) return "Rs. 0.00";
   return new Intl.NumberFormat('en-LK', { style: 'currency', currency: 'LKR' }).format(amount).replace("LKR", "Rs.");
 };
+
+interface jsPDFWithAutoTable extends jsPDF {
+  autoTable: (options: any) => jsPDF;
+}
+
 
 export default function DayEndReportPage() {
   const { currentUser } = useAuth();
@@ -30,7 +38,7 @@ export default function DayEndReportPage() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [reportSummary, setReportSummary] = useState<DayEndReportSummary | null>(null);
 
-  const { sales: allSales, isLoading: isLoadingSales, error: salesError } = useSalesData(true); // Fetch live sales data
+  const { sales: allSales, isLoading: isLoadingSales, error: salesError } = useSalesData(true); 
 
   useEffect(() => {
     if (!currentUser) {
@@ -54,9 +62,11 @@ export default function DayEndReportPage() {
 
       let totalCollectedByCash = 0;
       let totalCollectedByCheque = 0;
+      let totalCollectedByBankTransfer = 0;
       let totalChangeGiven = 0;
       let totalOutstanding = 0;
       const chequeNumbersList: string[] = [];
+      const bankTransferRefs: string[] = [];
 
       salesForDay.forEach(s => {
         if (s.paidAmountCash) totalCollectedByCash += s.paidAmountCash;
@@ -64,50 +74,38 @@ export default function DayEndReportPage() {
             totalCollectedByCheque += s.paidAmountCheque;
             if (s.chequeDetails?.number) chequeNumbersList.push(s.chequeDetails.number);
         }
+        if (s.paidAmountBankTransfer) {
+            totalCollectedByBankTransfer += s.paidAmountBankTransfer;
+            if(s.bankTransferDetails?.referenceNumber) bankTransferRefs.push(s.bankTransferDetails.referenceNumber);
+        }
         if (s.changeGiven) totalChangeGiven += s.changeGiven;
         if (s.outstandingBalance) totalOutstanding += s.outstandingBalance;
       });
       
-      // Legacy fields for compatibility if needed, but prefer new ones for display
-      const cashSalesCount = salesForDay.filter(s => s.paidAmountCash && s.paidAmountCash > 0 && !s.paidAmountCheque).length;
-      const chequeSalesCount = salesForDay.filter(s => s.paidAmountCheque && s.paidAmountCheque > 0 && !s.paidAmountCash).length;
-      const creditSalesCount = salesForDay.filter(s => s.outstandingBalance && s.outstandingBalance > 0 && !s.paidAmountCash && !s.paidAmountCheque).length;
+      const totalSalesValue = salesForDay.reduce((sum, s) => sum + s.totalAmount, 0);
+      const totalCollectedOverall = totalCollectedByCash + totalCollectedByCheque + totalCollectedByBankTransfer;
 
 
       setReportSummary({
         reportDate: selectedDate,
-        // Legacy fields (attempt to populate, might be less accurate with new model)
-        cashSales: { 
-            count: cashSalesCount, 
-            amount: salesForDay.filter(s => s.paymentSummary.toLowerCase().includes("cash") && !s.paymentSummary.toLowerCase().includes("split")).reduce((sum, s) => sum + s.totalAmount, 0), // Approximation
-            cashReceived: totalCollectedByCash, // More accurate
-            balanceReturned: totalChangeGiven // More accurate
-        },
-        chequeSales: { 
-            count: chequeSalesCount, 
-            amount: salesForDay.filter(s => s.paymentSummary.toLowerCase().includes("cheque") && !s.paymentSummary.toLowerCase().includes("split")).reduce((sum, s) => sum + s.totalAmount, 0), // Approximation
-            chequeNumbers: chequeNumbersList 
-        },
-        creditSales: { 
-            count: creditSalesCount, 
-            amount: salesForDay.filter(s => s.paymentSummary.toLowerCase().includes("credit") || (s.outstandingBalance && s.outstandingBalance > 0)).reduce((sum, s) => sum + s.totalAmount, 0), // Approximation
-            amountPaidOnCredit: salesForDay.reduce((sum, s) => sum + (s.totalAmountPaid - (s.outstandingBalance || 0)), 0), // Approximation
-            remainingCreditBalance: totalOutstanding // More accurate
-        },
-        
-        // New, more accurate fields
-        totalSalesAmount: salesForDay.reduce((sum, s) => sum + s.totalAmount, 0),
+        totalTransactions: salesForDay.length,
+        totalSalesAmount: totalSalesValue,
         totalAmountCollectedByCash: totalCollectedByCash,
         totalAmountCollectedByCheque: totalCollectedByCheque,
+        totalAmountCollectedByBankTransfer: totalCollectedByBankTransfer,
         totalChangeGiven: totalChangeGiven,
         totalOutstandingAmount: totalOutstanding,
-
-        // Overall totals - trying to map to old structure for PDF consistency for now
-        overallTotalSales: salesForDay.reduce((sum, s) => sum + s.totalAmount, 0),
-        overallTotalCashReceived: totalCollectedByCash + totalCollectedByCheque, // Total collected regardless of method for "cash received"
+        
+        // These are for compatibility with old PDF structure if needed, can be removed/refactored
+        cashSales: { count: 0, amount: 0, cashReceived: totalCollectedByCash, balanceReturned: totalChangeGiven }, // Simplified
+        chequeSales: { count: salesForDay.filter(s => s.paidAmountCheque && s.paidAmountCheque > 0).length, amount: totalCollectedByCheque, chequeNumbers: chequeNumbersList },
+        // For 'creditSales', it's better to directly use totalOutstandingAmount
+        creditSales: { count: salesForDay.filter(s => s.outstandingBalance && s.outstandingBalance > 0).length, amount: totalOutstanding, amountPaidOnCredit: 0, remainingCreditBalance: totalOutstanding },
+        
+        overallTotalSales: totalSalesValue,
+        overallTotalCashReceived: totalCollectedOverall,
         overallTotalBalanceReturned: totalChangeGiven,
         overallTotalCreditOutstanding: totalOutstanding,
-        totalTransactions: salesForDay.length,
       });
     } else {
       setReportSummary(null);
@@ -123,7 +121,7 @@ export default function DayEndReportPage() {
 
   const handleExportPDF = () => {
     if (!reportSummary || !selectedDate) return;
-    const doc = new jsPDF();
+    const doc = new jsPDF() as jsPDFWithAutoTable;
     const reportDateFormatted = format(selectedDate, "PPP");
 
     doc.setFontSize(18);
@@ -147,7 +145,11 @@ export default function DayEndReportPage() {
         yPos += lineSpacing;
         doc.text(` (Cheque Nos: ${reportSummary.chequeSales.chequeNumbers.join(', ')})`, 22, yPos);
     }
+    yPos += lineSpacing;
+    doc.text(`Total Amount Collected by Bank Transfer: ${formatCurrency(reportSummary.totalAmountCollectedByBankTransfer)}`, 18, yPos);
+    // Add bank transfer refs if needed
     yPos += sectionSpacing;
+
 
     doc.setFontSize(14);
     doc.text("Financial Overview", 14, yPos);
@@ -157,9 +159,9 @@ export default function DayEndReportPage() {
     yPos += lineSpacing;
     doc.text(`Total Sales Value (Amount Due): ${formatCurrency(reportSummary.totalSalesAmount)}`, 18, yPos);
     yPos += lineSpacing;
-    doc.text(`Total Amount Collected (Cash + Cheque): ${formatCurrency(reportSummary.totalAmountCollectedByCash + reportSummary.totalAmountCollectedByCheque)}`, 18, yPos);
+    doc.text(`Total Amount Collected (All Methods): ${formatCurrency(reportSummary.overallTotalCashReceived)}`, 18, yPos);
     yPos += lineSpacing;
-    doc.text(`Total Change Given: ${formatCurrency(reportSummary.totalChangeGiven)}`, 18, yPos);
+    doc.text(`Total Change Given (from Cash): ${formatCurrency(reportSummary.totalChangeGiven)}`, 18, yPos);
     yPos += lineSpacing;
     doc.text(`Total Outstanding Credit: ${formatCurrency(reportSummary.totalOutstandingAmount)}`, 18, yPos);
     
@@ -227,10 +229,10 @@ export default function DayEndReportPage() {
             </CardHeader>
           </Card>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Cash Payments</CardTitle>
+                <CardTitle className="text-lg flex items-center gap-2"><Banknote className="h-5 w-5"/>Cash Payments</CardTitle>
                 <CardDescription>Total collected via cash</CardDescription>
               </CardHeader>
               <CardContent className="space-y-1 text-sm">
@@ -240,7 +242,7 @@ export default function DayEndReportPage() {
             </Card>
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Cheque Payments</CardTitle>
+                <CardTitle className="text-lg flex items-center gap-2"><Newspaper className="h-5 w-5"/>Cheque Payments</CardTitle>
                  <CardDescription>Total collected via cheques</CardDescription>
               </CardHeader>
               <CardContent className="space-y-1 text-sm">
@@ -250,9 +252,19 @@ export default function DayEndReportPage() {
                 )}
               </CardContent>
             </Card>
+             <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2"><Building className="h-5 w-5"/>Bank Transfers</CardTitle>
+                 <CardDescription>Total collected via bank transfers</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-1 text-sm">
+                <p>Total Transfer Amount: <span className="font-semibold">{formatCurrency(reportSummary.totalAmountCollectedByBankTransfer)}</span></p>
+                {/* Add display for bank transfer references if needed */}
+              </CardContent>
+            </Card>
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Credit / Outstanding</CardTitle>
+                <CardTitle className="text-lg flex items-center gap-2"><CreditCard className="h-5 w-5"/>Credit / Outstanding</CardTitle>
                 <CardDescription>Total amount currently due</CardDescription>
               </CardHeader>
               <CardContent className="space-y-1 text-sm">
@@ -268,8 +280,8 @@ export default function DayEndReportPage() {
             <CardContent className="space-y-2 text-md">
               <p>Total Sales Value (Amount Due): <strong className="text-primary">{formatCurrency(reportSummary.totalSalesAmount)}</strong></p>
               <hr className="my-2"/>
-              <p>Total Amount Collected (Cash + Cheque): <strong className="text-green-600">{formatCurrency(reportSummary.totalAmountCollectedByCash + reportSummary.totalAmountCollectedByCheque)}</strong></p>
-              <p>Total Change Given: <strong>{formatCurrency(reportSummary.totalChangeGiven)}</strong></p>
+              <p>Total Amount Collected (All Methods): <strong className="text-green-600">{formatCurrency(reportSummary.overallTotalCashReceived)}</strong></p>
+              <p>Total Change Given (from Cash): <strong>{formatCurrency(reportSummary.totalChangeGiven)}</strong></p>
               <p>Total Outstanding Credit: <strong className="text-orange-600">{formatCurrency(reportSummary.totalOutstandingAmount)}</strong></p>
             </CardContent>
           </Card>
