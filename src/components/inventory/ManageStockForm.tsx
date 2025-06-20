@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -17,6 +18,7 @@ import { Info, PlusCircle, Trash2, ChevronsUpDown, PackageSearch, Loader2 } from
 import { cn } from "@/lib/utils";
 import { ProductService } from "@/lib/productService";
 import type { Product, StockTransactionType, Vehicle } from "@/lib/types";
+import { placeholderVehicles } from "@/lib/placeholder-data"; // Import placeholder vehicles
 
 interface TransactionItem {
   product: Product;
@@ -25,13 +27,14 @@ interface TransactionItem {
 
 export function ManageStockForm() {
   const [allProducts, setAllProducts] = useState<Product[]>([]);
-  const [vehicles] = useState<Vehicle[]>([]); // Initialize empty, replace with real data if needed
+  const [vehicles, setVehicles] = useState<Vehicle[]>(placeholderVehicles); // Use placeholderVehicles
   const [loading, setLoading] = useState(true);
   
   const [transactionType, setTransactionType] = useState<StockTransactionType>("ADD_STOCK_INVENTORY");
   const [transactionDate, setTransactionDate] = useState<string>("");
   const [notes, setNotes] = useState<string>("");
-  const [selectedVehicleId, setSelectedVehicleId] = useState<string>("");
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string | undefined>(undefined); // Changed from ""
+  
   const [transactionItems, setTransactionItems] = useState<TransactionItem[]>([]);
   
   const [productSearchPopoverOpen, setProductSearchPopoverOpen] = useState(false);
@@ -83,7 +86,7 @@ export function ManageStockForm() {
   const resetForm = () => {
     setTransactionItems([]);
     setNotes("");
-    setSelectedVehicleId("");
+    setSelectedVehicleId(undefined); // Reset to undefined
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -267,7 +270,13 @@ export function ManageStockForm() {
                         </SelectItem>
                       ))
                     ) : (
-                      <SelectItem value="" disabled>No vehicles available</SelectItem>
+                      // No items rendered here if vehicles.length is 0. 
+                      // The SelectValue placeholder will be shown.
+                      // Optionally, add a non-interactive message:
+                      // <div className="p-2 text-center text-sm text-muted-foreground">
+                      //   No vehicles available to select.
+                      // </div>
+                      null
                     )}
                   </SelectContent>
                 </Select>
@@ -420,3 +429,5 @@ export function ManageStockForm() {
     </Card>
   );
 }
+
+    
