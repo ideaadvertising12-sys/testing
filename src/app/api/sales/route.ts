@@ -1,7 +1,7 @@
-
 import { NextResponse, type NextRequest } from 'next/server';
-import { addSale, getSales } from '@/lib/firestoreService'; // Added getSales
+import { addSale, getSales } from '@/lib/firestoreService';
 import type { Sale, CartItem } from '@/lib/types';
+import { getServer } from '@/lib/websocket';
 
 // GET /api/sales - Fetch all sales
 export async function GET(request: NextRequest) {
@@ -29,13 +29,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Construct the data expected by firestoreService.addSale
-    // Ensure saleDate is a Date object if it comes as string
     const saleDate = saleDataFromClient.saleDate ? new Date(saleDataFromClient.saleDate) : new Date();
 
     const salePayload: Omit<Sale, 'id' | 'saleDate' | 'items'> & { saleDate: Date, items: CartItem[] } = {
       customerId: saleDataFromClient.customerId,
       customerName: saleDataFromClient.customerName,
-      items: saleDataFromClient.items, // Assuming client sends CartItem structure
+      items: saleDataFromClient.items,
       subTotal: saleDataFromClient.subTotal,
       discountPercentage: saleDataFromClient.discountPercentage,
       discountAmount: saleDataFromClient.discountAmount,
@@ -45,22 +44,41 @@ export async function POST(request: NextRequest) {
       balanceReturned: saleDataFromClient.balanceReturned,
       amountPaidOnCredit: saleDataFromClient.amountPaidOnCredit,
       remainingCreditBalance: saleDataFromClient.remainingCreditBalance,
-      saleDate: saleDate, // Use the converted Date object
-      staffId: saleDataFromClient.staffId || "staff001", // Default staffId if not provided
+      saleDate: saleDate,
+      staffId: saleDataFromClient.staffId || "staff001",
     };
 
     const saleId = await addSale(salePayload);
+    
+    // Broadcast the new sale to all connected clients
+    const wss = getServer();
+    if (wss) {
+      const fullSaleData = { 
+        id: saleId, 
+        ...salePayload,
+        saleDate: saleDate.toISOString() // Convert Date to string for serialization
+      };
+      
+      wss.clients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(JSON.stringify({
+            type: 'NEW_SALE',
+            data: fullSaleData
+          }));
+        }
+      });
+    }
+
     return NextResponse.json({ id: saleId, ...salePayload }, { status: 201 });
 
   } catch (error) {
     console.error('Error processing sale:', error);
     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
-    // Check for specific error messages if needed
     if (errorMessage.includes("not found for stock update")) {
         return NextResponse.json({ error: 'Failed to process sale: Product not found for stock update.', details: errorMessage }, { status: 404 });
     }
     if (errorMessage.includes("Insufficient stock")) {
-        return NextResponse.json({ error: 'Failed to process sale: Insufficient stock for one or more items.', details: errorMessage }, { status: 409 }); // Conflict
+        return NextResponse.json({ error: 'Failed to process sale: Insufficient stock for one or more items.', details: errorMessage }, { status: 409 });
     }
     return NextResponse.json({ error: 'Failed to process sale', details: errorMessage }, { status: 500 });
   }

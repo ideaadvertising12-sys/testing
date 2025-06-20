@@ -1,4 +1,4 @@
-//location src/components/dashboard/useSalesData.tsx
+//location src/hooks/useSalesData.ts
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
