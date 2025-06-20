@@ -44,7 +44,8 @@ export default function DashboardPage() {
     today.setHours(0, 0, 0, 0);
     return sales
       .filter(sale => {
-        const saleDate = new Date(sale.saleDate);
+        // Ensure sale.saleDate is a Date object before comparison
+        const saleDate = sale.saleDate instanceof Date ? sale.saleDate : new Date(sale.saleDate);
         return saleDate >= today;
       })
       .reduce((sum, sale) => sum + (Number(sale.totalAmount) || 0), 0);
@@ -59,6 +60,7 @@ export default function DashboardPage() {
       router.replace("/app/sales");
     } else {
       if (!dashboardStats) {
+        // Keep placeholder stats for items not yet live
         setDashboardStats(generatePlaceholderStats());
       }
     }
@@ -78,14 +80,14 @@ export default function DashboardPage() {
 
   const formatCurrency = (value: number): string => {
     if (typeof value !== 'number' || isNaN(value)) {
-      return 'Rs. 0.00'; // Fallback for invalid input
+      return 'Rs. 0.00'; 
     }
-    return new Intl.NumberFormat('en-LK', { // Use 'en-LK' for Sri Lanka locale
+    return new Intl.NumberFormat('en-LK', { 
       style: 'currency',
-      currency: 'LKR', // Use 'LKR' for Sri Lankan Rupee
+      currency: 'LKR', 
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
-    }).format(value).replace('LKR', 'Rs.'); // Replace LKR with Rs.
+    }).format(value).replace('LKR', 'Rs.'); 
   };
 
   const renderStatsCard = (
@@ -110,25 +112,25 @@ export default function DashboardPage() {
       case 'liveTotalRevenue':
         isLoadingValue = isLoadingSales;
         hasError = salesError;
-        if (!isLoadingValue && !hasError && sales) { // Check sales presence for consistency
-          displayValue = formatCurrency(hookTotalRevenue); // Use totalRevenue from the hook
+        // Use hookTotalRevenue directly as it's already calculated in useSalesData
+        if (!isLoadingValue && !hasError && hookTotalRevenue !== undefined) { 
+          displayValue = formatCurrency(hookTotalRevenue);
         }
         break;
       case 'liveRevenueToday':
-        isLoadingValue = isLoadingSales; // Revenue today depends on sales
+        isLoadingValue = isLoadingSales; 
         hasError = salesError;
         if (!isLoadingValue && !hasError && sales) {
           displayValue = formatCurrency(revenueToday);
         }
         break;
       case 'lowStockItems':
-        isLoadingValue = dashboardStats === null; // lowStockItems uses placeholderStats
+        isLoadingValue = dashboardStats === null; 
         if (!isLoadingValue && dashboardStats) {
           displayValue = dashboardStats.lowStockItems?.toString() ?? 'N/A';
         }
         break;
       default:
-        // For other keys that might rely on dashboardStats (placeholder)
         if (dashboardStats && valueKey in dashboardStats) {
           const val = dashboardStats[valueKey as keyof StatsData];
           displayValue = typeof val === 'number' ? val.toString() : (val ?? 'N/A');

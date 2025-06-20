@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -22,34 +23,26 @@ export function useSalesData() {
         throw new Error(errorData.message || "Failed to fetch sales data");
       }
       const data = await response.json();
-      
-      // Debug: Log raw API response
-      console.log("Raw API response:", data);
-      
-      const formattedData = data.map((sale: any) => ({
+      // Ensure numerical values are correctly parsed, defaulting to 0 if invalid
+      const processedSales = data.map((sale: any) => ({
         ...sale,
-        saleDate: new Date(sale.saleDate),
+        saleDate: new Date(sale.saleDate), // Ensure saleDate is a Date object
         totalAmount: Number(sale.totalAmount) || 0,
         subTotal: Number(sale.subTotal) || 0,
-        discountPercentage: Number(sale.discountPercentage) || 0,
         discountAmount: Number(sale.discountAmount) || 0,
-        cashGiven: sale.cashGiven !== undefined ? Number(sale.cashGiven) : undefined,
-        balanceReturned: sale.balanceReturned !== undefined ? Number(sale.balanceReturned) : undefined,
-        amountPaidOnCredit: sale.amountPaidOnCredit !== undefined ? Number(sale.amountPaidOnCredit) : undefined,
-        remainingCreditBalance: sale.remainingCreditBalance !== undefined ? Number(sale.remainingCreditBalance) : undefined,
+        cashGiven: sale.cashGiven !== undefined ? Number(sale.cashGiven) || 0 : undefined,
+        balanceReturned: sale.balanceReturned !== undefined ? Number(sale.balanceReturned) || 0 : undefined,
+        amountPaidOnCredit: sale.amountPaidOnCredit !== undefined ? Number(sale.amountPaidOnCredit) || 0 : undefined,
+        remainingCreditBalance: sale.remainingCreditBalance !== undefined ? Number(sale.remainingCreditBalance) || 0 : undefined,
       }));
-
-      // Debug: Log formatted data
-      console.log("Formatted sales data:", formattedData);
-      
-      setSales(formattedData);
+      setSales(processedSales);
     } catch (err: any) {
       console.error("Error fetching sales data:", err);
       const errorMessage = err.message || "An unknown error occurred while fetching sales data.";
       setError(errorMessage);
       toast({
         variant: "destructive",
-        title: "Error Fetching Sales",
+        title: "Error Fetching Sales Data",
         description: errorMessage,
       });
     } finally {
@@ -60,29 +53,19 @@ export function useSalesData() {
   useEffect(() => {
     fetchSales();
 
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        fetchSales();
-      }
-    };
-
-    window.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('focus', fetchSales);
-
-    return () => {
-      window.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('focus', fetchSales);
-    };
+    // Optional: Refetch on window focus for pseudo-real-time update
+    const handleFocus = () => fetchSales();
+    window.addEventListener("focus", handleFocus);
+    return () => window.removeEventListener("focus", handleFocus);
   }, [fetchSales]);
 
-  // Calculate total revenue
-  const totalRevenue = sales.reduce((sum, sale) => sum + (sale.totalAmount || 0), 0);
+  const totalRevenue = sales.reduce((sum, sale) => sum + sale.totalAmount, 0);
 
   return {
     sales,
     isLoading,
     error,
-    totalRevenue, // Add this to the returned object
+    totalRevenue, // Export the calculated totalRevenue
     refetchSales: fetchSales,
   };
 }
