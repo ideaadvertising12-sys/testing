@@ -169,7 +169,9 @@ export default function SalesPage() {
     try {
       const response = await fetch(`/api/stock-transactions?vehicleId=${targetVehicle.id}`);
       if (!response.ok) {
-        throw new Error('Failed to fetch vehicle stock data.');
+        const errorData = await response.json().catch(() => ({}));
+        const message = errorData.details || errorData.error || 'Failed to fetch vehicle stock data.';
+        throw new Error(message);
       }
       const transactions: StockTransaction[] = await response.json();
 
@@ -201,9 +203,9 @@ export default function SalesPage() {
       }
       setVehicleStock(vehicleProducts);
 
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      toast({ variant: "destructive", title: "Error", description: "Could not load vehicle stock." });
+      toast({ variant: "destructive", title: "Error", description: error.message || "Could not load vehicle stock." });
       setVehicleStock([]);
     } finally {
       setIsVehicleStockLoading(false);

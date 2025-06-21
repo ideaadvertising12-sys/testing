@@ -39,12 +39,13 @@ export const StockService = {
   async getTransactionsByVehicleId(vehicleId: string): Promise<StockTransaction[]> {
     const q = query(
       collection(db, 'stockTransactions').withConverter(stockTransactionConverter as any),
-      where('vehicleId', '==', vehicleId),
-      orderBy('transactionDate', 'desc')
+      where('vehicleId', '==', vehicleId)
     );
     
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => doc.data() as StockTransaction);
+    const transactions = snapshot.docs.map(doc => doc.data() as StockTransaction);
+    // Sorting on the client side to avoid needing a composite index
+    return transactions.sort((a, b) => b.transactionDate.getTime() - a.transactionDate.getTime());
   },
 
   // Note: Real-time subscription might be intensive for all transactions.
