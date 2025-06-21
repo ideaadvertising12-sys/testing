@@ -1,83 +1,35 @@
 "use client";
 
-import { ReceiptText, AlertTriangle, Loader2 } from "lucide-react";
+import { ReceiptText, AlertTriangle } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { InvoiceDataTable } from "@/components/invoicing/InvoiceDataTable";
 import { useAuth } from "@/contexts/AuthContext";
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { GlobalPreloaderScreen } from "@/components/GlobalPreloaderScreen";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import type { Sale } from "@/lib/types";
+import { useSalesData } from "@/hooks/useSalesData";
 
 export default function InvoicingPage() {
   const { currentUser } = useAuth();
   const router = useRouter();
-  const [sales, setSales] = useState<Sale[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [totalRevenue, setTotalRevenue] = useState(0);
+  
+  // Use the centralized hook for fetching sales data with real-time polling
+  const { sales, isLoading, error, totalRevenue } = useSalesData(true);
 
   useEffect(() => {
-    if (!currentUser) {
+    if (currentUser === null) { // Explicitly check for not logged in
       router.replace("/");
-      return;
     }
-
-    const q = query(collection(db, "sales"), orderBy("saleDate", "desc"));
-    const unsubscribe = onSnapshot(
-      q,
-      (querySnapshot) => {
-        const salesData: Sale[] = [];
-        let revenue = 0;
-        
-        querySnapshot.forEach((doc) => {
-          const data = doc.data();
-          const saleDate = data.saleDate?.toDate() || new Date();
-          
-          const sale: Sale = {
-            id: doc.id,
-            customerId: data.customerId,
-            customerName: data.customerName,
-            items: data.items,
-            subTotal: data.subTotal,
-            discountPercentage: data.discountPercentage,
-            discountAmount: data.discountAmount,
-            totalAmount: data.totalAmount,
-            paymentMethod: data.paymentMethod,
-            cashGiven: data.cashGiven,
-            balanceReturned: data.balanceReturned,
-            amountPaidOnCredit: data.amountPaidOnCredit,
-            remainingCreditBalance: data.remainingCreditBalance,
-            saleDate: saleDate,
-            staffId: data.staffId,
-          };
-          
-          salesData.push(sale);
-          revenue += sale.totalAmount;
-        });
-
-        setSales(salesData);
-        setTotalRevenue(revenue);
-        setIsLoading(false);
-        setError(null);
-      },
-      (err) => {
-        console.error("Error listening to sales updates:", err);
-        setError("Failed to connect to real-time updates");
-        setIsLoading(false);
-      }
-    );
-
-    return () => unsubscribe();
   }, [currentUser, router]);
 
-  if (!currentUser) {
+  if (currentUser === undefined) {
     return <GlobalPreloaderScreen message="Authenticating..." />;
+  }
+  
+  if (currentUser === null) {
+      return <GlobalPreloaderScreen message="Redirecting..." />;
   }
 
   const revenueDisplay = new Intl.NumberFormat('en-LK', {
@@ -92,7 +44,7 @@ export default function InvoicingPage() {
         title="Invoice Management"
         description={
           <div>
-            <p>View, search, and manage past sales invoices in real-time.</p>
+            <p>View, search, and manage past sales invoices.</p>
             {!isLoading && !error && (
               <p className="mt-1 text-sm font-medium text-primary">
                 Total Revenue: {revenueDisplay}
@@ -103,29 +55,21 @@ export default function InvoicingPage() {
         icon={ReceiptText}
       />
 
-      {error ? (
+      {error && !isLoading && ( // Show error only if not in the middle of a loading cycle
         <Alert variant="destructive" className="mb-6">
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle>Connection Error</AlertTitle>
           <AlertDescription>
-            {error}. Try refreshing the page.
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="mt-2"
-              onClick={() => window.location.reload()}
-            >
-              Refresh
-            </Button>
+            {error}. The system will automatically keep trying to fetch data.
           </AlertDescription>
         </Alert>
-      ) : null}
+      )}
 
       <Card className="shadow-lg">
         <CardContent className="p-0">
           <InvoiceDataTable 
             sales={sales} 
-            isLoading={isLoading} 
+            isLoading={isLoading && sales.length === 0} // Show full loading screen only on initial load
             error={error}
           />
         </CardContent>
