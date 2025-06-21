@@ -24,6 +24,7 @@ import { useCustomers } from "@/hooks/useCustomers";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertTriangle } from "lucide-react";
 import { useVehicles } from "@/hooks/useVehicles";
+import { useAuth } from "@/contexts/AuthContext";
 
 // Helper function to reconcile offer items in the cart
 function reconcileOfferItems(
@@ -87,6 +88,7 @@ export default function SalesPage() {
   } = useCustomers();
 
   const { vehicles, isLoading: isLoadingVehicles } = useVehicles();
+  const { currentUser } = useAuth();
   
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
@@ -349,7 +351,8 @@ export default function SalesPage() {
       paymentSummary: salePaymentDetails.paymentSummary,
 
       saleDate: new Date().toISOString(), 
-      staffId: "staff001", 
+      staffId: currentUser?.username || "unknown_user",
+      staffName: currentUser?.name || "Unknown User",
       offerApplied: isBuy12Get1FreeActive,
       vehicleId: viewMode === 'vehicle' ? selectedVehicleId : undefined,
     };

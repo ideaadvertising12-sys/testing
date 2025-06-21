@@ -89,6 +89,7 @@ export interface Sale {
   
   saleDate: Date;
   staffId: string;
+  staffName?: string;
   offerApplied?: boolean;
   vehicleId?: string;
 }
@@ -313,6 +314,7 @@ export const saleConverter = {
 
     if (sale.customerId) firestoreSale.customerId = sale.customerId;
     if (sale.customerName) firestoreSale.customerName = sale.customerName;
+    if (sale.staffName) firestoreSale.staffName = sale.staffName;
     if (sale.offerApplied !== undefined) firestoreSale.offerApplied = sale.offerApplied;
     if (sale.vehicleId) firestoreSale.vehicleId = sale.vehicleId;
     if (!sale.createdAt) firestoreSale.createdAt = Timestamp.now();
@@ -393,6 +395,7 @@ export const saleConverter = {
 
       saleDate: data.saleDate.toDate(),
       staffId: data.staffId,
+      staffName: data.staffName,
       customerId: data.customerId,
       customerName: data.customerName,
       offerApplied: data.offerApplied || false,

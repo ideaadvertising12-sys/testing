@@ -99,6 +99,7 @@ export async function POST(request: NextRequest) {
       offerApplied: saleDataFromClient.offerApplied || false,
       saleDate: saleDate,
       staffId: saleDataFromClient.staffId || "staff001",
+      staffName: saleDataFromClient.staffName,
       vehicleId: saleDataFromClient.vehicleId, 
     };
 
