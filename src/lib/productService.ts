@@ -11,9 +11,40 @@ import {
   where,
   onSnapshot,
   getDoc,
-  Timestamp
+  Timestamp,
+  runTransaction,
+  setDoc
 } from "firebase/firestore";
+import { format } from 'date-fns';
 import { productConverter, FirestoreProduct, Product } from "./types";
+
+async function generateCustomProductId(): Promise<string> {
+  const today = new Date();
+  const datePart = format(today, "MMdd");
+  const counterDocId = format(today, "yyyy-MM-dd");
+
+  const counterRef = doc(db, "dailyProductCounters", counterDocId);
+
+  try {
+    const newCount = await runTransaction(db, async (transaction) => {
+      const counterDoc = await transaction.get(counterRef);
+      if (!counterDoc.exists()) {
+        transaction.set(counterRef, { count: 1 });
+        return 1;
+      } else {
+        const count = counterDoc.data().count + 1;
+        transaction.update(counterRef, { count });
+        return count;
+      }
+    });
+    return `prod-${datePart}-${newCount}`;
+  } catch (e) {
+    console.error("Custom product ID transaction failed: ", e);
+    const randomPart = Math.random().toString(36).substring(2, 8);
+    return `prod-${datePart}-err-${randomPart}`;
+  }
+}
+
 
 export const ProductService = {
   async getAllProducts(): Promise<Product[]> {
@@ -32,12 +63,14 @@ export const ProductService = {
   },
 
   async createProduct(productData: Omit<Product, 'id'>): Promise<Product> {
+    const newCustomId = await generateCustomProductId();
+    const productDocRef = doc(db, 'products', newCustomId);
+
     const dataToCreate = productConverter.toFirestore(productData as FirestoreProduct); 
-    const docRef = await addDoc(
-      collection(db, 'products'), 
-      dataToCreate
-    );
-    return { id: docRef.id, ...productData }; 
+    
+    await setDoc(productDocRef, dataToCreate);
+
+    return { id: newCustomId, ...productData }; 
   },
 
   async updateProduct(id: string, productData: Partial<Omit<Product, 'id'>>): Promise<void> {
@@ -101,4 +134,3 @@ export const ProductService = {
     return unsubscribe;
   }
 };
-
