@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from "react";
@@ -201,7 +200,6 @@ export function CartView({
                             onChange={(e) => onUpdateQuantity(item.id, parseInt(e.target.value) || 1, item.saleType)}
                             className="h-7 w-10 text-center px-1 text-sm"
                             min="1"
-                            max={item.stock} // Assuming 'stock' is available on CartItem, might need to fetch from Product
                             aria-label={`Quantity for ${item.name}`}
                           />
                           <Button
@@ -209,7 +207,6 @@ export function CartView({
                             size="icon"
                             className="h-7 w-7 rounded-full"
                             onClick={() => onUpdateQuantity(item.id, item.quantity + 1, item.saleType)}
-                            disabled={item.quantity >= (allCustomers.find(p=>p.id === item.id)?.stock || item.stock || 0)} // Assuming 'stock' is available
                           >
                             <PlusCircle className="h-3.5 w-3.5" />
                           </Button>

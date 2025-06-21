@@ -114,14 +114,13 @@ export function InvoiceDataTable({ sales: initialSales, isLoading, error }: Invo
   }, [localSales]);
 
   const getPaymentStatusBadge = (sale: Sale) => {
-    if (sale.outstandingBalance != undefined && sale.outstandingBalance <= 0 && sale.totalAmountPaid >= sale.totalAmount) {
-      return <Badge variant="default" className="bg-green-600 hover:bg-green-700 text-white text-xs">Paid</Badge>;
-    } else if (sale.totalAmountPaid > 0 && sale.outstandingBalance != undefined && sale.outstandingBalance > 0) {
-      return <Badge variant="default" className="bg-yellow-500 hover:bg-yellow-600 text-black text-xs">Partial</Badge>;
-    } else if (sale.totalAmount > 0 && sale.totalAmountPaid === 0) {
-      return <Badge variant="destructive" className="text-xs">Credit</Badge>;
+    const isComplete = sale.outstandingBalance !== undefined ? sale.outstandingBalance <= 0 : sale.totalAmountPaid >= sale.totalAmount;
+
+    if (isComplete) {
+      return <Badge variant="default" className="bg-green-600 hover:bg-green-700 text-white text-xs">Complete</Badge>;
+    } else {
+      return <Badge variant="default" className="bg-yellow-500 hover:bg-yellow-600 text-black text-xs">Pending</Badge>;
     }
-    return <Badge variant="outline" className="text-xs">N/A</Badge>;
   };
 
 
@@ -285,8 +284,8 @@ export function InvoiceDataTable({ sales: initialSales, isLoading, error }: Invo
                       <TableHead className="text-right">Total Due</TableHead>
                       <TableHead className="text-right">Total Paid</TableHead>
                       <TableHead className="text-right">Outstanding</TableHead>
-                      <TableHead className="w-[150px]">Payment Summary</TableHead>
-                       <TableHead className="text-center w-[80px]">Status</TableHead>
+                      <TableHead className="w-[150px]">Payment Method</TableHead>
+                       <TableHead className="text-center w-[100px]">Status</TableHead>
                       <TableHead className="text-center w-[80px]">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -298,7 +297,7 @@ export function InvoiceDataTable({ sales: initialSales, isLoading, error }: Invo
                         <TableCell className="text-sm">{sale.customerName || "Walk-in"}</TableCell>
                         <TableCell className="text-right font-medium text-sm">{formatCurrency(sale.totalAmount)}</TableCell>
                         <TableCell className="text-right text-sm">{formatCurrency(sale.totalAmountPaid)}</TableCell>
-                        <TableCell className={cn("text-right text-sm", sale.outstandingBalance > 0 && "text-destructive font-semibold")}>{formatCurrency(sale.outstandingBalance)}</TableCell>
+                        <TableCell className={cn("text-right text-sm", (sale.outstandingBalance ?? 0) > 0 && "text-destructive font-semibold")}>{formatCurrency(sale.outstandingBalance)}</TableCell>
                         <TableCell className="text-xs">
                             <Tooltip>
                                 <TooltipTrigger asChild>

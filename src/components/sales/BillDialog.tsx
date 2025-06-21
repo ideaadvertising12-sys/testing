@@ -1,4 +1,3 @@
-
 "use client";
 
 import type { CartItem, Customer, Sale, ChequeInfo, BankTransferInfo } from "@/lib/types";
@@ -24,11 +23,9 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { format, isValid, parseISO } from "date-fns";
 
-
 interface BillDialogProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
-  
   cartItems?: CartItem[];
   customer?: Customer | null;
   discountPercentage?: number;
@@ -38,7 +35,6 @@ interface BillDialogProps {
   saleId?: string; 
   onConfirmSale?: (saleData: Omit<Sale, 'id' | 'saleDate' | 'staffId' | 'items'>) => void;
   offerApplied?: boolean; 
-
   existingSaleData?: Sale;
 }
 
@@ -72,20 +68,19 @@ export function BillDialog({
 
   const [isProcessing, setIsProcessing] = useState(false);
 
-
   const transactionDate = isReprintMode && existingSaleData ? new Date(existingSaleData.saleDate) : new Date();
   const displaySaleId = isReprintMode && existingSaleData ? existingSaleData.id : (newSaleId || `SALE-${Date.now().toString().slice(-6)}`);
   
   const itemsToDisplay: CartItem[] = useMemo(() => {
     if (isReprintMode && existingSaleData) {
       return existingSaleData.items.map(item => {
-        let displayName = item.name; // Name from converted Sale object (productName || "N/A")
-        if (!displayName || displayName === "N/A") { // If name is falsy or explicitly "N/A"
+        let displayName = item.name;
+        if (!displayName || displayName === "N/A") {
           displayName = item.id ? `Product ID: ${item.id}` : "Product Name Unavailable";
         }
         return {
           ...item,
-          name: displayName, // Use the determined displayName
+          name: displayName,
           category: item.category || "Other",
           price: typeof item.price === 'number' ? item.price : 0,
           appliedPrice: typeof item.appliedPrice === 'number' ? item.appliedPrice : 0,
@@ -123,7 +118,6 @@ export function BillDialog({
         setBankTransferAmountPaid(existingSaleData.paidAmountBankTransfer?.toString() || "");
         setBankTransferBankName(existingSaleData.bankTransferDetails?.bankName || "");
         setBankTransferReference(existingSaleData.bankTransferDetails?.referenceNumber || "");
-
       } else {
         setCashTendered("");
         setChequeAmountPaid("");
@@ -157,7 +151,6 @@ export function BillDialog({
     return Math.max(0, totalAmountDueForDisplay - totalPaymentApplied);
   }, [totalAmountDueForDisplay, totalPaymentApplied]);
 
-
   const getPaymentSummary = useCallback(() => {
     const methodsUsed: string[] = [];
     let summary = "";
@@ -186,7 +179,6 @@ export function BillDialog({
     return summary;
   }, [parsedCashTendered, parsedChequeAmountPaid, parsedBankTransferAmountPaid, chequeNumber, bankTransferReference, changeGiven, outstandingBalance, totalAmountDueForDisplay, totalPaymentApplied]);
 
-
   const handlePrimaryAction = async () => {
     if (isReprintMode) {
       window.print();
@@ -203,7 +195,7 @@ export function BillDialog({
       }
       if (parsedBankTransferAmountPaid > 0 && !bankTransferBankName.trim() && !bankTransferReference.trim()) {
         alert("Bank Name or Reference Number is required for bank transfers.");
-        setIsProcessing(false); // Corrected typo
+        setIsProcessing(false);
         return;
       }
       if (totalPaymentApplied <= 0 && totalAmountDueForDisplay > 0 && !customerForDisplay) {
@@ -264,13 +256,12 @@ export function BillDialog({
     isProcessing
   );
 
-
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent 
         className={cn(
           "sm:max-w-lg flex flex-col",
-          "print:shadow-none print:border-none print:max-w-full print:max-h-full print:m-0 print:p-0 print:h-auto print:overflow-visible",
+          "print:shadow-none print:border-none print:max-w-full print:max-h-none print:m-0 print:p-0 print:h-auto print:overflow-visible",
           isOpen ? "max-h-[90vh]" : "" 
         )}
       >
@@ -283,12 +274,12 @@ export function BillDialog({
           </DialogDescription>
         </DialogHeader>
         
-        <ScrollArea className="flex-grow print:overflow-visible print:flex-grow-0 print:h-auto"> 
+        <ScrollArea className="flex-grow print:overflow-visible print:max-h-none print:h-auto">
           <div 
             id="bill-content" 
             className={cn(
                 "p-6 bg-card text-card-foreground rounded-md",
-                "print:p-0 print:bg-transparent print:text-black print:max-h-none print:overflow-visible"
+                "print:p-4 print:bg-transparent print:text-black print:max-h-none print:overflow-visible"
             )}
           >
             <div className="text-center mb-6">
@@ -313,20 +304,23 @@ export function BillDialog({
             
             <h3 className="font-semibold mb-2 text-sm">Order Summary:</h3>
             <div className="max-h-[150px] overflow-y-auto print:max-h-none print:overflow-visible mb-4">
-              <table className="w-full text-xs">
+              <table className="w-full text-xs print:w-full">
                 <thead>
                   <tr className="border-b">
-                    <th className="text-left py-1 font-normal">Item</th>
-                    <th className="text-center py-1 font-normal">Qty</th>
-                    <th className="text-right py-1 font-normal">Price</th>
-                    <th className="text-right py-1 font-normal">Total</th>
+                    <th className="text-left py-1 font-normal w-[40%]">Item</th>
+                    <th className="text-center py-1 font-normal w-[15%]">Qty</th>
+                    <th className="text-right py-1 font-normal w-[20%]">Price</th>
+                    <th className="text-right py-1 font-normal w-[25%]">Total</th>
                   </tr>
                 </thead>
                 <tbody>
                   {itemsToDisplay.map((item, index) => (
-                    <tr key={`${item.id}-${item.saleType}-${item.isOfferItem ? 'offer' : 'paid'}-${index}`} className="border-b border-dashed">
-                      <td className="py-1.5">
-                        {item.name} {/* Already handled by itemsToDisplay memo */}
+                    <tr 
+                      key={`${item.id}-${item.saleType}-${item.isOfferItem ? 'offer' : 'paid'}-${index}`} 
+                      className="border-b border-dashed"
+                    >
+                      <td className="py-1.5 break-words print:break-all">
+                        {item.name}
                         {item.isOfferItem && <Gift className="inline-block h-3 w-3 ml-1 text-green-600" />}
                       </td>
                       <td className="text-center py-1.5">{item.quantity}</td>
@@ -358,7 +352,6 @@ export function BillDialog({
             
             <Separator className="my-4"/>
 
-            {/* Payment Input Section - Hidden on Reprint */}
             {!isReprintMode && (
                 <div className="mb-4 space-y-4 print:hidden">
                     <h3 className="font-semibold text-sm">Payment Details:</h3>
@@ -489,7 +482,6 @@ export function BillDialog({
                 </div>
             )}
 
-            {/* Payment Summary for Display (Live and Reprint) */}
             <div className="space-y-1 text-xs mb-4">
                 <h4 className="font-semibold text-sm mb-1 mt-2">Payment Information:</h4>
                 {(isReprintMode ? existingSaleData?.paidAmountCash : parsedCashTendered) > 0 && (
@@ -560,7 +552,6 @@ export function BillDialog({
                 </div>
             </div>
 
-
             <p className="text-center text-xs mt-6">Thank you for your purchase!</p>
             <p className="text-center text-xs">Please come again.</p>
           </div>
@@ -576,5 +567,3 @@ export function BillDialog({
     </Dialog>
   );
 }
-
-    
