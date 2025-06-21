@@ -46,12 +46,56 @@ export function ManageStockForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
+  const [vehicleStock, setVehicleStock] = useState<Map<string, number> | null>(null);
+  const [isVehicleStockLoading, setIsVehicleStockLoading] = useState(false);
+
   useEffect(() => {
     const now = new Date();
     const offset = now.getTimezoneOffset();
     const localDate = new Date(now.getTime() - (offset * 60000));
     setTransactionDate(localDate.toISOString().slice(0, 16));
   }, []);
+
+  const fetchVehicleStock = async (vehicleId: string) => {
+    if (!vehicleId) {
+      setVehicleStock(null);
+      return;
+    }
+    setIsVehicleStockLoading(true);
+    setVehicleStock(null);
+    try {
+      const response = await fetch(`/api/stock-transactions?vehicleId=${vehicleId}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch vehicle stock data.');
+      }
+      const transactions: StockTransaction[] = await response.json();
+      
+      const stockMap = new Map<string, number>();
+      transactions.forEach(tx => {
+        const currentQty = stockMap.get(tx.productId) || 0;
+        if (tx.type === 'LOAD_TO_VEHICLE') {
+          stockMap.set(tx.productId, currentQty + tx.quantity);
+        } else if (tx.type === 'UNLOAD_FROM_VEHICLE') {
+          stockMap.set(tx.productId, currentQty - tx.quantity);
+        }
+      });
+      setVehicleStock(stockMap);
+    } catch (error) {
+      toast({ variant: "destructive", title: "Error", description: "Could not load vehicle stock." });
+      setVehicleStock(null);
+    } finally {
+      setIsVehicleStockLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (transactionType === 'UNLOAD_FROM_VEHICLE' && selectedVehicleId) {
+      fetchVehicleStock(selectedVehicleId);
+    } else {
+      setVehicleStock(null);
+    }
+  }, [transactionType, selectedVehicleId]);
+
 
   const handleAddProductToTransaction = (productId: string) => {
     const productToAdd = allProducts.find(p => p.id === productId);
@@ -96,6 +140,33 @@ export function ManageStockForm() {
       setIsSubmitting(false);
       return;
     }
+
+    // Unload from vehicle stock validation
+    if (transactionType === 'UNLOAD_FROM_VEHICLE' && vehicleStock) {
+        for (const item of transactionItems) {
+            const stockInVehicle = vehicleStock.get(item.product.id) || 0;
+            const quantityToUnload = Number(item.quantity);
+            if (quantityToUnload <= 0) {
+                toast({
+                    variant: "destructive",
+                    title: "Invalid Quantity",
+                    description: `Please enter a valid quantity greater than 0 for ${item.product.name}.`,
+                });
+                setIsSubmitting(false);
+                return;
+            }
+            if (quantityToUnload > stockInVehicle) {
+                toast({
+                    variant: "destructive",
+                    title: "Insufficient Stock in Vehicle",
+                    description: `Cannot unload ${quantityToUnload} of ${item.product.name}. Only ${stockInVehicle} available in the selected vehicle.`,
+                });
+                setIsSubmitting(false);
+                return;
+            }
+        }
+    }
+
 
     for (const item of transactionItems) {
       if (item.quantity === "" || Number(item.quantity) <= 0) {
@@ -334,7 +405,12 @@ export function ManageStockForm() {
                           <div className="flex-grow">
                             <p className="font-medium text-sm">{item.product.name}</p>
                             <p className="text-xs text-muted-foreground">
-                              SKU: {item.product.sku || 'N/A'} | Current Stock: {item.product.stock}
+                                SKU: {item.product.sku || 'N/A'} | Main Stock: {item.product.stock}
+                                {transactionType === 'UNLOAD_FROM_VEHICLE' && vehicleStock && (
+                                    <span className="font-semibold text-blue-600 ml-2">
+                                        | Vehicle Stock: {isVehicleStockLoading ? '...' : (vehicleStock.get(item.product.id) || 0)}
+                                    </span>
+                                )}
                             </p>
                           </div>
                           <div className="w-full sm:w-32 shrink-0">
@@ -411,3 +487,5 @@ export function ManageStockForm() {
     </Card>
   );
 }
+
+    
