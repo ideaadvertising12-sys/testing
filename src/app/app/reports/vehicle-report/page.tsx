@@ -1,21 +1,22 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DateRangePicker } from "@/components/ui/date-range-picker";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
 import { useVehicles } from "@/hooks/useVehicles";
 import { useStockTransactions } from "@/hooks/useStockTransactions";
 import { useAuth } from "@/contexts/AuthContext";
 import { AccessDenied } from "@/components/AccessDenied";
 import { useRouter } from "next/navigation";
 import { GlobalPreloaderScreen } from "@/components/GlobalPreloaderScreen";
-import { Truck, Search, Loader2 } from "lucide-react";
-import type { DateRange } from "react-day-picker";
+import { Truck, Search, Loader2, CalendarIcon } from "lucide-react";
 import type { StockTransaction, VehicleReportItem } from "@/lib/types";
-import { addDays, startOfDay, endOfDay } from "date-fns";
+import { startOfDay, endOfDay, format } from "date-fns";
 import { VehicleReportDisplay } from "@/components/reports/VehicleReportDisplay";
 
 export default function VehicleReportPage() {
@@ -26,10 +27,7 @@ export default function VehicleReportPage() {
   const { transactions: allTransactions, isLoading: isLoadingTransactions } = useStockTransactions();
 
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>("");
-  const [dateRange, setDateRange] = useState<DateRange | undefined>({
-    from: addDays(new Date(), -7),
-    to: new Date(),
-  });
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [reportData, setReportData] = useState<VehicleReportItem[] | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedVehicleNumber, setSelectedVehicleNumber] = useState<string | undefined>(undefined);
@@ -45,8 +43,8 @@ export default function VehicleReportPage() {
   }, [currentUser, router]);
 
   const handleGenerateReport = () => {
-    if (!selectedVehicleId || !dateRange?.from || !dateRange?.to) {
-      alert("Please select a vehicle and a valid date range.");
+    if (!selectedVehicleId || !selectedDate) {
+      alert("Please select a vehicle and a date.");
       return;
     }
     setIsGenerating(true);
@@ -55,8 +53,8 @@ export default function VehicleReportPage() {
     const vehicle = vehicles.find(v => v.id === selectedVehicleId);
     setSelectedVehicleNumber(vehicle?.vehicleNumber);
 
-    const reportStartDate = startOfDay(dateRange.from);
-    const reportEndDate = endOfDay(dateRange.to);
+    const reportStartDate = startOfDay(selectedDate);
+    const reportEndDate = endOfDay(selectedDate);
 
     const filteredTransactions = allTransactions.filter(tx =>
       tx.vehicleId === selectedVehicleId &&
@@ -87,7 +85,6 @@ export default function VehicleReportPage() {
       }
     }
     
-    // Calculate net change
     processedData.forEach(item => {
         item.netChange = item.totalLoaded - item.totalUnloaded;
     });
@@ -121,7 +118,7 @@ export default function VehicleReportPage() {
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle className="font-headline">Report Filters</CardTitle>
-          <CardDescription>Select a vehicle and date range to generate the report.</CardDescription>
+          <CardDescription>Select a vehicle and a date to generate the report.</CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Select value={selectedVehicleId} onValueChange={setSelectedVehicleId} disabled={pageIsLoading}>
@@ -135,15 +132,33 @@ export default function VehicleReportPage() {
             </SelectContent>
           </Select>
           
-          <DateRangePicker 
-            dateRange={dateRange}
-            onDateRangeChange={setDateRange}
-            className="md:col-span-1"
-          />
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant={"outline"}
+                className={cn(
+                  "w-full justify-start text-left font-normal h-10",
+                  !selectedDate && "text-muted-foreground"
+                )}
+                disabled={pageIsLoading}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {selectedDate ? format(selectedDate, "PPP") : <span>Pick a date</span>}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0">
+              <Calendar
+                mode="single"
+                selected={selectedDate}
+                onSelect={setSelectedDate}
+                initialFocus
+              />
+            </PopoverContent>
+          </Popover>
 
           <Button 
             onClick={handleGenerateReport} 
-            disabled={!selectedVehicleId || !dateRange || isGenerating || pageIsLoading}
+            disabled={!selectedVehicleId || !selectedDate || isGenerating || pageIsLoading}
             className="h-10"
           >
             {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
@@ -160,7 +175,7 @@ export default function VehicleReportPage() {
         <VehicleReportDisplay 
             data={reportData} 
             vehicleNumber={selectedVehicleNumber || ""}
-            dateRange={dateRange}
+            reportDate={selectedDate}
         />
       ) : (
         <Card className="shadow-lg">

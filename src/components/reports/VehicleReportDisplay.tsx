@@ -13,8 +13,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { DownloadCloud, FileText, Truck } from "lucide-react";
-import type { DateRange } from "react-day-picker";
+import { DownloadCloud, FileText } from "lucide-react";
 import { format } from 'date-fns';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
@@ -23,14 +22,14 @@ import 'jspdf-autotable';
 interface VehicleReportDisplayProps {
   data: VehicleReportItem[];
   vehicleNumber: string;
-  dateRange?: DateRange;
+  reportDate?: Date;
 }
 
 interface jsPDFWithAutoTable extends jsPDF {
   autoTable: (options: any) => jsPDF;
 }
 
-export function VehicleReportDisplay({ data, vehicleNumber, dateRange }: VehicleReportDisplayProps) {
+export function VehicleReportDisplay({ data, vehicleNumber, reportDate }: VehicleReportDisplayProps) {
     
   const totals = {
     loaded: data.reduce((sum, item) => sum + item.totalLoaded, 0),
@@ -61,7 +60,7 @@ export function VehicleReportDisplay({ data, vehicleNumber, dateRange }: Vehicle
     const doc = new jsPDF() as jsPDFWithAutoTable;
     doc.text(`Vehicle Report for: ${vehicleNumber}`, 14, 16);
     doc.setFontSize(10);
-    doc.text(`Date Range: ${dateRange?.from ? format(dateRange.from, 'PP') : ''} - ${dateRange?.to ? format(dateRange.to, 'PP') : ''}`, 14, 22);
+    doc.text(`Date: ${reportDate ? format(reportDate, 'PPP') : 'N/A'}`, 14, 22);
 
     doc.autoTable({
         startY: 30,
@@ -90,7 +89,7 @@ export function VehicleReportDisplay({ data, vehicleNumber, dateRange }: Vehicle
         <CardHeader>
           <CardTitle>Report for {vehicleNumber}</CardTitle>
            <CardDescription>
-            Date Range: {dateRange?.from ? format(dateRange.from, 'PP') : 'N/A'} to {dateRange?.to ? format(dateRange.to, 'PP') : 'N/A'}
+            Date: {reportDate ? format(reportDate, 'PPP') : 'N/A'}
           </CardDescription>
         </CardHeader>
         <CardContent className="text-center py-12 text-muted-foreground">
@@ -107,7 +106,7 @@ export function VehicleReportDisplay({ data, vehicleNumber, dateRange }: Vehicle
             <div>
                 <CardTitle className="font-headline">Report for: {vehicleNumber}</CardTitle>
                 <CardDescription>
-                    Date Range: {dateRange?.from ? format(dateRange.from, 'PP') : 'N/A'} to {dateRange?.to ? format(dateRange.to, 'PP') : 'N/A'}
+                    Date: {reportDate ? format(reportDate, 'PPP') : 'N/A'}
                 </CardDescription>
             </div>
             <div className="flex gap-2">
