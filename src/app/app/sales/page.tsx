@@ -390,7 +390,7 @@ export default function SalesPage() {
       
       toast({
           title: "Sale Successful!",
-          description: `Payment: ${newSaleResponse.paymentSummary}. Total Paid: Rs. ${newSaleResponse.totalAmountPaid.toFixed(2)}`,
+          description: `Sale ID: ${newSaleResponse.id}`,
       });
 
       handleCancelOrder(); 

@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { CartItem, Customer, Sale, ChequeInfo, BankTransferInfo } from "@/lib/types";
@@ -294,7 +295,7 @@ export function BillDialog({
 
             <div className="text-xs mb-4">
               <p>Date: {transactionDate.toLocaleDateString()} {transactionDate.toLocaleTimeString()}</p>
-              {displaySaleId && <p>Transaction ID: {displaySaleId}</p>}
+              {isReprintMode && displaySaleId && <p>Transaction ID: {displaySaleId}</p>}
               {customerForDisplay && <p>Customer: {customerForDisplay.name} {customerForDisplay.shopName ? `(${customerForDisplay.shopName})` : ''}</p>}
               <p>Served by: Staff Member</p> 
               {offerWasApplied && <p className="font-semibold text-green-600">Offer: Buy 12 Get 1 Free Applied!</p>}
