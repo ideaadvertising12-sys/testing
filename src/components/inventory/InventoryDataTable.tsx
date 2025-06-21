@@ -39,6 +39,18 @@ export function InventoryDataTable() {
     );
   }, [products, searchTerm, isLoading]);
 
+  const formatCurrency = (value: number | undefined): string => {
+    if (typeof value !== 'number' || isNaN(value)) {
+      return 'N/A';
+    }
+    return new Intl.NumberFormat('en-LK', {
+      style: 'currency',
+      currency: 'LKR',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(value).replace('LKR', 'Rs.');
+  };
+
   return (
     <Card className="shadow-lg">
       <CardHeader>
@@ -92,9 +104,12 @@ export function InventoryDataTable() {
             <TableRow>
               <TableHead className="hidden w-[80px] sm:table-cell">Image</TableHead>
               <TableHead>Product Name</TableHead>
+              <TableHead className="hidden lg:table-cell">SKU</TableHead>
               <TableHead>Category</TableHead>
-              <TableHead className="text-center">Current Stock</TableHead>
-              <TableHead className="hidden md:table-cell text-center">Reorder Level</TableHead>
+              <TableHead className="text-right">Current Stock</TableHead>
+              <TableHead className="hidden md:table-cell text-right">Reorder Level</TableHead>
+              <TableHead className="hidden lg:table-cell text-right">Retail Price</TableHead>
+              <TableHead className="hidden lg:table-cell text-right">Wholesale Price</TableHead>
               <TableHead className="text-center">Status</TableHead>
             </TableRow>
           </TableHeader>
@@ -115,11 +130,14 @@ export function InventoryDataTable() {
                     />
                   </TableCell>
                   <TableCell className="font-medium">{product.name}</TableCell>
+                  <TableCell className="hidden lg:table-cell font-mono text-xs">{product.sku || "N/A"}</TableCell>
                   <TableCell>
                     <Badge variant="secondary">{product.category}</Badge>
                   </TableCell>
-                  <TableCell className="text-center">{product.stock}</TableCell>
-                  <TableCell className="hidden md:table-cell text-center">{product.reorderLevel || 10}</TableCell>
+                  <TableCell className="text-right">{product.stock}</TableCell>
+                  <TableCell className="hidden md:table-cell text-right">{product.reorderLevel || 10}</TableCell>
+                  <TableCell className="hidden lg:table-cell text-right">{formatCurrency(product.price)}</TableCell>
+                  <TableCell className="hidden lg:table-cell text-right">{formatCurrency(product.wholesalePrice)}</TableCell>
                   <TableCell className="text-center">
                     <Badge className={cn(status.color, "text-xs")}>{status.text}</Badge>
                   </TableCell>
