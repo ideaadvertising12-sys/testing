@@ -6,8 +6,8 @@ import { PageHeader } from "@/components/PageHeader";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { SalesChart } from "@/components/dashboard/SalesChart";
 import { AlertQuantityTable } from "@/components/dashboard/AlertQuantityTable";
-import { placeholderMonthlySalesData, placeholderProducts } from "@/lib/placeholder-data"; // Keep placeholderProducts for top selling example
-import type { StatsData, Sale } from "@/lib/types";
+import { placeholderMonthlySalesData } from "@/lib/placeholder-data"; 
+import type { Sale } from "@/lib/types";
 import {
   Table,
   TableBody,
@@ -19,12 +19,12 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
 import { AccessDenied } from "@/components/AccessDenied";
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { GlobalPreloaderScreen } from "@/components/GlobalPreloaderScreen";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useSalesData } from "@/hooks/useSalesData";
-import { useProducts } from "@/hooks/useProducts"; // Import useProducts
+import { useProducts } from "@/hooks/useProducts";
 
 export default function DashboardPage() {
   const { currentUser } = useAuth();
@@ -36,7 +36,7 @@ export default function DashboardPage() {
     isLoading: isLoadingSales, 
     error: salesError, 
     totalRevenue: hookTotalRevenue 
-  } = useSalesData();
+  } = useSalesData(true); // Enable real-time updates
   const { 
     products: allProducts, 
     isLoading: isLoadingProducts, 
@@ -61,6 +61,40 @@ export default function DashboardPage() {
     return allProducts.filter(p => p.stock <= (p.reorderLevel || 10)).length;
   }, [allProducts, isLoadingProducts]);
 
+  const topSellingProducts = useMemo(() => {
+    if (isLoadingSales || isLoadingProducts || !sales || !allProducts) {
+      return [];
+    }
+
+    const productSales: { [productId: string]: { name: string; price: number; quantity: number } } = {};
+
+    sales.forEach(sale => {
+      sale.items.forEach(item => {
+        if (!item.isOfferItem) { // Only count paid items
+          if (!productSales[item.id]) {
+            const productDetails = allProducts.find(p => p.id === item.id);
+            if (productDetails) {
+              productSales[item.id] = {
+                name: productDetails.name,
+                price: productDetails.price,
+                quantity: 0
+              };
+            }
+          }
+          if (productSales[item.id]) {
+            productSales[item.id].quantity += item.quantity;
+          }
+        }
+      });
+    });
+
+    return Object.entries(productSales)
+      .map(([id, data]) => ({ id, ...data }))
+      .sort((a, b) => b.quantity - a.quantity)
+      .slice(0, 5);
+
+  }, [sales, allProducts, isLoadingSales, isLoadingProducts]);
+
 
   useEffect(() => {
     if (!currentUser) {
@@ -79,11 +113,6 @@ export default function DashboardPage() {
   if (currentUser.role === "cashier") {
     return <AccessDenied message="Dashboard is not available for your role. Redirecting..." />;
   }
-
-  // Top selling products can remain using placeholder data for now, or be updated similarly if desired
-  const topSellingProducts = [...placeholderProducts]
-    .sort((a,b) => (b.price * (150 - b.stock)) - (a.price * (150 - a.stock)))
-    .slice(0,5);
 
   const formatCurrency = (value: number): string => {
     if (typeof value !== 'number' || isNaN(value)) {
@@ -138,7 +167,6 @@ export default function DashboardPage() {
         }
         break;
       default:
-        // This default case might not be needed if all keys are explicitly handled
         displayValue = 'N/A';
     }
 
@@ -167,7 +195,6 @@ export default function DashboardPage() {
           <CardContent>
             <div className="text-2xl font-bold font-headline text-destructive">Error</div>
             {description && <p className="text-xs text-muted-foreground pt-1">{description}</p>}
-            {/* <p className="text-xs text-destructive mt-1">{hasError}</p> */}
           </CardContent>
         </Card>
       );
@@ -231,27 +258,43 @@ export default function DashboardPage() {
         <Card className="shadow-lg">
           <CardHeader>
             <CardTitle className="font-headline">Top Selling Products</CardTitle>
-            <CardDescription>Most popular items this month (placeholder data).</CardDescription>
+            <CardDescription>
+              {isLoadingSales || isLoadingProducts ? 'Calculating...' : 'Most popular items based on sales.'}
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Product</TableHead>
-                  <TableHead className="text-right">Price</TableHead>
-                  <TableHead className="text-right">Sold (Est.)</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {topSellingProducts.map((product) => (
-                  <TableRow key={product.id}>
-                    <TableCell className="font-medium">{product.name}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(product.price)}</TableCell>
-                    <TableCell className="text-right">{150 - product.stock}</TableCell>
+            {(isLoadingSales || isLoadingProducts) && !salesError && !productsError ? (
+              <div className="flex justify-center items-center h-48">
+                  <Loader2 className="h-8 w-8 animate-spin" />
+              </div>
+            ) : salesError || productsError ? (
+              <div className="text-center text-destructive py-10">
+                <p>Could not load top selling products.</p>
+              </div>
+            ) : topSellingProducts.length === 0 ? (
+                 <div className="text-center text-muted-foreground py-10">
+                    No sales data available yet.
+                 </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Product</TableHead>
+                    <TableHead className="text-right">Price</TableHead>
+                    <TableHead className="text-right">Quantity Sold</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {topSellingProducts.map((product) => (
+                    <TableRow key={product.id}>
+                      <TableCell className="font-medium">{product.name}</TableCell>
+                      <TableCell className="text-right">{formatCurrency(product.price)}</TableCell>
+                      <TableCell className="text-right">{product.quantity}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
           </CardContent>
         </Card>
       </div>
