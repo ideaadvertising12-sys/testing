@@ -393,22 +393,25 @@ export const saleConverter = {
 };
 
 export const stockTransactionConverter = {
-  toFirestore: (transaction: FirestoreStockTransaction): FirestoreStockTransaction => {
-    return {
+  toFirestore: (transaction: Omit<FirestoreStockTransaction, 'createdAt' | 'updatedAt'>): Partial<FirestoreStockTransaction> => {
+    const firestoreTransaction: Partial<FirestoreStockTransaction> = {
       productId: transaction.productId,
       productName: transaction.productName,
-      productSku: transaction.productSku,
       type: transaction.type,
       quantity: transaction.quantity,
       previousStock: transaction.previousStock,
       newStock: transaction.newStock,
       transactionDate: transaction.transactionDate,
-      notes: transaction.notes,
-      vehicleId: transaction.vehicleId,
       userId: transaction.userId,
-      updatedAt: Timestamp.now(),
-      createdAt: transaction.createdAt || Timestamp.now()
+      updatedAt: Timestamp.now()
     };
+    
+    // Conditionally add optional fields to avoid 'undefined' errors
+    if (transaction.productSku) firestoreTransaction.productSku = transaction.productSku;
+    if (transaction.notes) firestoreTransaction.notes = transaction.notes;
+    if (transaction.vehicleId) firestoreTransaction.vehicleId = transaction.vehicleId;
+
+    return firestoreTransaction;
   },
   fromFirestore: (snapshot: { id: string; data(): any }): StockTransaction => {
     const data = snapshot.data();
@@ -497,6 +500,7 @@ export interface DayEndReportSummary {
   totalSalesAmount: number; 
   totalAmountCollectedByCash: number;
   totalAmountCollectedByCheque: number;
+  totalAmountCollectedByBankTransfer: number;
   totalChangeGiven: number;
   totalOutstandingAmount: number; 
   
