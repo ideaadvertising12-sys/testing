@@ -21,6 +21,7 @@ import type { DateRange } from "react-day-picker";
 import { addDays, format } from "date-fns"; 
 import { useStockTransactions } from "@/hooks/useStockTransactions";
 import { useVehicles } from "@/hooks/useVehicles";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface jsPDFWithAutoTable extends jsPDF {
   autoTable: (options: any) => jsPDF;
@@ -40,6 +41,7 @@ export default function StockReportPage() {
     from: addDays(new Date(), -7), 
     to: new Date(),
   });
+  const [transactionTypeFilter, setTransactionTypeFilter] = useState<string>("all");
 
   const enrichedTransactions = useMemo(() => {
     if (isLoading || isLoadingVehicles) return [];
@@ -73,8 +75,12 @@ export default function StockReportPage() {
       );
     }
     
+    if (transactionTypeFilter !== "all") {
+      result = result.filter(entry => entry.type === transactionTypeFilter);
+    }
+
     setFilteredData(result);
-  }, [enrichedTransactions, searchTerm, dateRange]);
+  }, [enrichedTransactions, searchTerm, dateRange, transactionTypeFilter]);
 
   useEffect(() => {
     if (!currentUser) {
@@ -201,7 +207,7 @@ export default function StockReportPage() {
             </div>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
             <Input
               placeholder="Search by product, user, vehicle..."
               value={searchTerm}
@@ -214,6 +220,20 @@ export default function StockReportPage() {
               onDateRangeChange={setDateRange}
               className="w-full"
             />
+
+            <Select value={transactionTypeFilter} onValueChange={setTransactionTypeFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="Filter by type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Transaction Types</SelectItem>
+                <SelectItem value="ADD_STOCK_INVENTORY">Add Stock to Inventory</SelectItem>
+                <SelectItem value="LOAD_TO_VEHICLE">Load to Vehicle</SelectItem>
+                <SelectItem value="UNLOAD_FROM_VEHICLE">Unload from Vehicle</SelectItem>
+                <SelectItem value="REMOVE_STOCK_WASTAGE">Remove Stock (Wastage)</SelectItem>
+                <SelectItem value="STOCK_ADJUSTMENT_MANUAL">Manual Stock Adjustment</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </CardHeader>
         
@@ -224,4 +244,3 @@ export default function StockReportPage() {
     </div>
   );
 }
-
