@@ -18,13 +18,19 @@ export const VehicleService = {
   async getAllVehicles(): Promise<Vehicle[]> {
     const q = query(collection(db, 'vehicles')).withConverter(vehicleConverter);
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => doc.data());
+    return snapshot.docs.map(doc => ({
+      ...doc.data(),
+      id: doc.id
+    }));
   },
 
   async getVehicleById(id: string): Promise<Vehicle | null> {
     const docRef = doc(db, 'vehicles', id).withConverter(vehicleConverter);
     const snapshot = await getDoc(docRef);
-    return snapshot.exists() ? snapshot.data() : null;
+    return snapshot.exists() ? {
+      ...snapshot.data(),
+      id: snapshot.id
+    } : null;
   },
 
   async createVehicle(vehicleData: Omit<Vehicle, 'id'>): Promise<string> {
@@ -56,7 +62,10 @@ export const VehicleService = {
   ): () => void {
     const q = query(collection(db, 'vehicles')).withConverter(vehicleConverter);
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const vehicles = snapshot.docs.map(docSnapshot => docSnapshot.data());
+      const vehicles = snapshot.docs.map(docSnapshot => ({
+        ...docSnapshot.data(),
+        id: docSnapshot.id
+      }));
       callback(vehicles);
     }, (error) => {
       console.error("Error subscribing to vehicles:", error);

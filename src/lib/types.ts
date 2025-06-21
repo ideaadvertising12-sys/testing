@@ -1,4 +1,5 @@
-//location src/lib/types.ts
+
+// location src/lib/types.ts
 import { Timestamp } from 'firebase/firestore';
 
 // Base Interfaces
@@ -62,7 +63,6 @@ export interface BankTransferInfo {
 export interface FirestoreBankTransferInfo extends Omit<BankTransferInfo, 'amount'> {
    amount?: number;
 }
-
 
 export interface Sale {
   id: string;
@@ -310,7 +310,6 @@ export const saleConverter = {
       firestoreSale.bankTransferDetails = sale.bankTransferDetails;
     }
 
-
     if (sale.customerId) firestoreSale.customerId = sale.customerId;
     if (sale.customerName) firestoreSale.customerName = sale.customerName;
     if (sale.staffName) firestoreSale.staffName = sale.staffName;
@@ -344,7 +343,6 @@ export const saleConverter = {
         delete firestoreSale.bankTransferDetails;
       }
     }
-
 
     return firestoreSale;
   },
