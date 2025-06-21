@@ -29,6 +29,8 @@ import {
   type FirestoreChequeInfo,
   type BankTransferInfo,
   type FirestoreBankTransferInfo,
+  type StockTransaction,
+  stockTransactionConverter,
 } from "./types";
 
 
@@ -119,7 +121,7 @@ export const deleteCustomer = async (id: string): Promise<void> => {
 // Sale Services
 export const addSale = async (
   saleData: Omit<Sale, 'id' | 'saleDate' | 'items' | 'chequeDetails' | 'bankTransferDetails'> & 
-            { saleDate: Date, items: CartItem[], chequeDetails?: ChequeInfo, bankTransferDetails?: BankTransferInfo }
+            { saleDate: Date, items: CartItem[], chequeDetails?: ChequeInfo, bankTransferDetails?: BankTransferInfo } & { vehicleId?: string }
 ): Promise<string> => {
   checkFirebase();
   const batch = writeBatch(db);
@@ -191,6 +193,7 @@ export const addSale = async (
 
   if (saleData.customerId !== undefined) firestoreSaleData.customerId = saleData.customerId;
   if (saleData.customerName !== undefined) firestoreSaleData.customerName = saleData.customerName;
+  if (saleData.vehicleId) firestoreSaleData.vehicleId = saleData.vehicleId;
   
   const cleanedFirestoreSaleData = { ...firestoreSaleData };
   Object.keys(cleanedFirestoreSaleData).forEach(key => {
@@ -202,19 +205,51 @@ export const addSale = async (
   batch.set(saleDocRef, saleConverter.toFirestore(cleanedFirestoreSaleData as FirestoreSale));
 
 
-  for (const item of saleData.items) {
-    if (!item.isOfferItem) { 
-      const productDocRefToUpdate = doc(db, "products", item.id);
-      const productSnap = await getDoc(productDocRefToUpdate.withConverter(productConverter));
-      if (productSnap.exists()) {
-        const currentProduct = productSnap.data();
-        const newStock = currentProduct.stock - item.quantity;
-        if (newStock < 0) {
-          throw new Error(`Insufficient stock for ${item.name} (ID: ${item.id}). Available: ${currentProduct.stock}, Tried to sell: ${item.quantity}`);
+  // STOCK UPDATE LOGIC
+  if (saleData.vehicleId) {
+    // Vehicle Sale: Create stock transactions to represent stock 'unloading' from vehicle
+    for (const item of saleData.items) {
+      if (!item.isOfferItem) { // Only affect stock for paid items
+        const productDetails = await getProduct(item.id);
+        if (!productDetails) {
+            throw new Error(`Product ${item.name} not found for stock transaction.`);
         }
-        batch.update(productDocRefToUpdate, { stock: newStock, updatedAt: Timestamp.now() });
-      } else {
-        throw new Error(`Product ${item.name} (ID: ${item.id}) not found for stock update.`);
+        
+        const transaction: Omit<StockTransaction, 'id'> = {
+          productId: item.id,
+          productName: item.name,
+          productSku: item.sku,
+          type: 'UNLOAD_FROM_VEHICLE',
+          quantity: item.quantity,
+          previousStock: productDetails.stock, // Main inventory stock is unchanged
+          newStock: productDetails.stock,
+          transactionDate: saleData.saleDate,
+          notes: `Sale: ${saleDocRef.id}`,
+          vehicleId: saleData.vehicleId,
+          userId: saleData.staffId,
+        };
+
+        const transactionDocRef = doc(collection(db, "stockTransactions"));
+        const firestoreTx = stockTransactionConverter.toFirestore(transaction);
+        batch.set(transactionDocRef, firestoreTx);
+      }
+    }
+  } else {
+    // Main Inventory Sale: Decrement stock from the product itself
+    for (const item of saleData.items) {
+      if (!item.isOfferItem) { 
+        const productDocRefToUpdate = doc(db, "products", item.id);
+        const productSnap = await getDoc(productDocRefToUpdate.withConverter(productConverter));
+        if (productSnap.exists()) {
+          const currentProduct = productSnap.data();
+          const newStock = currentProduct.stock - item.quantity;
+          if (newStock < 0) {
+            throw new Error(`Insufficient stock for ${item.name} (ID: ${item.id}). Available: ${currentProduct.stock}, Tried to sell: ${item.quantity}`);
+          }
+          batch.update(productDocRefToUpdate, { stock: newStock, updatedAt: Timestamp.now() });
+        } else {
+          throw new Error(`Product ${item.name} (ID: ${item.id}) not found for stock update.`);
+        }
       }
     }
   }

@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Drawer, DrawerContent, DrawerTrigger, DrawerHeader, DrawerTitle, DrawerClose } from "@/components/ui/drawer";
 import { useMediaQuery } from "@/hooks/use-media-query";
-import type { Product, CartItem, Customer, Sale, ChequeInfo, BankTransferInfo, StockTransaction } from "@/lib/types";
+import type { Product, CartItem, Customer, Sale, ChequeInfo, BankTransferInfo, StockTransaction, Vehicle } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useProducts } from "@/hooks/useProducts";
@@ -107,6 +107,7 @@ export default function SalesPage() {
   const [vehicleStock, setVehicleStock] = useState<Product[] | null>(null);
   const [isVehicleStockLoading, setIsVehicleStockLoading] = useState(false);
   const [searchedVehicle, setSearchedVehicle] = useState<string | null>(null);
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
 
   const { toast } = useToast();
   const isMobile = useMediaQuery("(max-width: 768px)");
@@ -151,6 +152,7 @@ export default function SalesPage() {
     setIsVehicleStockLoading(true);
     setVehicleStock(null);
     setSearchedVehicle(vehicleIdInput.trim().toUpperCase());
+    setSelectedVehicleId(null);
 
     const targetVehicle = vehicles.find(v => v.vehicleNumber.toUpperCase() === vehicleIdInput.trim().toUpperCase());
 
@@ -159,6 +161,8 @@ export default function SalesPage() {
       setIsVehicleStockLoading(false);
       return;
     }
+
+    setSelectedVehicleId(targetVehicle.id);
 
     try {
       const response = await fetch(`/api/stock-transactions?vehicleId=${targetVehicle.id}`);
@@ -205,9 +209,7 @@ export default function SalesPage() {
   };
 
   const productsForDisplay = viewMode === 'vehicle' ? vehicleStock : filteredProducts;
-  const isViewOnlyMode = viewMode === 'vehicle';
-
-
+  
   const handleAddToCart = (productToAdd: Product) => {
     setCartItems(prevItems => {
       let updatedCart = [...prevItems];
@@ -250,7 +252,10 @@ export default function SalesPage() {
   };
   
   const handleUpdateQuantity = (productId: string, quantity: number, saleType: 'retail' | 'wholesale') => {
-    const productInStock = allProducts.find(p => p.id === productId);
+    const sourceProducts = viewMode === 'vehicle' ? vehicleStock : allProducts;
+    if (!sourceProducts) return;
+
+    const productInStock = sourceProducts.find(p => p.id === productId);
     if (!productInStock) return;
   
     const targetQuantity = Math.max(0, Math.min(quantity, productInStock.stock));
@@ -346,6 +351,7 @@ export default function SalesPage() {
       saleDate: new Date().toISOString(), 
       staffId: "staff001", 
       offerApplied: isBuy12Get1FreeActive,
+      vehicleId: viewMode === 'vehicle' ? selectedVehicleId : undefined,
     };
 
     try {
@@ -388,7 +394,10 @@ export default function SalesPage() {
       });
 
       handleCancelOrder(); 
-      await refetchProducts(); 
+      await refetchProducts();
+      if (viewMode === 'vehicle') {
+        await handleFetchVehicleStock(); // Refresh vehicle stock after sale
+      }
 
     } catch (error: any) {
       console.error("Sale processing error:", error);
@@ -520,6 +529,7 @@ export default function SalesPage() {
                       setVehicleStock(null);
                       setVehicleIdInput('');
                       setSearchedVehicle(null);
+                      setSelectedVehicleId(null);
                     }}
                     aria-label="Toggle View Mode"
                   />
@@ -597,7 +607,6 @@ export default function SalesPage() {
                     product={product}
                     onAddToCart={handleAddToCart}
                     currentSaleType={currentSaleType}
-                    isViewOnly={isViewOnlyMode}
                   />
                 ))}
               </div>

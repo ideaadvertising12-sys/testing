@@ -98,7 +98,8 @@ export async function POST(request: NextRequest) {
       
       offerApplied: saleDataFromClient.offerApplied || false,
       saleDate: saleDate,
-      staffId: saleDataFromClient.staffId || "staff001", 
+      staffId: saleDataFromClient.staffId || "staff001",
+      vehicleId: saleDataFromClient.vehicleId, 
     };
 
     const saleId = await addSale(salePayload);

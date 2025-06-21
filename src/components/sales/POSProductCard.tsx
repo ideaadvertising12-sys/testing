@@ -11,10 +11,9 @@ interface POSProductCardProps {
   product: Product;
   onAddToCart: (product: Product) => void;
   currentSaleType: 'retail' | 'wholesale';
-  isViewOnly?: boolean;
 }
 
-export function POSProductCard({ product, onAddToCart, currentSaleType, isViewOnly = false }: POSProductCardProps) {
+export function POSProductCard({ product, onAddToCart, currentSaleType }: POSProductCardProps) {
   const displayPrice = (currentSaleType === 'wholesale' && product.wholesalePrice && product.wholesalePrice > 0)
     ? product.wholesalePrice
     : product.price;
@@ -80,7 +79,7 @@ export function POSProductCard({ product, onAddToCart, currentSaleType, isViewOn
         <Button
           size="sm"
           onClick={() => onAddToCart(product)}
-          disabled={isOutOfStock || isViewOnly}
+          disabled={isOutOfStock}
           className="rounded-full px-4 py-2 bg-primary hover:bg-primary/90 dark:bg-[hsl(0,0%,20%)] dark:hover:bg-[hsl(0,0%,30%)] transition-colors shadow-sm dark:text-[hsl(0,0%,95%)]"
         >
           <PlusCircle className="mr-2 h-4 w-4" />

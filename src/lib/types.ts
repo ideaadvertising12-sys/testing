@@ -89,7 +89,8 @@ export interface Sale {
   
   saleDate: Date;
   staffId: string;
-  offerApplied?: boolean; 
+  offerApplied?: boolean;
+  vehicleId?: string;
 }
 
 // Stock Transaction Types
@@ -161,7 +162,8 @@ export interface FirestoreSale extends Omit<Sale, 'id' | 'saleDate' | 'items' | 
   bankTransferDetails?: FirestoreBankTransferInfo;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
-  offerApplied?: boolean; 
+  offerApplied?: boolean;
+  vehicleId?: string;
 }
 
 export interface FirestoreStockTransaction {
@@ -307,6 +309,7 @@ export const saleConverter = {
     if (sale.customerId) firestoreSale.customerId = sale.customerId;
     if (sale.customerName) firestoreSale.customerName = sale.customerName;
     if (sale.offerApplied !== undefined) firestoreSale.offerApplied = sale.offerApplied;
+    if (sale.vehicleId) firestoreSale.vehicleId = sale.vehicleId;
     if (!sale.createdAt) firestoreSale.createdAt = Timestamp.now();
 
     // Remove undefined fields to prevent Firestore errors
@@ -388,12 +391,13 @@ export const saleConverter = {
       customerId: data.customerId,
       customerName: data.customerName,
       offerApplied: data.offerApplied || false,
+      vehicleId: data.vehicleId,
     };
   }
 };
 
 export const stockTransactionConverter = {
-  toFirestore: (transaction: Omit<FirestoreStockTransaction, 'createdAt' | 'updatedAt'>): Partial<FirestoreStockTransaction> => {
+  toFirestore: (transaction: Omit<StockTransaction, 'id'>): Partial<FirestoreStockTransaction> => {
     const firestoreTransaction: Partial<FirestoreStockTransaction> = {
       productId: transaction.productId,
       productName: transaction.productName,
@@ -401,12 +405,12 @@ export const stockTransactionConverter = {
       quantity: transaction.quantity,
       previousStock: transaction.previousStock,
       newStock: transaction.newStock,
-      transactionDate: transaction.transactionDate,
+      transactionDate: Timestamp.fromDate(transaction.transactionDate),
       userId: transaction.userId,
-      updatedAt: Timestamp.now()
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
     };
     
-    // Conditionally add optional fields to avoid 'undefined' errors
     if (transaction.productSku) firestoreTransaction.productSku = transaction.productSku;
     if (transaction.notes) firestoreTransaction.notes = transaction.notes;
     if (transaction.vehicleId) firestoreTransaction.vehicleId = transaction.vehicleId;
