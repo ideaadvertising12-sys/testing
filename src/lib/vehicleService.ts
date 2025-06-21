@@ -50,13 +50,19 @@ export const VehicleService = {
     await deleteDoc(docRef);
   },
 
-  subscribeToVehicles(callback: (vehicles: Vehicle[]) => void): () => void {
+  subscribeToVehicles(
+    callback: (vehicles: Vehicle[]) => void,
+    onError?: (error: Error) => void
+  ): () => void {
     const q = query(collection(db, 'vehicles')).withConverter(vehicleConverter);
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const vehicles = snapshot.docs.map(docSnapshot => docSnapshot.data());
       callback(vehicles);
     }, (error) => {
       console.error("Error subscribing to vehicles:", error);
+      if (onError) {
+        onError(error);
+      }
     });
     return unsubscribe;
   }

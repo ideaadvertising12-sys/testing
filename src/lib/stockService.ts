@@ -1,6 +1,6 @@
 
 import { db } from "./firebase";
-import { Timestamp, collection, addDoc, getDocs, query, where, orderBy } from 'firebase/firestore';
+import { Timestamp, collection, addDoc, getDocs, query, where, orderBy, onSnapshot } from 'firebase/firestore';
 import { 
   stockTransactionConverter, 
   StockTransaction,
@@ -50,7 +50,10 @@ export const StockService = {
 
   // Note: Real-time subscription might be intensive for all transactions.
   // Use with caution or with more specific queries if performance becomes an issue.
-  subscribeToAllTransactions(callback: (transactions: StockTransaction[]) => void): () => void {
+  subscribeToAllTransactions(
+    callback: (transactions: StockTransaction[]) => void,
+    onError?: (error: Error) => void
+    ): () => void {
     const q = query(
       collection(db, 'stockTransactions').withConverter(stockTransactionConverter as any),
       orderBy('transactionDate', 'desc')
@@ -59,6 +62,11 @@ export const StockService = {
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const transactions = snapshot.docs.map(doc => doc.data() as StockTransaction);
       callback(transactions);
+    }, (error) => {
+      console.error("Error subscribing to stock transactions:", error);
+      if (onError) {
+        onError(error);
+      }
     });
     
     return unsubscribe;

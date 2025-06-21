@@ -4,6 +4,7 @@
 import { useState, useEffect, useCallback } from "react";
 import type { Vehicle } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
+import { VehicleService } from "@/lib/vehicleService";
 
 const API_BASE_URL = "/api/vehicles";
 
@@ -13,29 +14,29 @@ export function useVehicles() {
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const fetchVehicles = useCallback(async () => {
+  useEffect(() => {
     setIsLoading(true);
     setError(null);
-    try {
-      const response = await fetch(API_BASE_URL);
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: "Failed to fetch vehicles" }));
-        throw new Error(errorData.message || "Failed to fetch vehicles");
-      }
-      const data: Vehicle[] = await response.json();
-      setVehicles(data.sort((a, b) => a.vehicleNumber.localeCompare(b.vehicleNumber)));
-    } catch (err: any) {
-      console.error("Error fetching vehicles:", err);
-      const errorMessage = err.message || "An unknown error occurred while fetching vehicles.";
-      setError(errorMessage);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
 
-  useEffect(() => {
-    fetchVehicles();
-  }, [fetchVehicles]);
+    const unsubscribe = VehicleService.subscribeToVehicles(
+      (newVehicles) => {
+        setVehicles(newVehicles.sort((a, b) => a.vehicleNumber.localeCompare(b.vehicleNumber)));
+        setIsLoading(false);
+      },
+      (err) => {
+        const errorMessage = err.message || "An unknown error occurred while fetching vehicles.";
+        setError(errorMessage);
+        toast({
+          variant: "destructive",
+          title: "Error Fetching Vehicles",
+          description: errorMessage,
+        });
+        setIsLoading(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [toast]);
 
   const addVehicle = async (vehicleData: Omit<Vehicle, "id">): Promise<Vehicle | null> => {
     setIsLoading(true);
@@ -50,7 +51,7 @@ export function useVehicles() {
         throw new Error(errorData.message || "Failed to add vehicle.");
       }
       const newVehicle = await response.json();
-      await fetchVehicles(); // Refetch to get the latest sorted list
+      // The listener will update the state.
       toast({
         title: "Vehicle Added",
         description: `Vehicle ${newVehicle.vehicleNumber} has been successfully added.`,
@@ -63,7 +64,7 @@ export function useVehicles() {
         title: "Failed to Add Vehicle",
         description: err.message,
       });
-      setIsLoading(false);
+      setIsLoading(false); // Reset loading on error
       return null;
     }
   };
@@ -80,7 +81,6 @@ export function useVehicles() {
         const errorData = await response.json().catch(() => ({ message: "Failed to update vehicle" }));
         throw new Error(errorData.message || `Failed to update vehicle.`);
       }
-      await fetchVehicles();
       toast({
         title: "Vehicle Updated",
         description: `Vehicle ${vehicleData.vehicleNumber || ''} has been successfully updated.`,
@@ -109,7 +109,6 @@ export function useVehicles() {
         const errorData = await response.json().catch(() => ({ message: "Failed to delete vehicle" }));
         throw new Error(errorData.message || `Failed to delete vehicle.`);
       }
-      await fetchVehicles();
       toast({
         title: "Vehicle Deleted",
         description: "The vehicle has been successfully deleted.",
@@ -131,7 +130,6 @@ export function useVehicles() {
     vehicles,
     isLoading,
     error,
-    fetchVehicles,
     addVehicle,
     updateVehicle,
     deleteVehicle,
