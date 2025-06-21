@@ -1,18 +1,68 @@
 
 "use client";
 
-import { Warehouse } from "lucide-react";
+import { Warehouse, FileText, DownloadCloud, Loader2 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { StockReportTable } from "@/components/reports/StockReportTable";
+import type { StockTransaction } from "@/lib/types"; 
 import { useAuth } from "@/contexts/AuthContext";
 import { AccessDenied } from "@/components/AccessDenied";
-import React, { useEffect } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable'; 
 import { GlobalPreloaderScreen } from "@/components/GlobalPreloaderScreen";
+import { Input } from "@/components/ui/input";
+import { DateRangePicker } from "@/components/ui/date-range-picker"; 
+import type { DateRange } from "react-day-picker";
+import { addDays, format } from "date-fns"; 
+import { useStockTransactions } from "@/hooks/useStockTransactions";
+
+interface jsPDFWithAutoTable extends jsPDF {
+  autoTable: (options: any) => jsPDF;
+}
+
 
 export default function StockReportPage() {
   const { currentUser } = useAuth();
   const router = useRouter();
+  
+  const { transactions: allTransactions, isLoading, error } = useStockTransactions();
+
+  const [filteredData, setFilteredData] = useState<StockTransaction[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    from: addDays(new Date(), -7), 
+    to: new Date(),
+  });
+
+  // Apply filters
+  useEffect(() => {
+    let result = [...allTransactions];
+    
+    if (dateRange?.from && dateRange.to) {
+      result = result.filter(entry => {
+        const entryDate = entry.transactionDate; 
+        return entryDate >= dateRange.from! && entryDate <= dateRange.to!;
+      });
+    }
+    
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      result = result.filter(entry => 
+        (entry.productName && entry.productName.toLowerCase().includes(term)) ||
+        (entry.productSku && entry.productSku.toLowerCase().includes(term)) ||
+        (entry.userId && entry.userId.toLowerCase().includes(term)) ||
+        (entry.vehicleId && entry.vehicleId.toLowerCase().includes(term)) ||
+        (entry.type && entry.type.toLowerCase().replace(/_/g, ' ').includes(term))
+      );
+    }
+    
+    setFilteredData(result);
+  }, [allTransactions, searchTerm, dateRange]);
 
   useEffect(() => {
     if (!currentUser) {
@@ -25,51 +75,138 @@ export default function StockReportPage() {
   }, [currentUser, router]);
 
   if (!currentUser) {
-     return (
-      <>
-        <GlobalPreloaderScreen message="Loading report..." />
-      </>
-     );
+     return <GlobalPreloaderScreen message="Loading report..." />;
   }
 
   if (currentUser.role !== "admin") {
     return (
-      <>
-        <AccessDenied message="Stock reports are not available for your role. Redirecting..." />
-      </>
+      <AccessDenied message="Stock reports are not available for your role. Redirecting..." />
     );
   }
 
+  const handleExportExcel = () => {
+    const dataToExport = filteredData.map(tx => ({
+        Date: format(tx.transactionDate, "yyyy-MM-dd HH:mm:ss"),
+        Product: tx.productName,
+        SKU: tx.productSku || 'N/A',
+        Type: tx.type,
+        Quantity: `${["ADD_STOCK_INVENTORY", "UNLOAD_FROM_VEHICLE"].includes(tx.type) ? '+' : '-'}${tx.quantity}`,
+        'Previous Stock': tx.previousStock,
+        'New Stock': tx.newStock,
+        'User/Vehicle': tx.vehicleId ? `Veh: ${tx.vehicleId}` : `User: ${tx.userId}`,
+        Notes: tx.notes || ''
+    }));
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Stock Report");
+    XLSX.writeFile(workbook, `Stock_Movement_Report_${format(new Date(), 'yyyyMMdd')}.xlsx`);
+  };
+
+  const handleExportPDF = () => {
+    const doc = new jsPDF('landscape') as jsPDFWithAutoTable; 
+    doc.text(`Stock Movement Report - ${format(new Date(), 'PP')}`, 14, 16);
+    
+    doc.autoTable({
+      startY: 20,
+      head: [['Date', 'Product', 'Type', 'Qty', 'Prev. Stock', 'New Stock', 'User/Vehicle', 'Notes']],
+      body: filteredData.map(tx => [
+        format(tx.transactionDate, "yy-MM-dd HH:mm"),
+        `${tx.productName} (${tx.productSku || 'N/A'})`,
+        tx.type.replace(/_/g, ' '),
+        `${["ADD_STOCK_INVENTORY", "UNLOAD_FROM_VEHICLE"].includes(tx.type) ? '+' : '-'}${tx.quantity}`,
+        tx.previousStock,
+        tx.newStock,
+        tx.vehicleId ? `Veh: ${tx.vehicleId}` : `User: ${tx.userId}`,
+        tx.notes || ''
+      ]),
+      styles: { 
+        fontSize: 7,
+        cellPadding: 1.5,
+        overflow: 'linebreak'
+      },
+      headStyles: { 
+        fillColor: [30, 18, 57], 
+        textColor: 255,
+        fontStyle: 'bold'
+      },
+      columnStyles: {
+        1: { cellWidth: 40 }, // Product
+        7: { cellWidth: 50 }, // Notes
+      },
+      margin: { top: 20 },
+    });
+    
+    doc.save(`Stock_Movement_Report_${format(new Date(), 'yyyyMMdd')}.pdf`);
+  };
+
+  const reportActions = (
+    <div className="flex flex-col sm:flex-row gap-2">
+      <Button 
+        onClick={handleExportExcel} 
+        variant="outline" 
+        size="sm"
+        disabled={isLoading || filteredData.length === 0}
+      >
+        <DownloadCloud className="mr-2 h-4 w-4" />
+        Export Excel
+      </Button>
+      <Button 
+        onClick={handleExportPDF} 
+        variant="outline" 
+        size="sm"
+        disabled={isLoading || filteredData.length === 0}
+      >
+        <FileText className="mr-2 h-4 w-4" />
+        Export PDF
+      </Button>
+    </div>
+  );
+  
+  if (isLoading && allTransactions.length === 0) { 
+    return <GlobalPreloaderScreen message="Loading stock report data..." />;
+  }
+
   return (
-    <>
+    <div className="space-y-6">
       <PageHeader 
         title="Stock Report" 
         description="Detailed insights into current inventory levels and stock movements."
         icon={Warehouse}
+        action={reportActions}
       />
+      
       <Card className="shadow-lg">
         <CardHeader>
-          <CardTitle className="font-headline">Inventory & Stock Movement Report</CardTitle>
-          <CardDescription>
-            This report will provide a comprehensive view of product stock levels, reorder points,
-            and detailed history of stock transactions (additions, removals, transfers).
-          </CardDescription>
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <CardTitle className="font-headline">Stock Transaction Log</CardTitle>
+              <CardDescription>
+                {filteredData.length} transactions found
+                {error && <span className="text-destructive ml-2"> (Error: {error})</span>}
+              </CardDescription>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+            <Input
+              placeholder="Search by product, user, type..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full"
+            />
+            
+            <DateRangePicker 
+              dateRange={dateRange}
+              onDateRangeChange={setDateRange}
+              className="w-full"
+            />
+          </div>
         </CardHeader>
+        
         <CardContent>
-          <p className="text-muted-foreground">
-            Stock report generation is in progress. This section will display detailed inventory data.
-            Key information will include:
-          </p>
-          <ul className="list-disc list-inside mt-2 text-sm text-muted-foreground space-y-1">
-            <li>Current stock levels for all products.</li>
-            <li>Products below reorder level.</li>
-            <li>History of stock additions, including supplier information (if available).</li>
-            <li>Records of stock loaded to vehicles and returned from vehicles.</li>
-            <li>Wastage and manual adjustment logs.</li>
-            <li>Valuation of current stock.</li>
-          </ul>
+          <StockReportTable data={filteredData} isLoading={isLoading && allTransactions.length === 0} />
         </CardContent>
       </Card>
-    </>
+    </div>
   );
 }
