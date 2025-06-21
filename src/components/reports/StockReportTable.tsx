@@ -24,7 +24,7 @@ import { format } from "date-fns";
 import { Button } from "../ui/button";
 
 interface StockReportTableProps {
-  data: StockTransaction[];
+  data: (StockTransaction & { vehicleNumber?: string })[];
   isLoading?: boolean;
 }
 
@@ -97,7 +97,7 @@ export function StockReportTable({ data, isLoading }: StockReportTableProps) {
                   <TableCell className="text-right">{tx.previousStock}</TableCell>
                   <TableCell className="text-right">{tx.newStock}</TableCell>
                    <TableCell className="text-xs">
-                    {tx.vehicleId ? `Vehicle: ${tx.vehicleId}` : `User: ${tx.userId}`}
+                    {tx.vehicleId ? `Veh: ${tx.vehicleNumber || tx.vehicleId}` : `User: ${tx.userId}`}
                   </TableCell>
                   <TableCell className="text-center">
                     {tx.notes ? (

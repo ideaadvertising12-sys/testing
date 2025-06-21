@@ -20,6 +20,7 @@ import { DateRangePicker } from "@/components/ui/date-range-picker";
 import type { DateRange } from "react-day-picker";
 import { addDays, format } from "date-fns"; 
 import { useStockTransactions } from "@/hooks/useStockTransactions";
+import { useVehicles } from "@/hooks/useVehicles";
 
 interface jsPDFWithAutoTable extends jsPDF {
   autoTable: (options: any) => jsPDF;
@@ -31,17 +32,27 @@ export default function StockReportPage() {
   const router = useRouter();
   
   const { transactions: allTransactions, isLoading, error } = useStockTransactions();
+  const { vehicles, isLoading: isLoadingVehicles } = useVehicles();
 
-  const [filteredData, setFilteredData] = useState<StockTransaction[]>([]);
+  const [filteredData, setFilteredData] = useState<(StockTransaction & { vehicleNumber?: string })[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: addDays(new Date(), -7), 
     to: new Date(),
   });
 
+  const enrichedTransactions = useMemo(() => {
+    if (isLoading || isLoadingVehicles) return [];
+    const vehicleMap = new Map(vehicles.map(v => [v.id, v.vehicleNumber]));
+    return allTransactions.map(tx => ({
+        ...tx,
+        vehicleNumber: tx.vehicleId ? vehicleMap.get(tx.vehicleId) : undefined
+    }));
+  }, [allTransactions, vehicles, isLoading, isLoadingVehicles]);
+
   // Apply filters
   useEffect(() => {
-    let result = [...allTransactions];
+    let result = [...enrichedTransactions];
     
     if (dateRange?.from && dateRange.to) {
       result = result.filter(entry => {
@@ -56,13 +67,14 @@ export default function StockReportPage() {
         (entry.productName && entry.productName.toLowerCase().includes(term)) ||
         (entry.productSku && entry.productSku.toLowerCase().includes(term)) ||
         (entry.userId && entry.userId.toLowerCase().includes(term)) ||
+        (entry.vehicleNumber && entry.vehicleNumber.toLowerCase().includes(term)) ||
         (entry.vehicleId && entry.vehicleId.toLowerCase().includes(term)) ||
         (entry.type && entry.type.toLowerCase().replace(/_/g, ' ').includes(term))
       );
     }
     
     setFilteredData(result);
-  }, [allTransactions, searchTerm, dateRange]);
+  }, [enrichedTransactions, searchTerm, dateRange]);
 
   useEffect(() => {
     if (!currentUser) {
@@ -93,7 +105,7 @@ export default function StockReportPage() {
         Quantity: `${["ADD_STOCK_INVENTORY", "UNLOAD_FROM_VEHICLE"].includes(tx.type) ? '+' : '-'}${tx.quantity}`,
         'Previous Stock': tx.previousStock,
         'New Stock': tx.newStock,
-        'User/Vehicle': tx.vehicleId ? `Veh: ${tx.vehicleId}` : `User: ${tx.userId}`,
+        'User/Vehicle': tx.vehicleId ? `Veh: ${tx.vehicleNumber || tx.vehicleId}` : `User: ${tx.userId}`,
         Notes: tx.notes || ''
     }));
     const worksheet = XLSX.utils.json_to_sheet(dataToExport);
@@ -116,7 +128,7 @@ export default function StockReportPage() {
         `${["ADD_STOCK_INVENTORY", "UNLOAD_FROM_VEHICLE"].includes(tx.type) ? '+' : '-'}${tx.quantity}`,
         tx.previousStock,
         tx.newStock,
-        tx.vehicleId ? `Veh: ${tx.vehicleId}` : `User: ${tx.userId}`,
+        tx.vehicleId ? `Veh: ${tx.vehicleNumber || tx.vehicleId}` : `User: ${tx.userId}`,
         tx.notes || ''
       ]),
       styles: { 
@@ -145,7 +157,7 @@ export default function StockReportPage() {
         onClick={handleExportExcel} 
         variant="outline" 
         size="sm"
-        disabled={isLoading || filteredData.length === 0}
+        disabled={isLoading || isLoadingVehicles || filteredData.length === 0}
       >
         <DownloadCloud className="mr-2 h-4 w-4" />
         Export Excel
@@ -154,7 +166,7 @@ export default function StockReportPage() {
         onClick={handleExportPDF} 
         variant="outline" 
         size="sm"
-        disabled={isLoading || filteredData.length === 0}
+        disabled={isLoading || isLoadingVehicles || filteredData.length === 0}
       >
         <FileText className="mr-2 h-4 w-4" />
         Export PDF
@@ -162,7 +174,9 @@ export default function StockReportPage() {
     </div>
   );
   
-  if (isLoading && allTransactions.length === 0) { 
+  const pageIsLoading = isLoading || isLoadingVehicles;
+
+  if (pageIsLoading && allTransactions.length === 0) { 
     return <GlobalPreloaderScreen message="Loading stock report data..." />;
   }
 
@@ -189,7 +203,7 @@ export default function StockReportPage() {
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
             <Input
-              placeholder="Search by product, user, type..."
+              placeholder="Search by product, user, vehicle..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full"
@@ -204,9 +218,10 @@ export default function StockReportPage() {
         </CardHeader>
         
         <CardContent>
-          <StockReportTable data={filteredData} isLoading={isLoading && allTransactions.length === 0} />
+          <StockReportTable data={filteredData} isLoading={pageIsLoading && allTransactions.length === 0} />
         </CardContent>
       </Card>
     </div>
   );
 }
+
