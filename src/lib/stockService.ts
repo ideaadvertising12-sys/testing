@@ -17,16 +17,9 @@ import {
 
 export const StockService = {
   async createTransaction(transaction: Omit<StockTransaction, 'id'>): Promise<string> {
-    const firestoreTransaction: FirestoreStockTransaction = {
-      ...transaction,
-      transactionDate: Timestamp.fromDate(transaction.transactionDate),
-      createdAt: Timestamp.now(),
-      updatedAt: Timestamp.now()
-    };
-
     const docRef = await addDoc(
       collection(db, 'stockTransactions').withConverter(stockTransactionConverter as any),
-      firestoreTransaction
+      transaction // The converter will now correctly handle the JS Date to Timestamp conversion.
     );
     return docRef.id;
   },
