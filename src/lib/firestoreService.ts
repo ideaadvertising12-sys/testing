@@ -127,7 +127,7 @@ async function generateCustomSaleId(): Promise<string> {
   const datePart = format(today, "MMdd"); // Format: MMDD
   const counterDocId = format(today, "yyyy-MM-dd"); // Doc ID for the counter for a specific day
 
-  const counterRef = doc(db, "dailySalesCounters", counterDocId);
+  const counterRef = doc(db, "dailySalesCounters_v2", counterDocId);
 
   try {
     const newCount = await runTransaction(db, async (transaction) => {
