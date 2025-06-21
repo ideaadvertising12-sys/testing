@@ -18,7 +18,8 @@ import { Info, PlusCircle, Trash2, ChevronsUpDown, PackageSearch, Loader2 } from
 import { cn } from "@/lib/utils";
 import { ProductService } from "@/lib/productService";
 import type { Product, StockTransactionType, Vehicle } from "@/lib/types";
-import { placeholderVehicles } from "@/lib/placeholder-data"; // Import placeholder vehicles
+import { useProducts } from "@/hooks/useProducts";
+import { useVehicles } from "@/hooks/useVehicles";
 
 interface TransactionItem {
   product: Product;
@@ -26,14 +27,13 @@ interface TransactionItem {
 }
 
 export function ManageStockForm() {
-  const [allProducts, setAllProducts] = useState<Product[]>([]);
-  const [vehicles, setVehicles] = useState<Vehicle[]>(placeholderVehicles); // Use placeholderVehicles
-  const [loading, setLoading] = useState(true);
+  const { products: allProducts, isLoading: isLoadingProducts } = useProducts();
+  const { vehicles, isLoading: isLoadingVehicles } = useVehicles();
   
   const [transactionType, setTransactionType] = useState<StockTransactionType>("ADD_STOCK_INVENTORY");
   const [transactionDate, setTransactionDate] = useState<string>("");
   const [notes, setNotes] = useState<string>("");
-  const [selectedVehicleId, setSelectedVehicleId] = useState<string | undefined>(undefined); // Changed from ""
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string | undefined>(undefined);
   
   const [transactionItems, setTransactionItems] = useState<TransactionItem[]>([]);
   
@@ -43,17 +43,6 @@ export function ManageStockForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
-  // Load products from Firestore
-  useEffect(() => {
-    const unsubscribe = ProductService.subscribeToProducts((products) => {
-      setAllProducts(products);
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  // Set initial transaction date
   useEffect(() => {
     const now = new Date();
     const offset = now.getTimezoneOffset();
@@ -86,14 +75,13 @@ export function ManageStockForm() {
   const resetForm = () => {
     setTransactionItems([]);
     setNotes("");
-    setSelectedVehicleId(undefined); // Reset to undefined
+    setSelectedVehicleId(undefined);
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSubmitting(true);
 
-    // Validate form
     if (transactionItems.length === 0) {
       toast({ variant: "destructive", title: "Validation Error", description: "Please add at least one product to the transaction." });
       setIsSubmitting(false);
@@ -106,7 +94,6 @@ export function ManageStockForm() {
       return;
     }
 
-    // Validate quantities
     for (const item of transactionItems) {
       if (item.quantity === "" || Number(item.quantity) <= 0) {
         toast({ variant: "destructive", title: "Validation Error", description: `Please enter a valid quantity for ${item.product.name}.` });
@@ -114,9 +101,8 @@ export function ManageStockForm() {
         return;
       }
       
-      if (transactionType !== "STOCK_ADJUSTMENT_MANUAL" && 
-          (transactionType === "LOAD_TO_VEHICLE" || transactionType === "REMOVE_STOCK_WASTAGE") && 
-          item.product.stock < Number(item.quantity)) {
+      const isStockRemoval = ["LOAD_TO_VEHICLE", "REMOVE_STOCK_WASTAGE", "STOCK_ADJUSTMENT_MANUAL"].includes(transactionType);
+      if (isStockRemoval && item.product.stock < Number(item.quantity)) {
         toast({ 
           variant: "destructive", 
           title: "Stock Error", 
@@ -128,13 +114,11 @@ export function ManageStockForm() {
     }
 
     try {
-      // Process all updates
       await Promise.all(transactionItems.map(async (item) => {
         const product = item.product;
         const quantity = Number(item.quantity);
         let newStock = product.stock;
 
-        // Calculate new stock based on transaction type
         switch (transactionType) {
           case "ADD_STOCK_INVENTORY":
           case "UNLOAD_FROM_VEHICLE":
@@ -146,22 +130,7 @@ export function ManageStockForm() {
             newStock -= quantity;
             break;
         }
-
-        // Update product stock in Firestore
         await ProductService.updateProduct(product.id, { stock: newStock });
-
-        // Here you would typically also create a transaction record
-        // await StockService.createTransaction({
-        //   productId: product.id,
-        //   productName: product.name,
-        //   type: transactionType,
-        //   quantity: quantity,
-        //   previousStock: product.stock,
-        //   newStock: newStock,
-        //   notes: notes,
-        //   vehicleId: selectedVehicleId || undefined,
-        //   timestamp: new Date(transactionDate)
-        // });
       }));
 
       toast({
@@ -194,7 +163,7 @@ export function ManageStockForm() {
     p => !transactionItems.some(item => item.product.id === p.id)
   );
 
-  if (loading && allProducts.length === 0) {
+  if (isLoadingProducts) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="animate-spin h-8 w-8 text-primary" />
@@ -219,7 +188,6 @@ export function ManageStockForm() {
       </CardHeader>
       <CardContent className="p-6">
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Transaction Core Details */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
             <div className="space-y-1.5">
               <Label htmlFor="transactionType">Transaction Type *</Label>
@@ -258,9 +226,10 @@ export function ManageStockForm() {
                 <Select 
                   value={selectedVehicleId} 
                   onValueChange={setSelectedVehicleId}
+                  disabled={isLoadingVehicles}
                 >
                   <SelectTrigger id="selectedVehicleId" className="h-11">
-                    <SelectValue placeholder="Choose vehicle" />
+                    <SelectValue placeholder={isLoadingVehicles ? "Loading vehicles..." : "Choose vehicle"} />
                   </SelectTrigger>
                   <SelectContent>
                     {vehicles.length > 0 ? (
@@ -270,13 +239,7 @@ export function ManageStockForm() {
                         </SelectItem>
                       ))
                     ) : (
-                      // No items rendered here if vehicles.length is 0. 
-                      // The SelectValue placeholder will be shown.
-                      // Optionally, add a non-interactive message:
-                      // <div className="p-2 text-center text-sm text-muted-foreground">
-                      //   No vehicles available to select.
-                      // </div>
-                      null
+                      !isLoadingVehicles && <div className="p-2 text-center text-sm text-muted-foreground">No vehicles found.</div>
                     )}
                   </SelectContent>
                 </Select>
@@ -284,7 +247,6 @@ export function ManageStockForm() {
             )}
           </div>
 
-          {/* Product Selection & List */}
           <Card className="border-dashed border-muted-foreground/30">
             <CardHeader className="pb-3 pt-4 px-4">
               <CardTitle className="text-lg font-medium">Products for Transaction</CardTitle>
@@ -388,7 +350,6 @@ export function ManageStockForm() {
             </CardContent>
           </Card>
           
-          {/* Notes */}
           <div className="space-y-1.5">
             <Label htmlFor="notes">Notes (Optional)</Label>
             <Textarea 
@@ -400,7 +361,6 @@ export function ManageStockForm() {
             />
           </div>
 
-          {/* Actions */}
           <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end pt-2 border-t border-border/50">
             <Button 
               type="button" 
@@ -429,5 +389,3 @@ export function ManageStockForm() {
     </Card>
   );
 }
-
-    

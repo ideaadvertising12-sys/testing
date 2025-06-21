@@ -133,6 +133,11 @@ export interface FirestoreCustomer extends Omit<Customer, 'id'> {
   updatedAt?: Timestamp;
 }
 
+export interface FirestoreVehicle extends Omit<Vehicle, 'id'> {
+    createdAt?: Timestamp;
+    updatedAt?: Timestamp;
+}
+
 // Stored in Firestore for each item in a sale
 export interface FirestoreCartItem {
   productRef: string; // Reference to the original product document
@@ -240,6 +245,28 @@ export const customerConverter = {
       shopName: data.shopName
     };
   }
+};
+
+export const vehicleConverter = {
+    toFirestore: (vehicle: FirestoreVehicle): Partial<FirestoreVehicle> => {
+        const firestoreVehicle: Partial<FirestoreVehicle> = {
+            vehicleNumber: vehicle.vehicleNumber,
+            updatedAt: Timestamp.now(),
+        };
+        if (vehicle.driverName) firestoreVehicle.driverName = vehicle.driverName;
+        if (vehicle.notes) firestoreVehicle.notes = vehicle.notes;
+        if (!vehicle.createdAt) firestoreVehicle.createdAt = Timestamp.now();
+        return firestoreVehicle;
+    },
+    fromFirestore: (snapshot: any, options: any): Vehicle => {
+        const data = snapshot.data(options);
+        return {
+            id: snapshot.id,
+            vehicleNumber: data.vehicleNumber,
+            driverName: data.driverName,
+            notes: data.notes
+        };
+    }
 };
 
 export const saleConverter = {

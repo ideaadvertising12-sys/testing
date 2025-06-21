@@ -2,23 +2,32 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { ListPlus } from "lucide-react";
+import { ListPlus, PlusCircle } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
-import { VehicleForm } from "@/components/vehicles/VehicleForm";
 import { VehicleTable } from "@/components/vehicles/VehicleTable";
+import { VehicleDialog } from "@/components/vehicles/VehicleDialog";
 import type { Vehicle } from "@/lib/types";
-import { placeholderVehicles } from "@/lib/placeholder-data";
 import { useAuth } from "@/contexts/AuthContext";
 import { AccessDenied } from "@/components/AccessDenied";
 import { useRouter } from "next/navigation";
 import { GlobalPreloaderScreen } from "@/components/GlobalPreloaderScreen";
-import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
+import { useVehicles } from "@/hooks/useVehicles";
 
 export default function ManageVehiclesPage() {
   const { currentUser } = useAuth();
   const router = useRouter();
-  const { toast } = useToast();
-  const [vehicles, setVehicles] = useState<Vehicle[]>(placeholderVehicles);
+  const { 
+    vehicles, 
+    isLoading, 
+    error, 
+    addVehicle, 
+    updateVehicle, 
+    deleteVehicle 
+  } = useVehicles();
+
+  const [isVehicleDialogOpen, setIsVehicleDialogOpen] = useState(false);
+  const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
 
   useEffect(() => {
     if (!currentUser) {
@@ -30,28 +39,30 @@ export default function ManageVehiclesPage() {
     }
   }, [currentUser, router]);
 
-  const handleAddVehicle = (newVehicleData: Omit<Vehicle, 'id'>) => {
-    const newVehicle: Vehicle = {
-      ...newVehicleData,
-      id: `veh-${Date.now().toString()}-${Math.random().toString(36).substring(2, 7)}`,
-    };
-    setVehicles((prevVehicles) => [newVehicle, ...prevVehicles]);
+  const handleOpenAddDialog = () => {
+    setEditingVehicle(null);
+    setIsVehicleDialogOpen(true);
   };
 
-  const handleEditVehicle = (vehicle: Vehicle) => {
-    toast({
-      title: "Feature Coming Soon",
-      description: `Editing vehicle ${vehicle.vehicleNumber} is not yet implemented. Contact Limidora to enable this premium feature.`,
-    });
+  const handleOpenEditDialog = (vehicle: Vehicle) => {
+    setEditingVehicle(vehicle);
+    setIsVehicleDialogOpen(true);
   };
 
-  const handleDeleteVehicle = (vehicleId: string) => {
-    const vehicle = vehicles.find(v => v.id === vehicleId);
-    toast({
-      title: "Feature Coming Soon",
-      description: `Deleting vehicle ${vehicle?.vehicleNumber || 'ID: '+vehicleId} is not yet implemented. Contact Limidora to enable this premium feature.`,
-      variant: "default" 
-    });
+  const handleSaveVehicle = async (vehicleData: Vehicle) => {
+    let success = false;
+    if (editingVehicle) {
+      const result = await updateVehicle(vehicleData.id, vehicleData);
+      success = !!result;
+    } else {
+      const result = await addVehicle(vehicleData);
+      success = !!result;
+    }
+
+    if (success) {
+      setIsVehicleDialogOpen(false);
+      setEditingVehicle(null);
+    }
   };
 
   if (!currentUser) {
@@ -62,23 +73,41 @@ export default function ManageVehiclesPage() {
     return <AccessDenied message="Vehicle management is not available for your role. Redirecting..." />;
   }
 
-  const existingVehicleNumbers = vehicles.map(v => v.vehicleNumber);
+  const pageActions = (
+    <Button onClick={handleOpenAddDialog}>
+      <PlusCircle className="mr-2 h-4 w-4" />
+      Add Vehicle
+    </Button>
+  );
 
   return (
     <>
       <PageHeader 
         title="Manage Vehicles" 
-        description="Add new vehicles and view existing ones."
+        description="Add, edit, and view all registered vehicles."
         icon={ListPlus}
+        action={pageActions}
       />
       <div className="space-y-6">
-        <VehicleForm onAddVehicle={handleAddVehicle} existingVehicleNumbers={existingVehicleNumbers} />
         <VehicleTable 
           vehicles={vehicles} 
-          onEditVehicle={handleEditVehicle} 
-          onDeleteVehicle={handleDeleteVehicle} 
+          isLoading={isLoading}
+          error={error}
+          onEditVehicle={handleOpenEditDialog} 
+          onDeleteVehicle={deleteVehicle} 
         />
       </div>
+
+      {isVehicleDialogOpen && (
+        <VehicleDialog
+          vehicle={editingVehicle}
+          open={isVehicleDialogOpen}
+          onOpenChange={setIsVehicleDialogOpen}
+          onSave={handleSaveVehicle}
+          isEditMode={!!editingVehicle}
+          existingVehicleNumbers={vehicles.map(v => v.vehicleNumber)}
+        />
+      )}
     </>
   );
 }
