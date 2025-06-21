@@ -1,3 +1,4 @@
+
 import { db } from "./firebase";
 import { Timestamp } from 'firebase/firestore';
 import { 
@@ -41,6 +42,17 @@ export const StockService = {
       id: doc.id,
       ...doc.data()
     } as StockTransaction));
+  },
+
+  async getTransactionsByVehicleId(vehicleId: string): Promise<StockTransaction[]> {
+    const q = query(
+      collection(db, 'stockTransactions').withConverter(stockTransactionConverter as any),
+      where('vehicleId', '==', vehicleId)
+    );
+    
+    const snapshot = await getDocs(q);
+    const transactions = snapshot.docs.map(doc => doc.data() as StockTransaction);
+    return transactions.sort((a, b) => b.transactionDate.getTime() - a.transactionDate.getTime());
   },
 
   subscribeToTransactions(callback: (transactions: StockTransaction[]) => void): () => void {

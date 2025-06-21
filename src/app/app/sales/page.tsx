@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { PackageSearch, ShoppingCart, Tag, X, Search, Maximize, Minimize, Loader2, Gift } from "lucide-react";
+import { PackageSearch, ShoppingCart, Tag, X, Search, Maximize, Minimize, Loader2, Gift, Truck, Warehouse, AlertCircle } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { POSProductCard } from "@/components/sales/POSProductCard";
 import { CartView } from "@/components/sales/CartView";
@@ -16,13 +16,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Drawer, DrawerContent, DrawerTrigger, DrawerHeader, DrawerTitle, DrawerClose } from "@/components/ui/drawer";
 import { useMediaQuery } from "@/hooks/use-media-query";
-import type { Product, CartItem, Customer, Sale, ChequeInfo, BankTransferInfo } from "@/lib/types";
+import type { Product, CartItem, Customer, Sale, ChequeInfo, BankTransferInfo, StockTransaction } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useProducts } from "@/hooks/useProducts";
 import { useCustomers } from "@/hooks/useCustomers";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertTriangle } from "lucide-react";
+import { useVehicles } from "@/hooks/useVehicles";
 
 // Helper function to reconcile offer items in the cart
 function reconcileOfferItems(
@@ -84,6 +85,8 @@ export default function SalesPage() {
     isLoading: isLoadingHookCustomers, 
     error: hookCustomersError 
   } = useCustomers();
+
+  const { vehicles, isLoading: isLoadingVehicles } = useVehicles();
   
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
@@ -97,8 +100,15 @@ export default function SalesPage() {
   const [isSalesPageFullScreen, setIsSalesPageFullScreen] = useState(false);
   const [isProcessingSale, setIsProcessingSale] = useState(false);
   const [isBuy12Get1FreeActive, setIsBuy12Get1FreeActive] = useState(false);
-  const { toast } = useToast();
 
+  // New states for vehicle stock view
+  const [viewMode, setViewMode] = useState<'main' | 'vehicle'>('main');
+  const [vehicleIdInput, setVehicleIdInput] = useState('');
+  const [vehicleStock, setVehicleStock] = useState<Product[] | null>(null);
+  const [isVehicleStockLoading, setIsVehicleStockLoading] = useState(false);
+  const [searchedVehicle, setSearchedVehicle] = useState<string | null>(null);
+
+  const { toast } = useToast();
   const isMobile = useMediaQuery("(max-width: 768px)");
   
   const categories: (Product["category"] | "All")[] = useMemo(() => {
@@ -131,6 +141,71 @@ export default function SalesPage() {
         setCartItems(prevCart => reconcileOfferItems(prevCart, isBuy12Get1FreeActive, allProducts));
     }
   }, [isBuy12Get1FreeActive, allProducts]);
+
+  const handleFetchVehicleStock = async () => {
+    if (!vehicleIdInput.trim()) {
+      toast({ variant: "destructive", title: "Input Required", description: "Please enter a vehicle number." });
+      return;
+    }
+    
+    setIsVehicleStockLoading(true);
+    setVehicleStock(null);
+    setSearchedVehicle(vehicleIdInput.trim().toUpperCase());
+
+    const targetVehicle = vehicles.find(v => v.vehicleNumber.toUpperCase() === vehicleIdInput.trim().toUpperCase());
+
+    if (!targetVehicle) {
+      toast({ variant: "destructive", title: "Not Found", description: `Vehicle with number "${vehicleIdInput.trim().toUpperCase()}" not found.` });
+      setIsVehicleStockLoading(false);
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/stock-transactions?vehicleId=${targetVehicle.id}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch vehicle stock data.');
+      }
+      const transactions: StockTransaction[] = await response.json();
+
+      if (transactions.length === 0) {
+        setVehicleStock([]);
+        setIsVehicleStockLoading(false);
+        return;
+      }
+      
+      const stockMap = new Map<string, number>();
+      transactions.forEach(tx => {
+        const currentQty = stockMap.get(tx.productId) || 0;
+        if (tx.type === 'LOAD_TO_VEHICLE') {
+          stockMap.set(tx.productId, currentQty + tx.quantity);
+        } else if (tx.type === 'UNLOAD_FROM_VEHICLE') {
+          stockMap.set(tx.productId, currentQty - tx.quantity);
+        }
+      });
+
+      const vehicleProducts: Product[] = [];
+      for (const [productId, vehicleQty] of stockMap.entries()) {
+        const baseProduct = allProducts.find(p => p.id === productId);
+        if (baseProduct && vehicleQty > 0) {
+          vehicleProducts.push({
+            ...baseProduct,
+            stock: vehicleQty,
+          });
+        }
+      }
+      setVehicleStock(vehicleProducts);
+
+    } catch (error) {
+      console.error(error);
+      toast({ variant: "destructive", title: "Error", description: "Could not load vehicle stock." });
+      setVehicleStock([]);
+    } finally {
+      setIsVehicleStockLoading(false);
+    }
+  };
+
+  const productsForDisplay = viewMode === 'vehicle' ? vehicleStock : filteredProducts;
+  const isViewOnlyMode = viewMode === 'vehicle';
 
 
   const handleAddToCart = (productToAdd: Product) => {
@@ -360,7 +435,7 @@ export default function SalesPage() {
           <AlertTitle>Error Loading Products</AlertTitle>
           <AlertDescription>
             Could not load product data for the POS system. Please try refreshing the page or contact support.
-            <p className="text-xs mt-1">Details: {productsError}</p>
+            <p className="text-xs mt-1">{productsError}</p>
           </AlertDescription>
         </Alert>
          <Button onClick={() => refetchProducts()} className="mt-4">Try Again</Button>
@@ -407,38 +482,58 @@ export default function SalesPage() {
             </div>
 
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
-              <div className="flex items-center space-x-2 bg-muted p-2 rounded-md shrink-0 self-start sm:self-center">
-                <Switch
-                  id="sale-type-toggle"
-                  checked={currentSaleType === 'wholesale'}
-                  onCheckedChange={(checked) => setCurrentSaleType(checked ? 'wholesale' : 'retail')}
-                  aria-label="Toggle sale type"
-                  className="data-[state=checked]:bg-blue-600"
-                />
-                <Label htmlFor="sale-type-toggle" className="flex items-center gap-1 text-sm font-medium">
-                  <Tag className="h-4 w-4" />
-                  {currentSaleType === 'wholesale' ? 'Wholesale' : 'Retail'}
-                </Label>
-              </div>
+              <div className="flex items-center gap-4 flex-wrap">
+                <div className="flex items-center space-x-2 bg-muted p-2 rounded-md shrink-0">
+                  <Switch
+                    id="sale-type-toggle"
+                    checked={currentSaleType === 'wholesale'}
+                    onCheckedChange={(checked) => setCurrentSaleType(checked ? 'wholesale' : 'retail')}
+                    aria-label="Toggle sale type"
+                    className="data-[state=checked]:bg-blue-600"
+                  />
+                  <Label htmlFor="sale-type-toggle" className="flex items-center gap-1 text-sm font-medium">
+                    <Tag className="h-4 w-4" />
+                    {currentSaleType === 'wholesale' ? 'Wholesale' : 'Retail'}
+                  </Label>
+                </div>
 
-               <div className="flex items-center space-x-2 bg-muted p-2 rounded-md shrink-0 self-start sm:self-center">
-                <Switch
-                  id="buy12get1free-toggle"
-                  checked={isBuy12Get1FreeActive}
-                  onCheckedChange={setIsBuy12Get1FreeActive}
-                  aria-label="Toggle Buy 12 Get 1 Free Offer"
-                  className="data-[state=checked]:bg-green-600"
-                />
-                <Label htmlFor="buy12get1free-toggle" className="flex items-center gap-1 text-sm font-medium">
-                  <Gift className="h-4 w-4" />
-                  Buy 12 Get 1 Free
-                </Label>
+                 <div className="flex items-center space-x-2 bg-muted p-2 rounded-md shrink-0">
+                  <Switch
+                    id="buy12get1free-toggle"
+                    checked={isBuy12Get1FreeActive}
+                    onCheckedChange={setIsBuy12Get1FreeActive}
+                    aria-label="Toggle Buy 12 Get 1 Free Offer"
+                    className="data-[state=checked]:bg-green-600"
+                  />
+                  <Label htmlFor="buy12get1free-toggle" className="flex items-center gap-1 text-sm font-medium">
+                    <Gift className="h-4 w-4" />
+                    Buy 12 Get 1 Free
+                  </Label>
+                </div>
+
+                <div className="flex items-center space-x-2 bg-muted p-2 rounded-md shrink-0">
+                  <Switch
+                    id="view-mode-toggle"
+                    checked={viewMode === 'vehicle'}
+                    onCheckedChange={(checked) => {
+                      setViewMode(checked ? 'vehicle' : 'main');
+                      setVehicleStock(null);
+                      setVehicleIdInput('');
+                      setSearchedVehicle(null);
+                    }}
+                    aria-label="Toggle View Mode"
+                  />
+                  <Label htmlFor="view-mode-toggle" className="flex items-center gap-1 text-sm font-medium">
+                    {viewMode === 'vehicle' ? <Truck className="h-4 w-4" /> : <Warehouse className="h-4 w-4" />}
+                    {viewMode === 'vehicle' ? 'Vehicle Stock' : 'Main Inventory'}
+                  </Label>
+                </div>
               </div>
 
               <Tabs
                 value={selectedCategory}
                 onValueChange={(value) => setSelectedCategory(value as Product["category"] | "All")}
-                className="w-full sm:w-auto"
+                className={cn("w-full sm:w-auto", viewMode === 'vehicle' ? 'hidden' : 'block')}
               >
                 <ScrollArea className="w-full pb-2 overflow-auto">
                   <TabsList className="whitespace-nowrap h-auto py-1 px-1 bg-transparent">
@@ -455,28 +550,54 @@ export default function SalesPage() {
                 </ScrollArea>
               </Tabs>
             </div>
+             {viewMode === 'vehicle' && (
+              <div className="flex gap-2 mt-3 sm:mt-4">
+                <Input
+                  placeholder="Enter Vehicle Number (e.g., VAN-001)"
+                  className="h-12 text-sm"
+                  value={vehicleIdInput}
+                  onChange={(e) => setVehicleIdInput(e.target.value)}
+                  onKeyDown={(e) => {if (e.key === 'Enter') handleFetchVehicleStock()}}
+                />
+                <Button onClick={handleFetchVehicleStock} disabled={isVehicleStockLoading || isLoadingVehicles} className="h-12 px-4">
+                  {isVehicleStockLoading ? <Loader2 className="animate-spin h-5 w-5"/> : <Search className="h-5 w-5"/>}
+                  <span className="sr-only">Search Vehicle Stock</span>
+                </Button>
+              </div>
+            )}
           </div>
 
           <ScrollArea className="flex-1 p-3 sm:p-4 bg-white dark:bg-transparent">
-            {isLoadingProducts && filteredProducts.length === 0 ? (
-                <div className="flex flex-col items-center justify-center text-muted-foreground pt-10 h-full">
-                    <Loader2 className="w-12 h-12 animate-spin text-primary mb-4" />
-                    <p className="text-lg">Loading products...</p>
-                </div>
-            ) : !isLoadingProducts && filteredProducts.length === 0 ? (
+            { isVehicleStockLoading ? (
+               <div className="flex flex-col items-center justify-center text-muted-foreground pt-10 h-full">
+                  <Loader2 className="w-12 h-12 animate-spin text-primary mb-4" />
+                  <p className="text-lg">Loading vehicle stock for {searchedVehicle}...</p>
+              </div>
+            ) : viewMode === 'vehicle' && vehicleStock === null ? (
+               <div className="flex flex-col items-center justify-center text-muted-foreground pt-10 h-full">
+                  <AlertCircle className="w-16 h-16 mb-4 text-gray-300 dark:text-gray-600" />
+                  <p className="text-xl font-medium text-gray-500 dark:text-gray-400">Enter a vehicle number to view its stock.</p>
+               </div>
+            ) : productsForDisplay === null || productsForDisplay.length === 0 ? (
               <div className="flex flex-col items-center justify-center text-muted-foreground pt-10 h-full">
                 <PackageSearch className="w-16 h-16 mb-4 text-gray-300 dark:text-gray-600" />
                 <p className="text-xl font-medium text-gray-500 dark:text-gray-400">No products found</p>
-                <p className="text-gray-400 dark:text-gray-500">Try adjusting your search or category filters</p>
+                <p className="text-gray-400 dark:text-gray-500">
+                  {viewMode === 'vehicle' 
+                    ? `No stock found for vehicle "${searchedVehicle}".` 
+                    : "Try adjusting your search or category filters."
+                  }
+                </p>
               </div>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
-                {filteredProducts.map(product => (
+                {productsForDisplay.map(product => (
                   <POSProductCard
                     key={product.id}
                     product={product}
                     onAddToCart={handleAddToCart}
                     currentSaleType={currentSaleType}
+                    isViewOnly={isViewOnlyMode}
                   />
                 ))}
               </div>
@@ -566,4 +687,3 @@ export default function SalesPage() {
     </div>
   );
 }
-
