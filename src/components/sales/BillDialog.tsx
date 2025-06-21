@@ -33,8 +33,7 @@ interface BillDialogProps {
   currentSubtotal?: number;
   currentDiscountAmount?: number;
   currentTotalAmount?: number; 
-  saleId?: string; 
-  onConfirmSale?: (saleData: Omit<Sale, 'id' | 'saleDate' | 'staffId' | 'items'>) => void;
+  onConfirmSale?: (saleData: Omit<Sale, 'id' | 'saleDate' | 'staffId' | 'items'>) => Promise<Sale | null>;
   offerApplied?: boolean; 
   existingSaleData?: Sale;
 }
@@ -48,14 +47,13 @@ export function BillDialog({
   currentSubtotal: newSubtotal,
   currentDiscountAmount: newDiscountAmount,
   currentTotalAmount: newTotalAmountDue, 
-  saleId: newSaleId,
   onConfirmSale,
   offerApplied: newOfferApplied, 
   existingSaleData
 }: BillDialogProps) {
   
-  const isReprintMode = !!existingSaleData;
-  const offerWasApplied = isReprintMode ? (existingSaleData.offerApplied || false) : (newOfferApplied || false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [finalSaleData, setFinalSaleData] = useState<Sale | null>(null);
 
   const [cashTendered, setCashTendered] = useState<string>("");
   const [chequeAmountPaid, setChequeAmountPaid] = useState<string>("");
@@ -67,50 +65,60 @@ export function BillDialog({
   const [bankTransferBankName, setBankTransferBankName] = useState<string>("");
   const [bankTransferReference, setBankTransferReference] = useState<string>("");
 
-  const [isProcessing, setIsProcessing] = useState(false);
+  useEffect(() => {
+    // This effect runs when finalSaleData is updated, ensuring the DOM is updated before printing.
+    if (finalSaleData) {
+      window.print();
+      // Reset state and close the dialog after printing
+      setIsProcessing(false);
+      onOpenChange(false);
+      setFinalSaleData(null);
+    }
+  }, [finalSaleData, onOpenChange]);
 
-  const transactionDate = isReprintMode && existingSaleData ? new Date(existingSaleData.saleDate) : new Date();
-  const displaySaleId = isReprintMode && existingSaleData ? existingSaleData.id : (newSaleId || `SALE-${Date.now().toString().slice(-6)}`);
-  
+  const saleForPrinting = finalSaleData || existingSaleData;
+  const isReprintMode = !!saleForPrinting;
+
+  const transactionDate = saleForPrinting ? new Date(saleForPrinting.saleDate) : new Date();
+  const displaySaleId = saleForPrinting ? saleForPrinting.id : null;
+  const offerWasApplied = isReprintMode ? (saleForPrinting.offerApplied || false) : (newOfferApplied || false);
+
   const itemsToDisplay: CartItem[] = useMemo(() => {
-    if (isReprintMode && existingSaleData) {
-      return existingSaleData.items.map(item => {
-        let displayName = item.name;
-        if (!displayName || displayName === "N/A") {
-          displayName = item.id ? `Product ID: ${item.id}` : "Product Name Unavailable";
-        }
-        return {
-          ...item,
-          name: displayName,
-          category: item.category || "Other",
-          price: typeof item.price === 'number' ? item.price : 0,
-          appliedPrice: typeof item.appliedPrice === 'number' ? item.appliedPrice : 0,
-        };
-      });
+    const saleData = finalSaleData || existingSaleData;
+    if (saleData) {
+      return saleData.items.map(item => ({
+        ...item,
+        name: item.name && item.name !== "N/A" ? item.name : `Product ID: ${item.id}`,
+        category: item.category || "Other",
+        price: typeof item.price === 'number' ? item.price : 0,
+        appliedPrice: typeof item.appliedPrice === 'number' ? item.appliedPrice : 0,
+      }));
     }
     return newCartItems || [];
-  }, [isReprintMode, existingSaleData, newCartItems]);
+  }, [finalSaleData, existingSaleData, newCartItems]);
   
   const customerForDisplay = useMemo(() => {
-    if (isReprintMode && existingSaleData) {
-      if (existingSaleData.customerId) {
-        return placeholderCustomers.find(c => c.id === existingSaleData.customerId) || 
-               (existingSaleData.customerName ? { id: existingSaleData.customerId || '', name: existingSaleData.customerName, phone: '', shopName: '' } as Customer : null);
+    const saleData = finalSaleData || existingSaleData;
+    if (saleData) {
+      if (saleData.customerId) {
+        return placeholderCustomers.find(c => c.id === saleData.customerId) || 
+               (saleData.customerName ? { id: saleData.customerId || '', name: saleData.customerName, phone: '', shopName: '' } as Customer : null);
       }
-      return existingSaleData.customerName ? { id: '', name: existingSaleData.customerName, phone: '', shopName: '' } as Customer : null;
+      return saleData.customerName ? { id: '', name: saleData.customerName, phone: '', shopName: '' } as Customer : null;
     }
     return newCustomer;
-  }, [isReprintMode, existingSaleData, newCustomer]);
+  }, [finalSaleData, existingSaleData, newCustomer]);
 
-  const subtotalToDisplay = (isReprintMode && existingSaleData ? existingSaleData.subTotal : newSubtotal) || 0;
-  const discountPercentageToDisplay = (isReprintMode && existingSaleData ? existingSaleData.discountPercentage : newDiscountPercentage) || 0;
-  const discountAmountToDisplay = (isReprintMode && existingSaleData ? existingSaleData.discountAmount : newDiscountAmount) || 0;
-  const totalAmountDueForDisplay = (isReprintMode && existingSaleData ? existingSaleData.totalAmount : newTotalAmountDue) || 0;
+  const subtotalToDisplay = (saleForPrinting ? saleForPrinting.subTotal : newSubtotal) || 0;
+  const discountPercentageToDisplay = (saleForPrinting ? saleForPrinting.discountPercentage : newDiscountPercentage) || 0;
+  const discountAmountToDisplay = (saleForPrinting ? saleForPrinting.discountAmount : newDiscountAmount) || 0;
+  const totalAmountDueForDisplay = (saleForPrinting ? saleForPrinting.totalAmount : newTotalAmountDue) || 0;
 
   useEffect(() => {
     if (isOpen) {
       setIsProcessing(false);
-      if (isReprintMode && existingSaleData) {
+      setFinalSaleData(null); 
+      if (existingSaleData) {
         setCashTendered(existingSaleData.paidAmountCash?.toString() || "");
         setChequeAmountPaid(existingSaleData.paidAmountCheque?.toString() || "");
         setChequeNumber(existingSaleData.chequeDetails?.number || "");
@@ -130,7 +138,7 @@ export function BillDialog({
         setBankTransferReference("");
       }
     }
-  }, [isOpen, isReprintMode, existingSaleData]);
+  }, [isOpen, existingSaleData]);
 
   const parsedCashTendered = parseFloat(cashTendered) || 0;
   const parsedChequeAmountPaid = parseFloat(chequeAmountPaid) || 0;
@@ -236,17 +244,16 @@ export function BillDialog({
       };
       
       try {
-        await onConfirmSale(saleData); 
-        window.print(); 
-        onOpenChange(false);
+        const newSale = await onConfirmSale(saleData);
+        if (newSale) {
+          setFinalSaleData(newSale); // This triggers the useEffect for printing
+        } else {
+          setIsProcessing(false);
+        }
       } catch (error) {
-        console.error("Error during confirm sale:", error);
-      } finally {
+        console.error("Sale confirmation failed:", error);
         setIsProcessing(false);
       }
-    } else {
-      window.print(); 
-      onOpenChange(false); 
     }
   };
   
@@ -295,7 +302,7 @@ export function BillDialog({
 
             <div className="text-xs mb-4">
               <p>Date: {transactionDate.toLocaleDateString()} {transactionDate.toLocaleTimeString()}</p>
-              {isReprintMode && displaySaleId && <p>Transaction ID: {displaySaleId}</p>}
+              {displaySaleId && <p>Transaction ID: {displaySaleId}</p>}
               {customerForDisplay && <p>Customer: {customerForDisplay.name} {customerForDisplay.shopName ? `(${customerForDisplay.shopName})` : ''}</p>}
               <p>Served by: Staff Member</p> 
               {offerWasApplied && <p className="font-semibold text-green-600">Offer: Buy 12 Get 1 Free Applied!</p>}
@@ -485,38 +492,38 @@ export function BillDialog({
 
             <div className="space-y-1 text-xs mb-4">
                 <h4 className="font-semibold text-sm mb-1 mt-2">Payment Information:</h4>
-                {(isReprintMode ? existingSaleData?.paidAmountCash : parsedCashTendered) > 0 && (
-                     <div className="flex justify-between"><span className="font-medium">Paid by Cash:</span><span>Rs. {(isReprintMode ? existingSaleData?.paidAmountCash : parsedCashTendered)?.toFixed(2)}</span></div>
+                {(isReprintMode ? saleForPrinting?.paidAmountCash : parsedCashTendered) > 0 && (
+                     <div className="flex justify-between"><span className="font-medium">Paid by Cash:</span><span>Rs. {(isReprintMode ? saleForPrinting?.paidAmountCash : parsedCashTendered)?.toFixed(2)}</span></div>
                 )}
-                {(isReprintMode ? existingSaleData?.paidAmountCheque : parsedChequeAmountPaid) > 0 && (
+                {(isReprintMode ? saleForPrinting?.paidAmountCheque : parsedChequeAmountPaid) > 0 && (
                     <>
                         <div className="flex justify-between">
                             <span className="font-medium">Paid by Cheque:</span>
-                            <span>Rs. {(isReprintMode ? existingSaleData?.paidAmountCheque : parsedChequeAmountPaid)?.toFixed(2)}</span>
+                            <span>Rs. {(isReprintMode ? saleForPrinting?.paidAmountCheque : parsedChequeAmountPaid)?.toFixed(2)}</span>
                         </div>
                         <div className="pl-4 text-muted-foreground">
-                            <div>Cheque No: {isReprintMode ? existingSaleData?.chequeDetails?.number || 'N/A' : chequeNumber.trim() || 'N/A'}</div>
-                            {( (isReprintMode ? existingSaleData?.chequeDetails?.bank : chequeBank.trim()) || (isReprintMode ? existingSaleData?.chequeDetails?.date : chequeDate) ) &&
+                            <div>Cheque No: {isReprintMode ? saleForPrinting?.chequeDetails?.number || 'N/A' : chequeNumber.trim() || 'N/A'}</div>
+                            {( (isReprintMode ? saleForPrinting?.chequeDetails?.bank : chequeBank.trim()) || (isReprintMode ? saleForPrinting?.chequeDetails?.date : chequeDate) ) &&
                                 <div>
-                                    Bank: {isReprintMode ? existingSaleData?.chequeDetails?.bank || 'N/A' : chequeBank.trim() || 'N/A'}
-                                    {(isReprintMode ? (existingSaleData?.chequeDetails?.date ? new Date(existingSaleData.chequeDetails.date) : null) : chequeDate) && isValid(isReprintMode ? (existingSaleData?.chequeDetails?.date ? new Date(existingSaleData.chequeDetails.date) : new Date(0)) : (chequeDate || new Date())) &&
-                                        <span> | Date: {format(isReprintMode ? (existingSaleData?.chequeDetails?.date ? new Date(existingSaleData.chequeDetails.date) : new Date(0)) : (chequeDate || new Date()), "dd/MM/yy")}</span>
+                                    Bank: {isReprintMode ? saleForPrinting?.chequeDetails?.bank || 'N/A' : chequeBank.trim() || 'N/A'}
+                                    {(isReprintMode ? (saleForPrinting?.chequeDetails?.date ? new Date(saleForPrinting.chequeDetails.date) : null) : chequeDate) && isValid(isReprintMode ? (saleForPrinting?.chequeDetails?.date ? new Date(saleForPrinting.chequeDetails.date) : new Date(0)) : (chequeDate || new Date())) &&
+                                        <span> | Date: {format(isReprintMode ? (saleForPrinting?.chequeDetails?.date ? new Date(saleForPrinting.chequeDetails.date) : new Date(0)) : (chequeDate || new Date()), "dd/MM/yy")}</span>
                                     }
                                 </div>
                             }
                         </div>
                     </>
                 )}
-                 {(isReprintMode ? existingSaleData?.paidAmountBankTransfer : parsedBankTransferAmountPaid) > 0 && (
+                 {(isReprintMode ? saleForPrinting?.paidAmountBankTransfer : parsedBankTransferAmountPaid) > 0 && (
                     <>
                         <div className="flex justify-between">
                             <span className="font-medium">Paid by Bank Transfer:</span>
-                            <span>Rs. {(isReprintMode ? existingSaleData?.paidAmountBankTransfer : parsedBankTransferAmountPaid)?.toFixed(2)}</span>
+                            <span>Rs. {(isReprintMode ? saleForPrinting?.paidAmountBankTransfer : parsedBankTransferAmountPaid)?.toFixed(2)}</span>
                         </div>
                         <div className="pl-4 text-muted-foreground">
-                            <div>Ref No: {isReprintMode ? existingSaleData?.bankTransferDetails?.referenceNumber || 'N/A' : bankTransferReference.trim() || 'N/A'}</div>
-                            {(isReprintMode ? existingSaleData?.bankTransferDetails?.bankName : bankTransferBankName.trim()) && 
-                                <div>Bank: {isReprintMode ? existingSaleData?.bankTransferDetails?.bankName || 'N/A' : bankTransferBankName.trim() || 'N/A'}</div>
+                            <div>Ref No: {isReprintMode ? saleForPrinting?.bankTransferDetails?.referenceNumber || 'N/A' : bankTransferReference.trim() || 'N/A'}</div>
+                            {(isReprintMode ? saleForPrinting?.bankTransferDetails?.bankName : bankTransferBankName.trim()) && 
+                                <div>Bank: {isReprintMode ? saleForPrinting?.bankTransferDetails?.bankName || 'N/A' : bankTransferBankName.trim() || 'N/A'}</div>
                             }
                         </div>
                     </>
@@ -525,7 +532,7 @@ export function BillDialog({
                 <Separator className="my-1"/>
                 <div className="flex justify-between font-semibold">
                     <span>Total Tendered:</span>
-                    <span>Rs. {isReprintMode ? ((existingSaleData?.paidAmountCash || 0) + (existingSaleData?.paidAmountCheque || 0) + (existingSaleData?.paidAmountBankTransfer || 0)).toFixed(2) : totalTenderedByMethods.toFixed(2)}</span>
+                    <span>Rs. {isReprintMode ? ((saleForPrinting?.paidAmountCash || 0) + (saleForPrinting?.paidAmountCheque || 0) + (saleForPrinting?.paidAmountBankTransfer || 0)).toFixed(2) : totalTenderedByMethods.toFixed(2)}</span>
                 </div>
                 
                 {!isReprintMode && changeGiven > 0 && (
@@ -534,22 +541,22 @@ export function BillDialog({
                         <span>Rs. {changeGiven.toFixed(2)}</span>
                     </div>
                 )}
-                {isReprintMode && existingSaleData?.changeGiven && existingSaleData.changeGiven > 0 && (
-                     <div className="flex justify-between text-green-600"><span>Change Given:</span><span>Rs. {existingSaleData.changeGiven.toFixed(2)}</span></div>
+                {isReprintMode && saleForPrinting?.changeGiven && saleForPrinting.changeGiven > 0 && (
+                     <div className="flex justify-between text-green-600"><span>Change Given:</span><span>Rs. {saleForPrinting.changeGiven.toFixed(2)}</span></div>
                 )}
                 
                 <Separator className="my-1"/>
                 <div className="flex justify-between font-bold text-sm">
                     <span>Total Payment Applied:</span>
-                    <span>Rs. {isReprintMode ? (existingSaleData?.totalAmountPaid || 0).toFixed(2) : totalPaymentApplied.toFixed(2)}</span>
+                    <span>Rs. {isReprintMode ? (saleForPrinting?.totalAmountPaid || 0).toFixed(2) : totalPaymentApplied.toFixed(2)}</span>
                 </div>
-                <div className={cn("flex justify-between font-bold text-sm", (isReprintMode ? (existingSaleData?.outstandingBalance || 0) : outstandingBalance) > 0 ? "text-destructive" : "text-muted-foreground")}>
+                <div className={cn("flex justify-between font-bold text-sm", (isReprintMode ? (saleForPrinting?.outstandingBalance || 0) : outstandingBalance) > 0 ? "text-destructive" : "text-muted-foreground")}>
                     <span>Balance Due:</span>
-                    <span>Rs. {(isReprintMode ? (existingSaleData?.outstandingBalance || 0) : outstandingBalance).toFixed(2)}</span>
+                    <span>Rs. {(isReprintMode ? (saleForPrinting?.outstandingBalance || 0) : outstandingBalance).toFixed(2)}</span>
                 </div>
                  <div className="flex justify-between text-xs text-muted-foreground pt-1">
                     <span>Payment Summary:</span>
-                    <span>{isReprintMode ? existingSaleData?.paymentSummary : getPaymentSummary()}</span>
+                    <span>{isReprintMode ? saleForPrinting?.paymentSummary : getPaymentSummary()}</span>
                 </div>
             </div>
 

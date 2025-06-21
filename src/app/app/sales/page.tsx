@@ -317,7 +317,7 @@ export default function SalesPage() {
   const handleSuccessfulSale = async (
     salePaymentDetails: Omit<Sale, 'id' | 'saleDate' | 'staffId' | 'items' | 'subTotal' | 'discountPercentage' | 'discountAmount' | 'totalAmount' | 'offerApplied'> & 
                         Pick<Sale, 'paidAmountCash' | 'paidAmountCheque' | 'chequeDetails' | 'paidAmountBankTransfer' | 'bankTransferDetails' | 'totalAmountPaid' | 'outstandingBalance' | 'changeGiven' | 'paymentSummary'>
-  ) => {
+  ): Promise<Sale | null> => {
     setIsProcessingSale(true);
     const salePayload = {
       customerId: selectedCustomer?.id,
@@ -386,7 +386,7 @@ export default function SalesPage() {
         throw new Error(detailedErrorMessage);
       }
 
-      const newSaleResponse = await response.json();
+      const newSaleResponse: Sale = await response.json();
       
       toast({
           title: "Sale Successful!",
@@ -398,6 +398,7 @@ export default function SalesPage() {
       if (viewMode === 'vehicle') {
         await handleFetchVehicleStock(); // Refresh vehicle stock after sale
       }
+      return newSaleResponse;
 
     } catch (error: any) {
       console.error("Sale processing error:", error);
@@ -406,6 +407,7 @@ export default function SalesPage() {
           title: "Sale Failed",
           description: error.message || "An unexpected error occurred while processing the sale.",
       });
+      throw error;
     } finally {
       setIsProcessingSale(false);
     }
@@ -689,7 +691,6 @@ export default function SalesPage() {
         currentSubtotal={currentSubtotal}
         currentDiscountAmount={currentDiscountAmount}
         currentTotalAmount={currentTotalAmountDue} 
-        saleId={`SALE-${Date.now().toString().slice(-6)}`} 
         onConfirmSale={handleSuccessfulSale}
         offerApplied={isBuy12Get1FreeActive} 
       />
