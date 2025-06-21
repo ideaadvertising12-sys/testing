@@ -17,7 +17,9 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Info, PlusCircle, Trash2, ChevronsUpDown, PackageSearch, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ProductService } from "@/lib/productService";
-import type { Product, StockTransactionType, Vehicle } from "@/lib/types";
+import { StockService } from "@/lib/stockService";
+import { useAuth } from "@/contexts/AuthContext";
+import type { Product, StockTransaction, StockTransactionType, Vehicle } from "@/lib/types";
 import { useProducts } from "@/hooks/useProducts";
 import { useVehicles } from "@/hooks/useVehicles";
 
@@ -27,8 +29,9 @@ interface TransactionItem {
 }
 
 export function ManageStockForm() {
-  const { products: allProducts, isLoading: isLoadingProducts } = useProducts();
+  const { products: allProducts, isLoading: isLoadingProducts, refetch: refetchProducts } = useProducts();
   const { vehicles, isLoading: isLoadingVehicles } = useVehicles();
+  const { currentUser } = useAuth();
   
   const [transactionType, setTransactionType] = useState<StockTransactionType>("ADD_STOCK_INVENTORY");
   const [transactionDate, setTransactionDate] = useState<string>("");
@@ -117,7 +120,8 @@ export function ManageStockForm() {
       await Promise.all(transactionItems.map(async (item) => {
         const product = item.product;
         const quantity = Number(item.quantity);
-        let newStock = product.stock;
+        const previousStock = product.stock;
+        let newStock = previousStock;
 
         switch (transactionType) {
           case "ADD_STOCK_INVENTORY":
@@ -130,15 +134,33 @@ export function ManageStockForm() {
             newStock -= quantity;
             break;
         }
+        
+        const transactionData: Omit<StockTransaction, 'id'> = {
+            productId: product.id,
+            productName: product.name,
+            productSku: product.sku,
+            type: transactionType,
+            quantity: quantity,
+            previousStock: previousStock,
+            newStock: newStock,
+            transactionDate: transactionDate ? new Date(transactionDate) : new Date(),
+            notes: notes || undefined,
+            vehicleId: (transactionType === 'LOAD_TO_VEHICLE' || transactionType === 'UNLOAD_FROM_VEHICLE') ? selectedVehicleId : undefined,
+            userId: currentUser?.username || 'system',
+        };
+
+        await StockService.createTransaction(transactionData);
         await ProductService.updateProduct(product.id, { stock: newStock });
       }));
 
       toast({
         title: "Success",
-        description: `Stock updated for ${transactionItems.length} product(s)`,
+        description: `Stock transaction recorded for ${transactionItems.length} product(s)`,
       });
       
       resetForm();
+      await refetchProducts();
+
     } catch (error) {
       console.error("Error updating stock:", error);
       toast({
