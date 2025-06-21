@@ -1,4 +1,3 @@
-
 //location src/lib/types.ts
 import { Timestamp } from 'firebase/firestore';
 
@@ -554,4 +553,13 @@ export interface DayEndReportSummary {
 export interface ManagedUser extends Omit<User, 'id'> {
   id: string;
   password?: string;
+}
+
+export interface VehicleReportItem {
+  productId: string;
+  productName: string;
+  productSku?: string;
+  totalLoaded: number;
+  totalUnloaded: number;
+  netChange: number;
 }

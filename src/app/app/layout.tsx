@@ -104,6 +104,7 @@ const ALL_NAV_ITEMS: NavItemConfig[] = [
       { id: "full-report", href: "/app/reports/full-report", label: "Full Report", icon: ClipboardList, allowedRoles: ["admin"] },
       { id: "stock-report", href: "/app/reports/stock-report", label: "Stock Report", icon: Warehouse, allowedRoles: ["admin"] },
       { id: "customer-report", href: "/app/reports/customer-report", label: "Customer Report", icon: UserCheck, allowedRoles: ["admin"] },
+      { id: "vehicle-report", href: "/app/reports/vehicle-report", label: "Vehicle Report", icon: Truck, allowedRoles: ["admin"] },
     ]
   },
   { id: "user-management", href: "/app/user-management", label: "User Management", icon: UserCog, allowedRoles: ["admin"] },
