@@ -1,4 +1,5 @@
 
+
 import { db } from "./firebase";
 import { 
   collection, 
@@ -13,6 +14,7 @@ import {
   Timestamp,
   runTransaction
 } from "firebase/firestore";
+import { format } from 'date-fns';
 import { 
   productConverter, 
   type Product, 
@@ -119,14 +121,47 @@ export const deleteCustomer = async (id: string): Promise<void> => {
 
 
 // Sale Services
+
+async function generateCustomSaleId(): Promise<string> {
+  const today = new Date();
+  const datePart = format(today, "MMdd"); // Format: MMDD
+  const counterDocId = format(today, "yyyy-MM-dd"); // Doc ID for the counter for a specific day
+
+  const counterRef = doc(db, "dailySalesCounters", counterDocId);
+
+  try {
+    const newCount = await runTransaction(db, async (transaction) => {
+      const counterDoc = await transaction.get(counterRef);
+      if (!counterDoc.exists()) {
+        // If counter for today doesn't exist, this is the first sale.
+        transaction.set(counterRef, { count: 1 });
+        return 1;
+      } else {
+        // Otherwise, increment the existing counter.
+        const count = counterDoc.data().count + 1;
+        transaction.update(counterRef, { count });
+        return count;
+      }
+    });
+    // Format: sale-MMDD-saleNumber
+    return `sale-${datePart}-${newCount}`;
+  } catch (e) {
+    console.error("Custom sale ID transaction failed: ", e);
+    // Fallback to a random ID to prevent the entire sale from failing
+    const randomPart = Math.random().toString(36).substring(2, 8);
+    return `sale-${datePart}-err-${randomPart}`;
+  }
+}
+
 export const addSale = async (
   saleData: Omit<Sale, 'id' | 'saleDate' | 'items' | 'chequeDetails' | 'bankTransferDetails'> & 
             { saleDate: Date, items: CartItem[], chequeDetails?: ChequeInfo, bankTransferDetails?: BankTransferInfo } & { vehicleId?: string }
 ): Promise<string> => {
   checkFirebase();
+  const newCustomId = await generateCustomSaleId(); // Generate custom ID
+  
   const batch = writeBatch(db);
-  const salesCol = collection(db, "sales");
-  const saleDocRef = doc(salesCol); 
+  const saleDocRef = doc(db, "sales", newCustomId); // Use custom ID
   
   const firestoreSaleItems: FirestoreCartItem[] = saleData.items.map(item => {
     const firestoreItem: FirestoreCartItem = {
