@@ -6,7 +6,6 @@ import { PageHeader } from "@/components/PageHeader";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { SalesChart } from "@/components/dashboard/SalesChart";
 import { AlertQuantityTable } from "@/components/dashboard/AlertQuantityTable";
-import { placeholderMonthlySalesData } from "@/lib/placeholder-data"; 
 import type { Sale } from "@/lib/types";
 import {
   Table,
@@ -94,6 +93,34 @@ export default function DashboardPage() {
       .slice(0, 5);
 
   }, [sales, allProducts, isLoadingSales, isLoadingProducts]);
+
+  const monthlySalesData = useMemo(() => {
+    if (!sales || sales.length === 0) {
+      const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      return monthNames.map(name => ({ name, sales: 0 }));
+    }
+
+    const monthlyTotals: { [key: number]: number } = {};
+    const currentYear = new Date().getFullYear();
+
+    sales.forEach(sale => {
+      const saleDate = sale.saleDate instanceof Date ? sale.saleDate : new Date(sale.saleDate);
+      if (saleDate.getFullYear() === currentYear) {
+        const month = saleDate.getMonth(); // 0 for Jan, 1 for Feb, etc.
+        if (!monthlyTotals[month]) {
+          monthlyTotals[month] = 0;
+        }
+        monthlyTotals[month] += sale.totalAmount || 0;
+      }
+    });
+
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    
+    return monthNames.map((name, index) => ({
+      name,
+      sales: monthlyTotals[index] || 0
+    }));
+  }, [sales]);
 
 
   useEffect(() => {
@@ -250,9 +277,9 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
         <div className="lg:col-span-2">
         <SalesChart
-            data={placeholderMonthlySalesData} 
+            data={monthlySalesData} 
             title="Monthly Sales Performance"
-            description="Sales figures for the current year."
+            description={isLoadingSales && (!sales || sales.length === 0) ? "Calculating monthly sales..." : "Sales figures for the current year."}
           />
         </div>
         <Card className="shadow-lg">
