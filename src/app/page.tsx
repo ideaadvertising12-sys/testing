@@ -8,10 +8,11 @@ import { Label } from "@/components/ui/label";
 import { AppLogo } from "@/components/AppLogo";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
-import React, { useState, FormEvent, useEffect, useRef } from "react"; // Added useRef
+import React, { useState, FormEvent, useEffect, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { GlobalPreloaderScreen } from "@/components/GlobalPreloaderScreen";
-import { cn } from "@/lib/utils"; // Added cn
+import { cn } from "@/lib/utils";
+import { Loader2 } from "lucide-react";
 
 export default function LoginPage() {
   const [username, setUsername] = useState("");
@@ -19,6 +20,7 @@ export default function LoginPage() {
   const { login, currentUser } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   const [showFooter, setShowFooter] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -41,27 +43,24 @@ export default function LoginPage() {
     if (!mainElement) return;
 
     const handleScrollInteraction = () => {
-      // Ensure the element is actually rendered and has dimensions
       if (!loginPageContentRef.current || loginPageContentRef.current.clientHeight === 0) {
         setShowFooter(false);
         return;
       }
       const { scrollTop, scrollHeight, clientHeight } = mainElement;
       
-      const isScrolledToBottom = scrollHeight > clientHeight && (scrollHeight - scrollTop - clientHeight < 5); // 5px threshold
+      const isScrolledToBottom = scrollHeight > clientHeight && (scrollHeight - scrollTop - clientHeight < 5);
       const isContentTooShortToScroll = scrollHeight <= clientHeight;
 
       setShowFooter(isScrolledToBottom || isContentTooShortToScroll);
     };
     
-    // Initial check
     const animationFrameId = requestAnimationFrame(handleScrollInteraction);
     
-    // Listeners
     mainElement.addEventListener('scroll', handleScrollInteraction);
     const resizeObserver = new ResizeObserver(handleScrollInteraction);
     resizeObserver.observe(mainElement);
-    if (document.body) { // Observe body for full page resizes affecting viewport calculations
+    if (document.body) {
       resizeObserver.observe(document.body);
     }
 
@@ -73,9 +72,10 @@ export default function LoginPage() {
     };
   }, []); 
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const success = login(username, password);
+    setIsLoggingIn(true);
+    const success = await login(username, password);
     if (success) {
       // Redirection is handled by the useEffect hook above
     } else {
@@ -86,13 +86,14 @@ export default function LoginPage() {
       });
       setPassword("");
     }
+    setIsLoggingIn(false);
   };
   
-  if (currentUser === undefined) { // Still determining auth state
+  if (currentUser === undefined) { 
     return <GlobalPreloaderScreen message="Initializing..." />;
   }
   
-  if (currentUser) { // Logged in, redirecting
+  if (currentUser) { 
       return <GlobalPreloaderScreen message="Redirecting..." />;
   }
 
@@ -101,7 +102,7 @@ export default function LoginPage() {
     <>
       <div 
         ref={loginPageContentRef}
-        className="flex min-h-screen flex-col items-center justify-center bg-background p-4 pb-20 overflow-y-auto" // Added pb-20 for footer space
+        className="flex min-h-screen flex-col items-center justify-center bg-background p-4 pb-20 overflow-y-auto"
       >
         <Card className="w-full max-w-sm shadow-2xl">
           <CardHeader className="space-y-1 text-center">
@@ -123,6 +124,7 @@ export default function LoginPage() {
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   autoComplete="username"
+                  disabled={isLoggingIn}
                 />
               </div>
               <div className="space-y-2 mt-4">
@@ -135,10 +137,11 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   autoComplete="current-password"
+                  disabled={isLoggingIn}
                 />
               </div>
-              <Button type="submit" className="w-full mt-6">
-                Login
+              <Button type="submit" className="w-full mt-6" disabled={isLoggingIn}>
+                {isLoggingIn ? <Loader2 className="animate-spin" /> : 'Login'}
               </Button>
             </form>
           </CardContent>

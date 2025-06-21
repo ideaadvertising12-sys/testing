@@ -7,21 +7,14 @@ import { useRouter } from "next/navigation";
 
 interface AuthContextType {
   currentUser: User | null | undefined; // undefined means still loading
-  login: (username: string, password_plain: string) => boolean;
+  login: (username: string, password_plain: string) => Promise<boolean>;
   logout: () => void;
   availableRoles: UserRole[];
-  mockUsersCredentials: Record<string, { password_hashed_or_plain: string; role: UserRole, name: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const availableRoles: UserRole[] = ["admin", "cashier"];
-
-export const mockUsersCredentials: Record<string, { password_hashed_or_plain: string; role: UserRole, name: string }> = {
-  "admin": { password_hashed_or_plain: "123", role: "admin", name: "Admin User" },
-  "user": { password_hashed_or_plain: "123", role: "cashier", name: "Cashier User" },
-};
-
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null | undefined>(undefined); // Start as undefined
@@ -38,29 +31,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => clearTimeout(timer);
   }, []); // Runs once on mount
 
-  const login = (usernameInput: string, password_plain: string): boolean => {
-    const username = usernameInput.toLowerCase(); 
-    const userCredentials = mockUsersCredentials[username];
-    if (userCredentials && userCredentials.password_hashed_or_plain === password_plain) {
-      const userToSet: User = { username: username, role: userCredentials.role, name: userCredentials.name };
-      setCurrentUser(userToSet);
-      // Persist to localStorage (example)
-      // localStorage.setItem('currentUser', JSON.stringify(userToSet));
+  const login = async (usernameInput: string, password_plain: string): Promise<boolean> => {
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: usernameInput, password: password_plain }),
+      });
+
+      if (!response.ok) {
+        // The API returns a specific error message, which the UI will handle
+        return false;
+      }
+
+      const user: User = await response.json();
+      setCurrentUser(user);
       return true;
+
+    } catch (error) {
+      console.error("Login request failed:", error);
+      setCurrentUser(null);
+      return false;
     }
-    setCurrentUser(null); 
-    // localStorage.removeItem('currentUser');
-    return false;
   };
 
   const logout = () => {
     setCurrentUser(null);
-    // localStorage.removeItem('currentUser');
     router.push("/"); 
   };
 
   return (
-    <AuthContext.Provider value={{ currentUser, login, logout, availableRoles, mockUsersCredentials }}>
+    <AuthContext.Provider value={{ currentUser, login, logout, availableRoles }}>
       {children}
     </AuthContext.Provider>
   );

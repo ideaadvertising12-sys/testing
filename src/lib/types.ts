@@ -182,6 +182,11 @@ export interface FirestoreStockTransaction {
   updatedAt?: Timestamp;
 }
 
+export interface FirestoreUser extends Omit<User, 'id'> {
+    createdAt?: Timestamp;
+    updatedAt?: Timestamp;
+}
+
 // Data Converters
 export const productConverter = {
   toFirestore: (product: FirestoreProduct): Partial<FirestoreProduct> => {
@@ -405,7 +410,7 @@ export const stockTransactionConverter = {
       quantity: transaction.quantity,
       previousStock: transaction.previousStock,
       newStock: transaction.newStock,
-      transactionDate: Timestamp.fromDate(transaction.transactionDate),
+      transactionDate: transaction.transactionDate,
       userId: transaction.userId,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
@@ -436,6 +441,32 @@ export const stockTransactionConverter = {
   }
 };
 
+export const userConverter = {
+    toFirestore: (user: FirestoreUser): Partial<FirestoreUser> => {
+      const firestoreUser: Partial<FirestoreUser> = {
+        username: user.username,
+        name: user.name,
+        role: user.role,
+        password_hashed_or_plain: user.password_hashed_or_plain,
+        updatedAt: Timestamp.now(),
+      };
+      if (!user.createdAt) {
+          firestoreUser.createdAt = Timestamp.now();
+      }
+      return firestoreUser;
+    },
+    fromFirestore: (snapshot: any, options: any): User & { id: string } => {
+      const data = snapshot.data(options);
+      return {
+        id: snapshot.id,
+        username: data.username,
+        name: data.name,
+        role: data.role,
+        password_hashed_or_plain: data.password_hashed_or_plain,
+      };
+    }
+};
+
 // Rest of interfaces remain unchanged
 export interface StatsData {
   totalSales: number;
@@ -452,6 +483,7 @@ export interface SalesChartData {
 export type UserRole = "admin" | "cashier";
 
 export interface User {
+  id: string;
   username: string;
   role: UserRole;
   name: string;
@@ -516,7 +548,7 @@ export interface DayEndReportSummary {
   totalTransactions: number;
 }
 
-export interface ManagedUser extends User {
+export interface ManagedUser extends Omit<User, 'id'> {
   id: string;
   password?: string;
 }
