@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { format, isValid, parseISO } from "date-fns";
+import { useToast } from "@/hooks/use-toast";
 
 interface BillDialogProps {
   isOpen: boolean;
@@ -62,6 +63,7 @@ export function BillDialog({
   const [bankTransferAmountPaid, setBankTransferAmountPaid] = useState<string>("");
   const [bankTransferBankName, setBankTransferBankName] = useState<string>("");
   const [bankTransferReference, setBankTransferReference] = useState<string>("");
+  const { toast } = useToast();
 
   useEffect(() => {
     // This effect runs when finalSaleData is updated, ensuring the DOM is updated before printing.
@@ -195,18 +197,30 @@ export function BillDialog({
     if (onConfirmSale) {
       setIsProcessing(true);
       if (parsedChequeAmountPaid > 0 && !chequeNumber.trim()) {
-        alert("Cheque number is required if paying by cheque.");
+        toast({
+          variant: "destructive",
+          title: "Cheque Number Required",
+          description: "Please enter a cheque number if paying by cheque.",
+        });
         setIsProcessing(false);
         return;
       }
       if (parsedBankTransferAmountPaid > 0 && !bankTransferBankName.trim() && !bankTransferReference.trim()) {
-        alert("Bank Name or Reference Number is required for bank transfers.");
+         toast({
+          variant: "destructive",
+          title: "Bank Details Required",
+          description: "Bank Name or Reference Number is required for bank transfers.",
+        });
         setIsProcessing(false);
         return;
       }
-      if (totalPaymentApplied <= 0 && totalAmountDueForDisplay > 0 && !customerForDisplay) {
-        alert("A customer must be selected if the sale is on credit or partially paid with an outstanding balance.");
-         setIsProcessing(false);
+      if (outstandingBalance > 0 && !customerForDisplay) {
+        toast({
+          variant: "destructive",
+          title: "Customer Required",
+          description: "A customer must be selected for credit or partially paid sales."
+        });
+        setIsProcessing(false);
         return;
       }
 
@@ -256,7 +270,7 @@ export function BillDialog({
   
   const isPrimaryButtonDisabled = !isReprintMode && (
     itemsToDisplay.filter(item => !item.isOfferItem || (item.isOfferItem && item.quantity > 0)).length === 0 ||
-    (totalPaymentApplied <= 0 && totalAmountDueForDisplay > 0 && !customerForDisplay ) || 
+    (outstandingBalance > 0 && !customerForDisplay) ||
     (parsedChequeAmountPaid > 0 && !chequeNumber.trim()) || 
     isProcessing
   );
@@ -373,6 +387,15 @@ export function BillDialog({
             {!isReprintMode && (
                 <div className="mb-4 space-y-4 print:hidden">
                     <h3 className="font-semibold text-sm">Payment Details:</h3>
+                     {outstandingBalance > 0 && !customerForDisplay && !isReprintMode && (
+                        <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-destructive text-sm flex items-start gap-2">
+                            <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                            <div>
+                            <p className="font-semibold">Customer Required</p>
+                            <p className="text-xs">A customer must be selected from the POS screen for credit or partially paid sales.</p>
+                            </div>
+                        </div>
+                    )}
                     <div>
                         <Label htmlFor="cashTendered" className="text-xs">Cash Paid (Rs.)</Label>
                         <Input 
@@ -585,3 +608,5 @@ export function BillDialog({
     </Dialog>
   );
 }
+
+    
