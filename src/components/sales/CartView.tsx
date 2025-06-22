@@ -19,7 +19,7 @@ interface CartViewProps {
   cartItems: CartItem[];
   selectedCustomer: Customer | null;
   onUpdateQuantity: (productId: string, quantity: number, saleType: 'retail' | 'wholesale') => void;
-  onRemoveItem: (productId: string, saleType: 'retail' | 'wholesale') => void;
+  onRemoveItem: (productId: string, saleType: 'retail' | 'wholesale', isOfferItem: boolean) => void;
   onSelectCustomer: (customer: Customer | null) => void;
   onCheckout: () => void;
   onCancelOrder: () => void;
@@ -162,12 +162,12 @@ export function CartView({
                         {item.isOfferItem && <Gift className="inline-block h-4 w-4 ml-1 text-green-600" />}
                         {item.saleType === 'wholesale' && !item.isOfferItem && <span className="text-blue-500 ml-1 font-semibold">(W)</span>}
                       </p>
-                      {!item.isOfferItem && (
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:bg-destructive/10 rounded-full -mr-1 -mt-0.5 flex-shrink-0" onClick={() => onRemoveItem(item.id, item.saleType)}>
+                      
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:bg-destructive/10 rounded-full -mr-1 -mt-0.5 flex-shrink-0" onClick={() => onRemoveItem(item.id, item.saleType, item.isOfferItem || false)}>
                           <Trash2 className="h-4 w-4" />
                           <span className="sr-only">Remove {item.name}</span>
                         </Button>
-                      )}
+                      
                     </div>
 
                     {!item.isOfferItem ? (

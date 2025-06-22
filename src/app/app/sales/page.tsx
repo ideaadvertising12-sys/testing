@@ -30,12 +30,13 @@ import { useAuth } from "@/contexts/AuthContext";
 function reconcileOfferItems(
   currentCart: CartItem[],
   offerActive: boolean,
-  allProductsForLookup: Product[]
+  allProductsForLookup: Product[],
+  excludedProductIds: Set<string>
 ): CartItem[] {
   const paidItems = currentCart.filter(item => !item.isOfferItem);
 
   if (!offerActive || !allProductsForLookup || allProductsForLookup.length === 0) {
-    return paidItems; // If offer is off or no products to lookup, return only paid items
+    return paidItems; // If offer is off, return only paid items
   }
 
   const newOfferItems: CartItem[] = [];
@@ -52,6 +53,11 @@ function reconcileOfferItems(
   });
 
   Object.values(productGroupCounts).forEach(group => {
+    // Check if this product's offer should be excluded
+    if (excludedProductIds.has(group.productDetails.id)) {
+        return; // Skip generating offer for this item
+    }
+    
     const numberOfFreeUnits = Math.floor(group.count / 12);
     if (numberOfFreeUnits > 0) {
       newOfferItems.push({
@@ -101,6 +107,7 @@ export default function SalesPage() {
   const [isSalesPageFullScreen, setIsSalesPageFullScreen] = useState(false);
   const [isProcessingSale, setIsProcessingSale] = useState(false);
   const [isBuy12Get1FreeActive, setIsBuy12Get1FreeActive] = useState(false);
+  const [excludedOfferProductIds, setExcludedOfferProductIds] = useState<Set<string>>(new Set());
 
   // New states for vehicle stock view
   const [viewMode, setViewMode] = useState<'main' | 'vehicle'>('main');
@@ -138,11 +145,17 @@ export default function SalesPage() {
     }
   }, [searchTerm, selectedCategory, allProducts, isLoadingProducts]);
 
-  useEffect(() => {
-    if (allProducts && allProducts.length > 0) {
-        setCartItems(prevCart => reconcileOfferItems(prevCart, isBuy12Get1FreeActive, allProducts));
+  const handleToggleOffer = (checked: boolean) => {
+    setIsBuy12Get1FreeActive(checked);
+    const newExclusions = checked ? excludedOfferProductIds : new Set();
+    if (!checked) {
+      // Clear exclusions when turning the offer off
+      setExcludedOfferProductIds(newExclusions);
     }
-  }, [isBuy12Get1FreeActive, allProducts]);
+    // Re-run reconciliation on the cart with the new offer status
+    setCartItems(prev => reconcileOfferItems(prev, checked, allProducts, newExclusions));
+  };
+
 
   const handleFetchVehicleStock = async () => {
     if (!vehicleIdInput.trim()) {
@@ -230,7 +243,7 @@ export default function SalesPage() {
           updatedCart[existingItemIndex] = { ...existingItem, quantity: existingItem.quantity + 1 };
         } else {
           toast({ variant: "destructive", title: "Out of Stock", description: `Cannot add more ${productToAdd.name}. Maximum stock reached.`});
-          return reconcileOfferItems(prevItems, isBuy12Get1FreeActive, allProducts); 
+          return prevItems; // Return original state
         }
       } else {
         if (productToAdd.stock > 0) {
@@ -243,10 +256,10 @@ export default function SalesPage() {
           });
         } else {
           toast({ variant: "destructive", title: "Out of Stock", description: `${productToAdd.name} is currently out of stock.`});
-          return reconcileOfferItems(prevItems, isBuy12Get1FreeActive, allProducts); 
+          return prevItems; // Return original state
         }
       }
-      return reconcileOfferItems(updatedCart, isBuy12Get1FreeActive, allProducts);
+      return reconcileOfferItems(updatedCart, isBuy12Get1FreeActive, allProducts, excludedOfferProductIds);
     });
   
     if (isMobile && !isCartOpen) {
@@ -272,7 +285,7 @@ export default function SalesPage() {
         )
         .filter(item => (item.isOfferItem) || (!item.isOfferItem && item.quantity > 0)); 
         
-      return reconcileOfferItems(updatedCart, isBuy12Get1FreeActive, allProducts);
+      return reconcileOfferItems(updatedCart, isBuy12Get1FreeActive, allProducts, excludedOfferProductIds);
     });
   };
 
@@ -290,14 +303,20 @@ export default function SalesPage() {
     });
   };
   
-  const handleRemoveItem = (productId: string, saleType: 'retail' | 'wholesale') => {
+  const handleRemoveItem = (productId: string, saleType: 'retail' | 'wholesale', isOfferItem: boolean) => {
+    const newExclusions = isOfferItem ? new Set(excludedOfferProductIds).add(productId) : excludedOfferProductIds;
+    if (isOfferItem) {
+        setExcludedOfferProductIds(newExclusions);
+    }
+
     setCartItems(prevItems => {
-      const updatedCart = prevItems.filter(item =>
-        !(item.id === productId && item.saleType === saleType && !item.isOfferItem) 
-      );
-      return reconcileOfferItems(updatedCart, isBuy12Get1FreeActive, allProducts);
+        const updatedCart = prevItems.filter(item =>
+            !(item.id === productId && item.saleType === saleType && item.isOfferItem === isOfferItem)
+        );
+        return reconcileOfferItems(updatedCart, isBuy12Get1FreeActive, allProducts, newExclusions);
     });
   };
+
 
   const handleSelectCustomer = (customer: Customer | null) => {
     setSelectedCustomer(customer);
@@ -324,6 +343,7 @@ export default function SalesPage() {
     setSelectedCustomer(null);
     setCurrentSaleType('retail');
     setIsBuy12Get1FreeActive(false); 
+    setExcludedOfferProductIds(new Set());
   };
 
   // The subtotal before any manual per-item discounts are applied.
@@ -550,7 +570,7 @@ export default function SalesPage() {
                   <Switch
                     id="buy12get1free-toggle"
                     checked={isBuy12Get1FreeActive}
-                    onCheckedChange={setIsBuy12Get1FreeActive}
+                    onCheckedChange={handleToggleOffer}
                     aria-label="Toggle Buy 12 Get 1 Free Offer"
                     className="data-[state=checked]:bg-green-600"
                   />
