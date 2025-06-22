@@ -47,10 +47,8 @@ export function AppLogo({ size = "md" }: { size?: "sm" | "md" | "lg" | "iconOnly
             size === 'lg' && 'text-3xl'
         )}
       >
-        NGroup Products
+        N Group Products
       </span>
     </div>
   );
 }
-
-    

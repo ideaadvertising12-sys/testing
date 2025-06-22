@@ -109,7 +109,7 @@ export default function LoginPage() {
             <div className="mx-auto mb-4">
               <AppLogo />
             </div>
-            <CardTitle className="text-3xl font-headline">Welcome to NGroup Products</CardTitle>
+            <CardTitle className="text-3xl font-headline">Welcome to N Group Products</CardTitle>
             <CardDescription>Enter your credentials to access your account</CardDescription>
           </CardHeader>
           <CardContent>

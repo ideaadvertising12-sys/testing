@@ -242,7 +242,7 @@ export default function DashboardPage() {
     <>
       <PageHeader
         title="Dashboard Overview"
-        description="Welcome back! Here's what's happening with NGroup Products."
+        description="Welcome back! Here's what's happening with N Group Products."
         icon={Activity}
       />
       

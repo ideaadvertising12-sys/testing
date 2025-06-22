@@ -100,7 +100,7 @@ export default function SettingsPage() {
     <>
       <PageHeader
         title="Application Settings"
-        description="Manage preferences and explore premium features for NGroup Products."
+        description="Manage preferences and explore premium features for N Group Products."
         icon={SettingsIcon}
       />
 
@@ -109,7 +109,7 @@ export default function SettingsPage() {
           <CardHeader>
             <CardTitle className="font-headline text-xl text-yellow-700 dark:text-yellow-400">Unlock Premium Features</CardTitle>
             <CardDescription className="text-yellow-800/90 dark:text-yellow-300/90">
-              The features listed below are part of our exclusive premium package. Elevate your NGroup Products experience by unlocking these advanced capabilities.
+              The features listed below are part of our exclusive premium package. Elevate your N Group Products experience by unlocking these advanced capabilities.
               To activate these functions for your current edition, please contact <strong className="font-semibold text-primary dark:text-primary-foreground/90">Limidora</strong>.
             </CardDescription>
           </CardHeader>

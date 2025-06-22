@@ -19,7 +19,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="h-full" suppressHydrationWarning>
       <head>
-        <title>NGroup Products</title>
+        <title>N Group Products</title>
         <meta name="description" content="Point of Sale system for milk products." />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />

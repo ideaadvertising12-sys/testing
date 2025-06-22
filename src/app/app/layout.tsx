@@ -112,7 +112,7 @@ const ALL_NAV_ITEMS: NavItemConfig[] = [
 ];
 
 function calculateCurrentPageLabel(pathname: string, userRole: UserRole | undefined, currentNavItems: NavItemConfig[]): string {
-    if (!userRole) return "NGroup Products";
+    if (!userRole) return "N Group Products";
 
     const findLabel = (items: NavItemConfig[], currentPath: string): string | null => {
         for (const item of items) {
@@ -177,7 +177,7 @@ function calculateCurrentPageLabel(pathname: string, userRole: UserRole | undefi
     if (fallbackItem) return fallbackItem.label;
 
 
-    return "NGroup Products";
+    return "N Group Products";
 }
 
 
@@ -203,7 +203,12 @@ function AppShell({ children }: { children: React.ReactNode }) {
   const sidebarActualContent = (
     <React.Fragment>
       <AppNewSidebarHeader>
-          <AppLogo size={isMobile ? "sm" : (isCollapsed ? "iconOnly" : "sm")} />
+        <span className={cn(
+          "font-headline font-bold",
+          isCollapsed && !isMobile ? "hidden" : "text-xl text-primary"
+        )}>
+          N Group Products
+        </span>
       </AppNewSidebarHeader>
       <AppNewSidebarContent />
       <AppNewSidebarFooter>
