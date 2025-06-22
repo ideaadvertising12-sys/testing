@@ -96,7 +96,6 @@ export default function SalesPage() {
   const [selectedCategory, setSelectedCategory] = useState<Product["category"] | "All">("All");
   const [isBillOpen, setIsBillOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
-  const [discountPercentage, setDiscountPercentage] = useState(0);
   const [currentSaleType, setCurrentSaleType] = useState<'retail' | 'wholesale'>('retail');
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isSalesPageFullScreen, setIsSalesPageFullScreen] = useState(false);
@@ -276,6 +275,20 @@ export default function SalesPage() {
       return reconcileOfferItems(updatedCart, isBuy12Get1FreeActive, allProducts);
     });
   };
+
+  const handleUpdateItemPrice = (productId: string, saleType: 'retail' | 'wholesale', newPrice: number) => {
+    setCartItems(prevItems => {
+      const updatedCart = prevItems.map(item => {
+        if (item.id === productId && item.saleType === saleType && !item.isOfferItem) {
+          const validatedPrice = Math.max(0, newPrice); // Price cannot be negative
+          return { ...item, appliedPrice: validatedPrice };
+        }
+        return item;
+      });
+      // No need to reconcile offers here as price doesn't affect offer logic
+      return updatedCart;
+    });
+  };
   
   const handleRemoveItem = (productId: string, saleType: 'retail' | 'wholesale') => {
     setCartItems(prevItems => {
@@ -309,14 +322,34 @@ export default function SalesPage() {
   const handleCancelOrder = () => {
     setCartItems([]); 
     setSelectedCustomer(null);
-    setDiscountPercentage(0);
     setCurrentSaleType('retail');
     setIsBuy12Get1FreeActive(false); 
   };
 
-  const currentSubtotal = useMemo(() => cartItems.filter(item => !item.isOfferItem).reduce((sum, item) => sum + item.appliedPrice * item.quantity, 0), [cartItems]);
-  const currentDiscountAmount = useMemo(() => currentSubtotal * (discountPercentage / 100), [currentSubtotal, discountPercentage]);
-  const currentTotalAmountDue = useMemo(() => Math.max(0, currentSubtotal - currentDiscountAmount), [currentSubtotal, currentDiscountAmount]); 
+  // The subtotal before any manual per-item discounts are applied.
+  const currentSubtotal = useMemo(() => {
+    return cartItems.filter(item => !item.isOfferItem).reduce((sum, item) => {
+      const originalProduct = allProducts.find(p => p.id === item.id);
+      if (!originalProduct) return sum; // Should not happen if cart is consistent
+      
+      const priceToUse = (item.saleType === 'wholesale' && originalProduct.wholesalePrice && originalProduct.wholesalePrice > 0)
+        ? originalProduct.wholesalePrice
+        : originalProduct.price;
+
+      return sum + (priceToUse * item.quantity);
+    }, 0);
+  }, [cartItems, allProducts]);
+
+  // The final total after manual per-item discounts.
+  const currentTotalAmountDue = useMemo(() => {
+    return cartItems.filter(item => !item.isOfferItem).reduce((sum, item) => sum + item.appliedPrice * item.quantity, 0);
+  }, [cartItems]);
+  
+  // The total discount amount, which is the difference.
+  const currentDiscountAmount = useMemo(() => {
+    return Math.max(0, currentSubtotal - currentTotalAmountDue);
+  }, [currentSubtotal, currentTotalAmountDue]);
+
 
   const handleSuccessfulSale = async (
     salePaymentDetails: Omit<Sale, 'id' | 'saleDate' | 'staffId' | 'items' | 'subTotal' | 'discountPercentage' | 'discountAmount' | 'totalAmount' | 'offerApplied'> & 
@@ -338,7 +371,7 @@ export default function SalesPage() {
         isOfferItem: item.isOfferItem || false,
       })),
       subTotal: currentSubtotal,
-      discountPercentage: discountPercentage,
+      discountPercentage: 0, // No longer using global percentage
       discountAmount: currentDiscountAmount,
       totalAmount: currentTotalAmountDue,
       
@@ -626,13 +659,15 @@ export default function SalesPage() {
             <CartView
               cartItems={cartItems}
               selectedCustomer={selectedCustomer}
-              discountPercentage={discountPercentage}
               onUpdateQuantity={handleUpdateQuantity}
               onRemoveItem={handleRemoveItem}
               onSelectCustomer={handleSelectCustomer} 
-              onUpdateDiscountPercentage={setDiscountPercentage}
               onCheckout={handleCheckout}
               onCancelOrder={handleCancelOrder}
+              onUpdatePrice={handleUpdateItemPrice}
+              subtotal={currentSubtotal}
+              discountAmount={currentDiscountAmount}
+              totalAmount={currentTotalAmountDue}
               className="flex-1 min-h-0"
             />
           </div>
@@ -671,13 +706,15 @@ export default function SalesPage() {
             <CartView
               cartItems={cartItems}
               selectedCustomer={selectedCustomer}
-              discountPercentage={discountPercentage}
               onUpdateQuantity={handleUpdateQuantity}
               onRemoveItem={handleRemoveItem}
               onSelectCustomer={handleSelectCustomer} 
-              onUpdateDiscountPercentage={setDiscountPercentage}
               onCheckout={handleCheckout}
               onCancelOrder={handleCancelOrder}
+              onUpdatePrice={handleUpdateItemPrice}
+              subtotal={currentSubtotal}
+              discountAmount={currentDiscountAmount}
+              totalAmount={currentTotalAmountDue}
               className="flex-1 min-h-0"
             />
           </div>
@@ -692,7 +729,6 @@ export default function SalesPage() {
         }}
         cartItems={cartItems}
         customer={selectedCustomer}
-        discountPercentage={discountPercentage}
         currentSubtotal={currentSubtotal}
         currentDiscountAmount={currentDiscountAmount}
         currentTotalAmount={currentTotalAmountDue} 

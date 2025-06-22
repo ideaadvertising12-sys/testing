@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -5,10 +6,9 @@ import type { CartItem, Customer } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { MinusCircle, PlusCircle, Trash2, Users, XCircle, Check, ChevronsUpDown, ShoppingCart, Loader2, AlertTriangle, Gift } from "lucide-react";
+import { MinusCircle, PlusCircle, Trash2, Users, Check, ChevronsUpDown, ShoppingCart, Loader2, AlertTriangle, Gift } from "lucide-react";
 import Image from "next/image";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -18,43 +18,35 @@ import { useCustomers } from "@/hooks/useCustomers";
 interface CartViewProps {
   cartItems: CartItem[];
   selectedCustomer: Customer | null;
-  discountPercentage: number;
   onUpdateQuantity: (productId: string, quantity: number, saleType: 'retail' | 'wholesale') => void;
   onRemoveItem: (productId: string, saleType: 'retail' | 'wholesale') => void;
-  onSelectCustomer: (customer: Customer | null) => void; 
-  onUpdateDiscountPercentage: (percentage: number) => void;
+  onSelectCustomer: (customer: Customer | null) => void;
   onCheckout: () => void;
   onCancelOrder: () => void;
+  onUpdatePrice: (productId: string, saleType: 'retail' | 'wholesale', newPrice: number) => void;
+  subtotal: number;
+  discountAmount: number;
+  totalAmount: number;
   className?: string;
 }
 
 export function CartView({
   cartItems,
   selectedCustomer,
-  discountPercentage,
   onUpdateQuantity,
   onRemoveItem,
   onSelectCustomer,
-  onUpdateDiscountPercentage,
   onCheckout,
   onCancelOrder,
+  onUpdatePrice,
+  subtotal,
+  discountAmount,
+  totalAmount,
   className
 }: CartViewProps) {
   const { customers: allCustomers, isLoading: isLoadingCustomers, error: customersError } = useCustomers();
   
-  // Subtotal should only consider non-offer items
-  const subtotal = cartItems.filter(item => !item.isOfferItem).reduce((sum, item) => sum + item.appliedPrice * item.quantity, 0);
-  
   const [openCustomerPopover, setOpenCustomerPopover] = React.useState(false);
-
-  const handleDiscountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let newPercentage = parseFloat(e.target.value) || 0;
-    newPercentage = Math.max(0, Math.min(newPercentage, 100));
-    onUpdateDiscountPercentage(newPercentage);
-  };
-
-  const calculatedDiscountAmount = subtotal * (discountPercentage / 100);
-  const totalAmount = Math.max(0, subtotal - calculatedDiscountAmount); // Total amount is based on subtotal of paid items
 
   const customerOptions = React.useMemo(() => {
     const options = [{ value: "guest", label: "Walk-in / Guest", customerObject: null as Customer | null }];
@@ -165,27 +157,23 @@ export function CartView({
                   />
                   <div className="flex-grow min-w-0">
                     <div className="flex justify-between items-start">
-                      <div className="flex-grow min-w-0 pr-2">
-                        <p className="text-sm font-medium truncate" title={item.name}>
-                          {item.name}
-                          {item.isOfferItem && <Gift className="inline-block h-4 w-4 ml-1 text-green-600" />}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {item.isOfferItem ? <span className="font-semibold text-green-600">FREE</span> : `Rs. ${item.appliedPrice.toFixed(2)}`}
-                          {item.saleType === 'wholesale' && !item.isOfferItem && <span className="text-blue-500 ml-1 font-semibold">(W)</span>}
-                        </p>
-                      </div>
-                      {!item.isOfferItem && ( // Allow removing only paid items directly, offer items are auto-managed
+                      <p className="text-sm font-medium truncate" title={item.name}>
+                        {item.name}
+                        {item.isOfferItem && <Gift className="inline-block h-4 w-4 ml-1 text-green-600" />}
+                        {item.saleType === 'wholesale' && !item.isOfferItem && <span className="text-blue-500 ml-1 font-semibold">(W)</span>}
+                      </p>
+                      {!item.isOfferItem && (
                         <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:bg-destructive/10 rounded-full -mr-1 -mt-0.5 flex-shrink-0" onClick={() => onRemoveItem(item.id, item.saleType)}>
                           <Trash2 className="h-4 w-4" />
                           <span className="sr-only">Remove {item.name}</span>
                         </Button>
                       )}
                     </div>
-                    <div className="flex items-center justify-between mt-1.5 gap-2">
-                      {!item.isOfferItem ? (
+
+                    {!item.isOfferItem ? (
+                      <div className="flex items-center justify-between mt-1.5 gap-2">
                         <div className="flex items-center space-x-1.5">
-                          <Button
+                           <Button
                             variant="outline"
                             size="icon"
                             className="h-7 w-7 rounded-full"
@@ -211,13 +199,25 @@ export function CartView({
                             <PlusCircle className="h-3.5 w-3.5" />
                           </Button>
                         </div>
-                      ) : (
-                        <div className="text-sm text-muted-foreground">Qty: {item.quantity}</div>
-                      )}
-                       <p className="text-sm font-semibold text-right">
+                        <div className="flex items-center text-sm">
+                          <span className="text-muted-foreground mr-1 text-xs">@</span>
+                          <Input
+                            type="number"
+                            value={item.appliedPrice}
+                            onChange={(e) => onUpdatePrice(item.id, item.saleType, parseFloat(e.target.value) || 0)}
+                            className="h-7 w-[70px] text-right text-sm font-medium p-1"
+                            step="0.01"
+                            min="0"
+                            aria-label={`Price for ${item.name}`}
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground mt-1.5">Free Item (Qty: {item.quantity})</p>
+                    )}
+                     <p className="text-sm font-semibold text-right mt-1">
                         {item.isOfferItem ? <span className="text-green-600">Rs. 0.00</span> : `Rs. ${(item.appliedPrice * item.quantity).toFixed(2)}`}
                       </p>
-                    </div>
                   </div>
                 </div>
               ))}
@@ -232,26 +232,12 @@ export function CartView({
             <span className="text-muted-foreground">Subtotal:</span>
             <span>Rs. {subtotal.toFixed(2)}</span>
           </div>
-          <div className="w-full flex items-center justify-between text-sm">
-            <Label htmlFor="discountPercentage" className="text-sm text-muted-foreground shrink-0">Discount (%):</Label>
-            <Input
-              id="discountPercentage"
-              type="number"
-              value={discountPercentage.toString()}
-              onChange={handleDiscountChange}
-              className="h-8 w-20 text-sm text-right ml-2"
-              placeholder="0"
-              min="0"
-              max="100"
-              step="0.01"
-            />
-          </div>
-          {discountPercentage > 0 && (
-            <div className="w-full flex justify-between text-sm text-muted-foreground">
-                <span>Discount Amount:</span>
-                <span>- Rs. {calculatedDiscountAmount.toFixed(2)}</span>
-            </div>
-          )}
+           {discountAmount > 0 && (
+             <div className="w-full flex justify-between items-center text-sm text-destructive">
+                <span>Total Discount:</span>
+                <span>- Rs. {discountAmount.toFixed(2)}</span>
+              </div>
+           )}
           <Separator className="my-1" />
           <div className="w-full flex justify-between text-base font-bold">
             <span>Total:</span>
@@ -264,14 +250,13 @@ export function CartView({
               className="py-2.5"
               onClick={onCancelOrder}
             >
-              <XCircle className="mr-1.5 h-4.5 w-4.5" />
-              Cancel
+              Cancel Order
             </Button>
             <Button
               size="lg" 
               className="py-2.5"
               onClick={onCheckout}
-              disabled={cartItems.filter(item => !item.isOfferItem).length === 0} // Disable if only free items or empty
+              disabled={cartItems.filter(item => !item.isOfferItem).length === 0}
             >
               Checkout
             </Button>

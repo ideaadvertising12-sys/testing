@@ -29,7 +29,6 @@ interface BillDialogProps {
   onOpenChange: (isOpen: boolean) => void;
   cartItems?: CartItem[];
   customer?: Customer | null;
-  discountPercentage?: number;
   currentSubtotal?: number;
   currentDiscountAmount?: number;
   currentTotalAmount?: number; 
@@ -43,7 +42,6 @@ export function BillDialog({
   onOpenChange, 
   cartItems: newCartItems,
   customer: newCustomer,
-  discountPercentage: newDiscountPercentage,
   currentSubtotal: newSubtotal,
   currentDiscountAmount: newDiscountAmount,
   currentTotalAmount: newTotalAmountDue, 
@@ -110,7 +108,6 @@ export function BillDialog({
   }, [finalSaleData, existingSaleData, newCustomer]);
 
   const subtotalToDisplay = (saleForPrinting ? saleForPrinting.subTotal : newSubtotal) || 0;
-  const discountPercentageToDisplay = (saleForPrinting ? saleForPrinting.discountPercentage : newDiscountPercentage) || 0;
   const discountAmountToDisplay = (saleForPrinting ? saleForPrinting.discountAmount : newDiscountAmount) || 0;
   const totalAmountDueForDisplay = (saleForPrinting ? saleForPrinting.totalAmount : newTotalAmountDue) || 0;
 
@@ -217,7 +214,7 @@ export function BillDialog({
         customerId: customerForDisplay?.id,
         customerName: customerForDisplay?.name,
         subTotal: subtotalToDisplay,
-        discountPercentage: discountPercentageToDisplay,
+        discountPercentage: 0, // No longer using global percentage
         discountAmount: discountAmountToDisplay,
         totalAmount: totalAmountDueForDisplay, 
         offerApplied: offerWasApplied, 
@@ -342,12 +339,12 @@ export function BillDialog({
 
             <div className="space-y-1 text-xs mb-4">
               <div className="flex justify-between">
-                <span>Subtotal (Paid Items):</span>
+                <span>Subtotal:</span>
                 <span>Rs. {subtotalToDisplay.toFixed(2)}</span>
               </div>
-              {discountPercentageToDisplay > 0 && (
-                <div className="flex justify-between">
-                  <span>Discount ({discountPercentageToDisplay.toFixed(2)}%):</span>
+              {discountAmountToDisplay > 0 && (
+                <div className="flex justify-between text-destructive">
+                  <span>Total Discount:</span>
                   <span>- Rs. {discountAmountToDisplay.toFixed(2)}</span>
                 </div>
               )}
