@@ -312,27 +312,40 @@ export function BillDialog({
               <table className="w-full text-xs print:w-full">
                 <thead>
                   <tr className="border-b">
-                    <th className="text-left py-1 font-normal w-[40%]">Item</th>
-                    <th className="text-center py-1 font-normal w-[15%]">Qty</th>
-                    <th className="text-right py-1 font-normal w-[20%]">Price</th>
-                    <th className="text-right py-1 font-normal w-[25%]">Total</th>
+                    <th className="text-left py-1 font-normal w-[35%]">Item</th>
+                    <th className="text-center py-1 font-normal w-[10%]">Qty</th>
+                    <th className="text-right py-1 font-normal w-[18%]">Price</th>
+                    <th className="text-right py-1 font-normal w-[18%]">Disc. Price</th>
+                    <th className="text-right py-1 font-normal w-[19%]">Total</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {itemsToDisplay.map((item, index) => (
-                    <tr 
-                      key={`${item.id}-${item.saleType}-${item.isOfferItem ? 'offer' : 'paid'}-${index}`} 
-                      className="border-b border-dashed"
-                    >
-                      <td className="py-1.5 break-words print:break-all">
-                        {item.name}
-                        {item.isOfferItem && <Gift className="inline-block h-3 w-3 ml-1 text-green-600" />}
-                      </td>
-                      <td className="text-center py-1.5">{item.quantity}</td>
-                      <td className="text-right py-1.5">{item.isOfferItem ? "FREE" : `Rs. ${item.appliedPrice.toFixed(2)}`}</td>
-                      <td className="text-right py-1.5">{item.isOfferItem ? "Rs. 0.00" : `Rs. ${(item.appliedPrice * item.quantity).toFixed(2)}`}</td>
-                    </tr>
-                  ))}
+                  {itemsToDisplay.map((item, index) => {
+                    const originalPrice = item.price; // Original retail price from product data
+                    const hasDiscount = !item.isOfferItem && originalPrice > item.appliedPrice;
+
+                    return (
+                      <tr 
+                        key={`${item.id}-${item.saleType}-${item.isOfferItem ? 'offer' : 'paid'}-${index}`} 
+                        className="border-b border-dashed"
+                      >
+                        <td className="py-1.5 break-words print:break-all">
+                          {item.name}
+                          {item.isOfferItem && <Gift className="inline-block h-3 w-3 ml-1 text-green-600" />}
+                        </td>
+                        <td className="text-center py-1.5">{item.quantity}</td>
+                        <td className={cn("text-right py-1.5", hasDiscount && "line-through text-muted-foreground")}>
+                          {item.isOfferItem ? "FREE" : `Rs. ${originalPrice.toFixed(2)}`}
+                        </td>
+                        <td className="text-right py-1.5 font-medium">
+                          {item.isOfferItem ? "-" : (hasDiscount ? `Rs. ${item.appliedPrice.toFixed(2)}` : "-")}
+                        </td>
+                        <td className="text-right py-1.5 font-semibold">
+                          {item.isOfferItem ? "Rs. 0.00" : `Rs. ${(item.appliedPrice * item.quantity).toFixed(2)}`}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
