@@ -262,26 +262,46 @@ export function InvoiceDataTable({ sales: initialSales, isLoading, error, refetc
                       </Button>
                       
                       {expandedInvoice === sale.id && (
-                        <div className="mt-2 space-y-0.5 text-xs border-t pt-1.5">
-                          <div className="flex justify-between"><span className="text-muted-foreground">Total Paid:</span><span>{formatCurrency(sale.totalAmountPaid)}</span></div>
-                          {sale.paidAmountCash && <div className="flex justify-between pl-2"><span className="text-muted-foreground">Cash:</span><span>{formatCurrency(sale.paidAmountCash)}</span></div>}
-                          {sale.paidAmountCheque && <div className="flex justify-between pl-2"><span className="text-muted-foreground">Cheque ({sale.chequeDetails?.number || 'N/A'}):</span><span>{formatCurrency(sale.paidAmountCheque)}</span></div>}
-                          {sale.paidAmountBankTransfer && <div className="flex justify-between pl-2"><span className="text-muted-foreground">Bank Transfer ({sale.bankTransferDetails?.referenceNumber || 'N/A'}):</span><span>{formatCurrency(sale.paidAmountBankTransfer)}</span></div>}
-                          {sale.changeGiven && <div className="flex justify-between pl-2"><span className="text-muted-foreground">Change:</span><span>{formatCurrency(sale.changeGiven)}</span></div>}
-                          {sale.outstandingBalance > 0 && <div className="flex justify-between text-destructive"><span className="text-muted-foreground">Outstanding:</span><span>{formatCurrency(sale.outstandingBalance)}</span></div>}
-                           <p className="text-muted-foreground mt-1 pt-1 border-t text-xs">Items: {sale.items.length}</p>
-                           <div className="flex gap-2 pt-2">
-                            {(sale.outstandingBalance ?? 0) > 0 && (
-                                <Button variant="default" size="sm" className="flex-1 h-8 text-xs" onClick={() => handleAddPayment(sale)}>
-                                    <WalletCards className="h-3.5 w-3.5 mr-1.5" />
-                                    Add Payment
-                                </Button>
-                            )}
-                            <Button variant="outline" size="sm" className="flex-1 h-8 text-xs" onClick={() => handleReprintInvoice(sale)}>
-                                <Printer className="h-3.5 w-3.5 mr-1.5" />
-                                Print Invoice
-                            </Button>
-                           </div>
+                        <div className="mt-2 space-y-1 text-xs border-t pt-2">
+                          <div className="flex justify-between font-semibold"><span className="text-muted-foreground">Total Paid:</span><span>{formatCurrency(sale.totalAmountPaid)}</span></div>
+                          {sale.outstandingBalance > 0 && <div className="flex justify-between font-semibold text-destructive"><span className="text-muted-foreground">Outstanding:</span><span>{formatCurrency(sale.outstandingBalance)}</span></div>}
+
+                          <div className="pt-2">
+                              <p className="font-bold text-xs mb-1">Payment History:</p>
+                              <div className="space-y-1.5 pl-2 border-l ml-1">
+                                  {(sale.paidAmountCash || sale.paidAmountCheque || sale.paidAmountBankTransfer) && (
+                                      <div>
+                                          <p className="font-semibold text-muted-foreground">On {format(sale.saleDate, 'PP')}</p>
+                                          <div className="pl-2">
+                                              {sale.paidAmountCash ? <p>Cash: {formatCurrency(sale.paidAmountCash)}</p> : null}
+                                              {sale.paidAmountCheque ? <p>Cheque: {formatCurrency(sale.paidAmountCheque)}</p> : null}
+                                              {sale.paidAmountBankTransfer ? <p>Bank Transfer: {formatCurrency(sale.paidAmountBankTransfer)}</p> : null}
+                                          </div>
+                                      </div>
+                                  )}
+                                  {sale.additionalPayments?.map((payment, index) => (
+                                      <div key={`mobile-add-${index}`}>
+                                          <p className="font-semibold text-muted-foreground">On {format(payment.date, 'PP')}</p>
+                                          <div className="pl-2">
+                                              <p>{payment.method}: {formatCurrency(payment.amount)}</p>
+                                          </div>
+                                      </div>
+                                  ))}
+                              </div>
+                          </div>
+                          
+                          <div className="flex gap-2 pt-2 mt-2 border-t">
+                              {(sale.outstandingBalance ?? 0) > 0 && (
+                                  <Button variant="default" size="sm" className="flex-1 h-8 text-xs" onClick={() => handleAddPayment(sale)}>
+                                      <WalletCards className="h-3.5 w-3.5 mr-1.5" />
+                                      Add Payment
+                                  </Button>
+                              )}
+                              <Button variant="outline" size="sm" className="flex-1 h-8 text-xs" onClick={() => handleReprintInvoice(sale)}>
+                                  <Printer className="h-3.5 w-3.5 mr-1.5" />
+                                  Print Invoice
+                              </Button>
+                          </div>
                         </div>
                       )}
                     </Card>
@@ -312,17 +332,46 @@ export function InvoiceDataTable({ sales: initialSales, isLoading, error, refetc
                         <TableCell className="text-right text-sm">{formatCurrency(sale.totalAmountPaid)}</TableCell>
                         <TableCell className={cn("text-right text-sm", (sale.outstandingBalance ?? 0) > 0 && "text-destructive font-semibold")}>{formatCurrency(sale.outstandingBalance)}</TableCell>
                         <TableCell className="text-xs">
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <span className="truncate block max-w-[140px] cursor-default">{sale.paymentSummary}</span>
-                                </TooltipTrigger>
-                                <TooltipContent className="text-xs max-w-xs">
-                                    <p>{sale.paymentSummary}</p>
-                                    {sale.paidAmountCash ? <p>Cash: {formatCurrency(sale.paidAmountCash)}</p> : null}
-                                    {sale.paidAmountCheque ? <p>Cheque: {formatCurrency(sale.paidAmountCheque)} (No: {sale.chequeDetails?.number || 'N/A'}, Bank: {sale.chequeDetails?.bank || 'N/A'})</p> : null}
-                                    {sale.paidAmountBankTransfer ? <p>Bank Transfer: {formatCurrency(sale.paidAmountBankTransfer)} (Ref: {sale.bankTransferDetails?.referenceNumber || 'N/A'}, Bank: {sale.bankTransferDetails?.bankName || 'N/A'})</p> : null}
-                                    {sale.changeGiven ? <p>Change: {formatCurrency(sale.changeGiven)}</p> : null}
-                                </TooltipContent>
+                           <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="truncate block max-w-[140px] cursor-default">{sale.paymentSummary}</span>
+                              </TooltipTrigger>
+                              <TooltipContent className="text-xs max-w-xs bg-card p-2 border shadow-lg rounded-md">
+                                <div className="font-bold text-sm mb-1">Payment History</div>
+                                <div className="space-y-2">
+                                  {/* Initial Payment */}
+                                  {(sale.paidAmountCash || sale.paidAmountCheque || sale.paidAmountBankTransfer) && (
+                                    <div>
+                                      <p className="font-semibold text-xs text-muted-foreground">On {format(sale.saleDate, 'PP')}</p>
+                                      <div className="pl-2 border-l ml-1">
+                                        {sale.paidAmountCash ? <p>Cash: {formatCurrency(sale.paidAmountCash)}</p> : null}
+                                        {sale.paidAmountCheque ? <p>Cheque: {formatCurrency(sale.paidAmountCheque)} (#{sale.chequeDetails?.number || 'N/A'})</p> : null}
+                                        {sale.paidAmountBankTransfer ? <p>Bank Transfer: {formatCurrency(sale.paidAmountBankTransfer)}</p> : null}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* Additional Payments */}
+                                  {sale.additionalPayments?.map((payment, index) => (
+                                    <div key={index}>
+                                      <p className="font-semibold text-xs text-muted-foreground">On {format(payment.date, 'PP')}</p>
+                                      <div className="pl-2 border-l ml-1">
+                                        <p>{payment.method}: {formatCurrency(payment.amount)}</p>
+                                        {payment.method === 'Cheque' && payment.details && 'number' in payment.details && (
+                                          <p className="text-muted-foreground text-[11px]">#{payment.details.number}</p>
+                                        )}
+                                        {payment.method === 'BankTransfer' && payment.details && 'referenceNumber' in payment.details && (
+                                          <p className="text-muted-foreground text-[11px]">Ref: {payment.details.referenceNumber}</p>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))}
+
+                                  {!(sale.paidAmountCash || sale.paidAmountCheque || sale.paidAmountBankTransfer) && (!sale.additionalPayments || sale.additionalPayments.length === 0) && (
+                                    <p className="text-muted-foreground">No payments recorded for this invoice.</p>
+                                  )}
+                                </div>
+                              </TooltipContent>
                             </Tooltip>
                         </TableCell>
                         <TableCell className="text-center">{getPaymentStatusBadge(sale)}</TableCell>
