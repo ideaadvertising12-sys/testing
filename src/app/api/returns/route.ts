@@ -1,100 +1,145 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { db } from '@/lib/firebase';
-import { doc, runTransaction } from 'firebase/firestore';
-import { productConverter } from '@/lib/types';
-
-interface ReturnedItem {
-  id: string;
-  quantity: number;
-  isResellable: boolean;
-}
-
-interface ExchangedItem {
-  id: string;
-  quantity: number;
-}
+import { doc, runTransaction, Timestamp } from 'firebase/firestore';
+import { productConverter, saleConverter, type CartItem, type FirestoreCartItem, type Product } from '@/lib/types';
 
 interface ReturnRequestBody {
-  returnedItems: ReturnedItem[];
-  exchangedItems: ExchangedItem[];
+  saleId: string;
+  returnedItems: {
+    id: string; // This is productId
+    saleType: 'retail' | 'wholesale';
+    quantity: number; // Quantity being returned in this transaction
+    isResellable: boolean;
+  }[];
+  exchangedItems: {
+    id: string;
+    quantity: number;
+  }[];
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const { returnedItems, exchangedItems }: ReturnRequestBody = await request.json();
+    const { saleId, returnedItems, exchangedItems }: ReturnRequestBody = await request.json();
 
-    if (!returnedItems || !exchangedItems) {
+    if (!saleId || !returnedItems || !exchangedItems) {
       return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 });
     }
 
     await runTransaction(db, async (transaction) => {
-      // 1. Gather all unique product references and perform all reads first.
-      const allItemIds = new Set([...returnedItems.map(i => i.id), ...exchangedItems.map(i => i.id)]);
-      const allItemRefs = new Map<string, any>();
+      // 1. GATHER ALL REFS & PERFORM READS
+      const saleRef = doc(db, 'sales', saleId).withConverter(saleConverter);
       
-      allItemIds.forEach(id => {
-        allItemRefs.set(id, doc(db, 'products', id).withConverter(productConverter));
+      const allProductIds = new Set([
+        ...returnedItems.map(i => i.id),
+        ...exchangedItems.map(i => i.id)
+      ]);
+      const productRefs = new Map<string, any>();
+      allProductIds.forEach(id => {
+        productRefs.set(id, doc(db, 'products', id).withConverter(productConverter));
       });
 
+      const saleDoc = await transaction.get(saleRef);
+      if (!saleDoc.exists()) {
+        throw new Error(`Sale with ID ${saleId} not found.`);
+      }
+
       const productDocs = await Promise.all(
-        Array.from(allItemRefs.values()).map(ref => transaction.get(ref))
+        Array.from(productRefs.values()).map(ref => transaction.get(ref))
       );
 
-      const productDataMap = new Map<string, { doc: any; newStock: number }>();
+      const productDataMap = new Map<string, { doc: Product, newStock: number }>();
       productDocs.forEach(docSnap => {
         if (docSnap.exists()) {
           const data = docSnap.data();
           productDataMap.set(docSnap.id, { doc: data, newStock: data.stock });
         } else {
-            // Find which item caused the failure
-            const failedId = Array.from(allItemRefs.entries()).find(([id, ref]) => ref.path === docSnap.ref.path)?.[0];
-            throw new Error(`Product with ID ${failedId} not found.`);
+          const failedId = Array.from(productRefs.entries()).find(([, ref]) => ref.path === docSnap.ref.path)?.[0];
+          throw new Error(`Product with ID ${failedId} not found.`);
         }
       });
-
-      // 2. Perform validation and calculations based on the read data.
       
-      // First, process items being taken by the customer (stock out).
+      const currentSaleData = saleDoc.data();
+      const newSaleItems = [...currentSaleData.items]; // Create a mutable copy
+
+      // 2. VALIDATE & CALCULATE
       for (const item of exchangedItems) {
         const productInfo = productDataMap.get(item.id);
         if (!productInfo) {
-          throw new Error(`Product with ID ${item.id} not found.`);
+          throw new Error(`Product with ID ${item.id} for exchange not found.`);
         }
         if (productInfo.newStock < item.quantity) {
           throw new Error(`Insufficient stock for ${productInfo.doc.name}. Available: ${productInfo.newStock}, Requested: ${item.quantity}`);
         }
-        // Update the new stock value in our map.
         productInfo.newStock -= item.quantity;
       }
 
-      // Second, process items being returned by the customer (stock in).
       for (const item of returnedItems) {
-        const productInfo = productDataMap.get(item.id);
-        if (!productInfo) {
-          throw new Error(`Product with ID ${item.id} not found for return.`);
-        }
-        // Only add stock back if the item is marked as resellable.
         if (item.isResellable) {
-            productInfo.newStock += item.quantity;
+          const productInfo = productDataMap.get(item.id);
+          if (!productInfo) {
+            throw new Error(`Product with ID ${item.id} for return not found.`);
+          }
+          productInfo.newStock += item.quantity;
         }
+
+        const saleItemIndex = newSaleItems.findIndex(
+          saleItem => saleItem.id === item.id && saleItem.saleType === item.saleType
+        );
+
+        if (saleItemIndex === -1) {
+          throw new Error(`Item with product ID ${item.id} and sale type ${item.saleType} not found in the original sale.`);
+        }
+
+        const originalSaleItem = newSaleItems[saleItemIndex];
+        const alreadyReturned = originalSaleItem.returnedQuantity || 0;
+        const potentialReturnQty = alreadyReturned + item.quantity;
+
+        if (potentialReturnQty > originalSaleItem.quantity) {
+          throw new Error(`Cannot return ${item.quantity} of ${originalSaleItem.name}. Only ${originalSaleItem.quantity - alreadyReturned} are available to be returned.`);
+        }
+        
+        newSaleItems[saleItemIndex] = {
+          ...originalSaleItem,
+          returnedQuantity: potentialReturnQty
+        };
       }
 
-      // 3. Perform all writes at the end.
+      // 3. PERFORM ALL WRITES
       productDataMap.forEach((info, id) => {
-        const productRef = allItemRefs.get(id);
-        if (productRef) {
-          // Write the final calculated stock level.
-          transaction.update(productRef, { stock: info.newStock });
+        const prodRef = productRefs.get(id);
+        if (prodRef) {
+          transaction.update(prodRef, { stock: info.newStock, updatedAt: Timestamp.now() });
         }
       });
+
+      const firestoreSaleItems = newSaleItems.map((item: CartItem): FirestoreCartItem => {
+        const firestoreItem: Partial<FirestoreCartItem> = {
+            productRef: doc(db, 'products', item.id).path,
+            quantity: item.quantity,
+            appliedPrice: item.appliedPrice,
+            saleType: item.saleType,
+            productName: item.name, 
+            productCategory: item.category,
+            productPrice: item.price, 
+            isOfferItem: item.isOfferItem || false,
+            returnedQuantity: item.returnedQuantity || 0,
+        };
+        if (item.sku !== undefined) {
+            firestoreItem.productSku = item.sku;
+        }
+        return firestoreItem as FirestoreCartItem;
+      });
+
+      transaction.update(saleRef, { items: firestoreSaleItems, updatedAt: Timestamp.now() });
+
     });
 
-    return NextResponse.json({ message: 'Exchange processed successfully and stock updated.' });
+    return NextResponse.json({ message: 'Return/Exchange processed successfully and stock updated.' });
 
   } catch (error) {
-    console.error('Error processing exchange:', error);
+    console.error('Error processing return/exchange:', error);
     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
-    return NextResponse.json({ error: 'Failed to process exchange', details: errorMessage }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to process return/exchange', details: errorMessage }, { status: 500 });
   }
 }

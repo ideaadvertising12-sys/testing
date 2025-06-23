@@ -40,6 +40,7 @@ export interface CartItem {
   imageUrl?: string; // Original Image URL
   
   isOfferItem?: boolean; // Added for "Buy 12 Get 1 Free"
+  returnedQuantity?: number;
 }
 
 export interface ChequeInfo {
@@ -169,6 +170,7 @@ export interface FirestoreCartItem {
   productSku?: string; // Original SKU at time of sale
   
   isOfferItem?: boolean;
+  returnedQuantity?: number;
 }
 
 export interface FirestoreSale extends Omit<Sale, 'id' | 'saleDate' | 'items' | 'chequeDetails' | 'bankTransferDetails' | 'additionalPayments' | 'updatedAt'> {
@@ -396,6 +398,7 @@ export const saleConverter = {
         price: typeof item.productPrice === 'number' ? item.productPrice : 0, 
         sku: item.productSku, 
         isOfferItem: item.isOfferItem || false,
+        returnedQuantity: item.returnedQuantity,
         imageUrl: undefined, // Not typically stored per item in sale, but CartItem requires it.
       })),
       subTotal: data.subTotal,

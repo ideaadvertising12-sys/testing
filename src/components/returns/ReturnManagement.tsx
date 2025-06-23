@@ -24,13 +24,14 @@ import { Checkbox } from "@/components/ui/checkbox";
 interface ReturnItem extends CartItem {
   returnQuantity: number;
   isResellable: boolean;
+  maxReturnable: number;
 }
 
 const formatCurrency = (amount: number) => `Rs. ${amount.toFixed(2)}`;
 
 export function ReturnManagement() {
   const { customers, isLoading: isLoadingCustomers } = useCustomers();
-  const { sales, isLoading: isLoadingSales } = useSalesData(true);
+  const { sales, isLoading: isLoadingSales, refetchSales } = useSalesData(true);
   const { products: allProducts, isLoading: isLoadingProducts, refetch: refetchProducts } = useProducts();
   const { toast } = useToast();
 
@@ -69,6 +70,8 @@ export function ReturnManagement() {
       setCustomerSales([]);
     }
     setSelectedSaleId("");
+    setSelectedSale(null);
+    setItemsToReturn([]);
   }, [selectedCustomer, sales]);
   
   const handleSearchSale = () => {
@@ -79,7 +82,19 @@ export function ReturnManagement() {
         setSelectedSale(sale);
         const returnableItems = sale.items
             .filter(item => !item.isOfferItem)
-            .map(item => ({...item, returnQuantity: 0, isResellable: true}));
+            .map(item => {
+                const alreadyReturned = item.returnedQuantity || 0;
+                const maxReturnable = item.quantity - alreadyReturned;
+                if (maxReturnable <= 0) return null;
+
+                return {
+                    ...item,
+                    maxReturnable,
+                    returnQuantity: 0,
+                    isResellable: true
+                };
+            })
+            .filter((item): item is ReturnItem => item !== null);
         setItemsToReturn(returnableItems);
     } else {
         toast({ variant: "destructive", title: "Sale not found" });
@@ -94,8 +109,7 @@ export function ReturnManagement() {
     setItemsToReturn(prev => 
         prev.map(item => {
             if (item.id === productId && item.saleType === saleType) {
-                const originalQuantity = selectedSale?.items.find(i => i.id === productId && i.saleType === item.saleType)?.quantity || 0;
-                const validQuantity = Math.max(0, Math.min(newQuantity, originalQuantity));
+                const validQuantity = Math.max(0, Math.min(newQuantity, item.maxReturnable));
                 return {...item, returnQuantity: validQuantity};
             }
             return item;
@@ -163,6 +177,8 @@ export function ReturnManagement() {
   const difference = exchangeTotalValue - returnTotalValue;
   
   const handleProcessExchange = async () => {
+    if (!selectedSale) return;
+
     const activeReturnedItems = itemsToReturn.filter(item => item.returnQuantity > 0);
     if (activeReturnedItems.length === 0 && exchangeItems.length === 0) {
         toast({ variant: "destructive", title: "Nothing to Process", description: "Please specify items to return or exchange." });
@@ -172,8 +188,10 @@ export function ReturnManagement() {
     setIsProcessing(true);
     try {
         const payload = {
+            saleId: selectedSale.id,
             returnedItems: activeReturnedItems.map(item => ({ 
-                id: item.id, 
+                id: item.id,
+                saleType: item.saleType,
                 quantity: item.returnQuantity,
                 isResellable: item.isResellable
             })),
@@ -194,11 +212,12 @@ export function ReturnManagement() {
 
         toast({
             title: "Exchange Successful",
-            description: "Stock levels have been updated accordingly.",
+            description: "Stock levels and sale record have been updated.",
         });
 
-        await refetchProducts(); // Refetch products to get updated stock
-        resetSearch(); // Reset the form
+        await refetchProducts();
+        await refetchSales();
+        resetSearch();
 
     } catch (error: any) {
         toast({
@@ -298,12 +317,13 @@ export function ReturnManagement() {
                 <div className="space-y-2">
                     <Label>Items to Return</Label>
                     <ScrollArea className="h-60 rounded-md border p-2">
-                        {itemsToReturn.map(item => (
+                        {itemsToReturn.length > 0 ? itemsToReturn.map(item => (
                             <div key={`${item.id}-${item.saleType}`} className="flex flex-col gap-2 text-sm p-2 bg-background rounded-md mb-2">
                                 <div className="flex items-center gap-2">
                                     <div className="flex-1">
                                         <p className="font-medium truncate">{item.name}</p>
                                         <p className="text-xs text-muted-foreground">Purchased: {item.quantity} @ {formatCurrency(item.appliedPrice)}</p>
+                                        <p className="text-xs text-blue-600 font-medium">Returnable: {item.maxReturnable}</p>
                                     </div>
                                     <Input 
                                         type="number" 
@@ -311,7 +331,7 @@ export function ReturnManagement() {
                                         value={item.returnQuantity}
                                         onChange={e => handleReturnQuantityChange(item.id, item.saleType, e.target.value)}
                                         min={0}
-                                        max={item.quantity}
+                                        max={item.maxReturnable}
                                     />
                                 </div>
                                 <div className="flex items-center space-x-2 pl-1">
@@ -325,7 +345,11 @@ export function ReturnManagement() {
                                     </Label>
                                 </div>
                             </div>
-                        ))}
+                        )) : (
+                            <div className="flex items-center justify-center h-full text-muted-foreground">
+                                All items from this sale have been returned.
+                            </div>
+                        )}
                     </ScrollArea>
                 </div>
                  <div className="pt-2 border-t text-right">
