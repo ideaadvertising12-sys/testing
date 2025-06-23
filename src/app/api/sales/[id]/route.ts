@@ -2,7 +2,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { db } from '@/lib/firebase';
 import { doc, runTransaction, Timestamp, arrayUnion } from 'firebase/firestore';
-import { saleConverter, type Sale, type Payment, type FirestorePayment } from '@/lib/types';
+import { saleConverter, type Sale, type Payment, type FirestorePayment, type ChequeInfo, type BankTransferInfo } from '@/lib/types';
 import { getAuth } from "firebase-admin/auth";
 import { adminApp } from '@/lib/firebase-admin'; // Ensure you have this
 
@@ -38,37 +38,61 @@ export async function PATCH(
 
         const currentSale = saleDoc.data();
         
-        const newPayment: Payment = {
+        // This is the object that will be pushed to the Firestore array.
+        // It must be clean of `undefined` values.
+        const paymentForFirestore: Partial<FirestorePayment> = {
             amount: paymentAmount,
             method: paymentMethod,
-            date: paymentDate ? new Date(paymentDate) : new Date(),
-            notes: notes,
-            details: details,
+            date: paymentDate ? Timestamp.fromDate(new Date(paymentDate)) : Timestamp.now(),
             staffId: staffId,
         };
+        
+        if (notes) {
+            paymentForFirestore.notes = notes;
+        }
 
-        const newFirestorePayment: FirestorePayment = {
-            ...newPayment,
-            date: Timestamp.fromDate(newPayment.date)
-        };
-
-        const totalAmountPaid = (currentSale.totalAmountPaid || 0) + newPayment.amount;
+        if (details) {
+            // Firestore requires nested Timestamps to be explicitly created.
+            // When details are stringified from client, date becomes an ISO string.
+            if (paymentMethod === 'Cheque' && details.date) {
+                paymentForFirestore.details = { 
+                    ...details, 
+                    date: Timestamp.fromDate(new Date(details.date)) 
+                };
+            } else {
+                paymentForFirestore.details = details;
+            }
+        }
+        
+        const totalAmountPaid = (currentSale.totalAmountPaid || 0) + paymentAmount;
         const outstandingBalance = currentSale.totalAmount - totalAmountPaid;
 
         const updatedData = {
             totalAmountPaid,
             outstandingBalance: outstandingBalance < 0 ? 0 : outstandingBalance, // Prevent negative balance
-            additionalPayments: arrayUnion(newFirestorePayment),
+            additionalPayments: arrayUnion(paymentForFirestore), // Use the cleaned object
             updatedAt: Timestamp.now()
         };
         
         transaction.update(saleRef, updatedData as any);
 
+        // This is the object that will be returned to the client.
+        // It should have JS Date objects.
+        const newPaymentForClient: Partial<Payment> = {
+            amount: paymentAmount,
+            method: paymentMethod,
+            date: paymentDate ? new Date(paymentDate) : new Date(),
+            staffId: staffId,
+        };
+        if (notes) newPaymentForClient.notes = notes;
+        if (details) newPaymentForClient.details = details;
+
+
         const finalSaleState: Sale = {
             ...currentSale,
             totalAmountPaid: updatedData.totalAmountPaid,
             outstandingBalance: updatedData.outstandingBalance,
-            additionalPayments: [...(currentSale.additionalPayments || []), newPayment]
+            additionalPayments: [...(currentSale.additionalPayments || []), newPaymentForClient as Payment]
         }
         return finalSaleState;
     });
