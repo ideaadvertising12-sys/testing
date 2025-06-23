@@ -65,12 +65,47 @@ export async function PATCH(
         }
         
         const totalAmountPaid = (currentSale.totalAmountPaid || 0) + paymentAmount;
-        const outstandingBalance = currentSale.totalAmount - totalAmountPaid;
+        const newOutstandingBalance = currentSale.totalAmount - totalAmountPaid;
+
+        // --- Regenerate Payment Summary ---
+        const allPayments: { method: string; amount: number; }[] = [];
+        if (currentSale.paidAmountCash) allPayments.push({ method: 'Cash', amount: currentSale.paidAmountCash });
+        if (currentSale.paidAmountCheque) allPayments.push({ method: 'Cheque', amount: currentSale.paidAmountCheque });
+        if (currentSale.paidAmountBankTransfer) allPayments.push({ method: 'BankTransfer', amount: currentSale.paidAmountBankTransfer });
+        currentSale.additionalPayments?.forEach(p => {
+            allPayments.push({ method: p.method, amount: p.amount });
+        });
+        allPayments.push({ method: paymentMethod, amount: paymentAmount });
+
+        const paymentByType = allPayments.reduce((acc, p) => {
+            acc[p.method] = (acc[p.method] || 0) + p.amount;
+            return acc;
+        }, {} as Record<string, number>);
+
+        const methodsUsed: string[] = [];
+        if (paymentByType['Cash']) methodsUsed.push(`Cash (${paymentByType['Cash'].toFixed(2)})`);
+        if (paymentByType['Cheque']) methodsUsed.push(`Cheque (${paymentByType['Cheque'].toFixed(2)})`);
+        if (paymentByType['BankTransfer']) methodsUsed.push(`Bank Transfer (${paymentByType['BankTransfer'].toFixed(2)})`);
+        
+        let newPaymentSummary = "";
+        if (methodsUsed.length > 1) {
+            newPaymentSummary = `Split (${methodsUsed.join(' + ')})`;
+        } else if (methodsUsed.length === 1) {
+            newPaymentSummary = methodsUsed[0];
+        } else {
+            newPaymentSummary = "N/A";
+        }
+
+        if (newOutstandingBalance > 0) {
+            newPaymentSummary = `Partial (${newPaymentSummary}) - Outstanding: ${newOutstandingBalance.toFixed(2)}`;
+        }
+        // --- End of Payment Summary Logic ---
 
         const updatedData = {
             totalAmountPaid,
-            outstandingBalance: outstandingBalance < 0 ? 0 : outstandingBalance, // Prevent negative balance
-            additionalPayments: arrayUnion(paymentForFirestore), // Use the cleaned object
+            outstandingBalance: newOutstandingBalance < 0 ? 0 : newOutstandingBalance,
+            additionalPayments: arrayUnion(paymentForFirestore),
+            paymentSummary: newPaymentSummary, // Add the updated summary
             updatedAt: Timestamp.now()
         };
         
@@ -92,6 +127,7 @@ export async function PATCH(
             ...currentSale,
             totalAmountPaid: updatedData.totalAmountPaid,
             outstandingBalance: updatedData.outstandingBalance,
+            paymentSummary: updatedData.paymentSummary, // Return new summary to client
             additionalPayments: [...(currentSale.additionalPayments || []), newPaymentForClient as Payment]
         }
         return finalSaleState;
