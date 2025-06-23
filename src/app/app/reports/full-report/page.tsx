@@ -33,19 +33,32 @@ function transformSalesToFullReportEntries(sales: Sale[]): FullReportEntry[] {
   sales.forEach(sale => {
     const paymentDetails: { date: Date; summary: string }[] = [];
     
+    // Initial Payments on Sale Date
     if (sale.paidAmountCash && sale.paidAmountCash > 0) {
-      paymentDetails.push({ date: sale.saleDate, summary: `Cash: ${formatCurrency(sale.paidAmountCash)}` });
+      let summary = `Cash Paid: ${formatCurrency(sale.paidAmountCash)}`;
+      if (sale.changeGiven && sale.changeGiven > 0) {
+          summary += ` (Change: ${formatCurrency(sale.changeGiven)})`
+      }
+      paymentDetails.push({ date: sale.saleDate, summary });
     }
     if (sale.paidAmountCheque && sale.paidAmountCheque > 0) {
-      paymentDetails.push({ date: sale.saleDate, summary: `Cheque #${sale.chequeDetails?.number || 'N/A'}: ${formatCurrency(sale.paidAmountCheque)}` });
+      paymentDetails.push({ date: sale.saleDate, summary: `Cheque (#${sale.chequeDetails?.number || 'N/A'}): ${formatCurrency(sale.paidAmountCheque)}` });
     }
     if (sale.paidAmountBankTransfer && sale.paidAmountBankTransfer > 0) {
       paymentDetails.push({ date: sale.saleDate, summary: `Bank Transfer: ${formatCurrency(sale.paidAmountBankTransfer)}` });
     }
+    
+    // Subsequent payments
     sale.additionalPayments?.forEach(p => {
       let summary = `${p.method}: ${formatCurrency(p.amount)}`;
       if (p.method === 'Cheque' && p.details && 'number' in p.details) {
         summary += ` (#${p.details.number})`;
+      }
+      if (p.method === 'BankTransfer' && p.details && 'referenceNumber' in p.details) {
+        summary += ` (Ref: ${p.details.referenceNumber || 'N/A'})`
+      }
+      if(p.notes) {
+          summary += ` - Notes: ${p.notes}`
       }
       paymentDetails.push({ date: p.date, summary });
     });
@@ -375,3 +388,4 @@ export default function FullReportPage() {
     </div>
   );
 }
+
