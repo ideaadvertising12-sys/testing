@@ -28,21 +28,47 @@ interface jsPDFWithAutoTable extends jsPDF {
 
 function transformSalesToFullReportEntries(sales: Sale[]): FullReportEntry[] {
   const reportEntries: FullReportEntry[] = [];
+  const formatCurrency = (amount: number) => new Intl.NumberFormat('en-LK', { style: 'currency', currency: 'LKR' }).format(amount);
+  
   sales.forEach(sale => {
+    const paymentDetails: { date: Date; summary: string }[] = [];
+    
+    if (sale.paidAmountCash && sale.paidAmountCash > 0) {
+      paymentDetails.push({ date: sale.saleDate, summary: `Cash: ${formatCurrency(sale.paidAmountCash)}` });
+    }
+    if (sale.paidAmountCheque && sale.paidAmountCheque > 0) {
+      paymentDetails.push({ date: sale.saleDate, summary: `Cheque #${sale.chequeDetails?.number || 'N/A'}: ${formatCurrency(sale.paidAmountCheque)}` });
+    }
+    if (sale.paidAmountBankTransfer && sale.paidAmountBankTransfer > 0) {
+      paymentDetails.push({ date: sale.saleDate, summary: `Bank Transfer: ${formatCurrency(sale.paidAmountBankTransfer)}` });
+    }
+    sale.additionalPayments?.forEach(p => {
+      let summary = `${p.method}: ${formatCurrency(p.amount)}`;
+      if (p.method === 'Cheque' && p.details && 'number' in p.details) {
+        summary += ` (#${p.details.number})`;
+      }
+      paymentDetails.push({ date: p.date, summary });
+    });
+
+    const invoiceCloseDate = (sale.outstandingBalance <= 0 && sale.updatedAt) 
+      ? format(sale.updatedAt, "yyyy-MM-dd") 
+      : undefined;
+
     sale.items.forEach(item => {
       reportEntries.push({
         saleId: sale.id,
         saleDate: format(sale.saleDate, "yyyy-MM-dd"),
+        invoiceCloseDate,
         saleTime: format(sale.saleDate, "HH:mm:ss"),
         customerName: sale.customerName || "Walk-in",
-        productSku: item.sku || "N/A",
         productName: item.name,
         productCategory: item.category,
         quantity: item.quantity,
         appliedPrice: item.appliedPrice,
         lineTotal: item.quantity * item.appliedPrice,
         saleType: item.saleType,
-        paymentMethod: sale.paymentSummary, 
+        paymentMethod: sale.paymentSummary,
+        paymentDetails,
         staffId: sale.staffId,
       });
     });
@@ -93,7 +119,6 @@ export default function FullReportPage() {
         (entry.saleId && entry.saleId.toLowerCase().includes(term)) ||
         (entry.customerName && entry.customerName.toLowerCase().includes(term)) ||
         (entry.productName && entry.productName.toLowerCase().includes(term)) ||
-        (entry.productSku && entry.productSku.toLowerCase().includes(term)) ||
         (entry.staffId && entry.staffId.toLowerCase().includes(term)) ||
         (entry.paymentMethod && entry.paymentMethod.toLowerCase().includes(term)) 
       );
@@ -133,34 +158,41 @@ export default function FullReportPage() {
   }
 
   const handleExportExcel = () => {
-    setIsLoading(true); 
-    try {
-      const worksheet = XLSX.utils.json_to_sheet(filteredData);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Full Report");
-      XLSX.writeFile(workbook, `Full_Report_${format(new Date(), 'yyyyMMdd')}.xlsx`);
-    } catch (error) {
-      console.error("Export failed:", error);
-    } finally {
-      // setIsLoading(false); // This was causing an error, removing for now.
-    }
+    const dataToExport = filteredData.map(entry => ({
+        'Sale ID': entry.saleId,
+        'Sale Date': entry.saleDate,
+        'Close Date': entry.invoiceCloseDate || 'N/A',
+        'Time': entry.saleTime,
+        'Customer': entry.customerName,
+        'Product': entry.productName,
+        'Category': entry.productCategory,
+        'Quantity': entry.quantity,
+        'Unit Price': entry.appliedPrice,
+        'Line Total': entry.lineTotal,
+        'Sale Type': entry.saleType,
+        'Payment Summary': entry.paymentMethod,
+        'Staff': entry.staffId
+    }));
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Full Report");
+    XLSX.writeFile(workbook, `Full_Report_${format(new Date(), 'yyyyMMdd')}.xlsx`);
   };
 
   const handleExportPDF = () => {
-    // setIsLoading(true); 
     try {
       const doc = new jsPDF('landscape') as jsPDFWithAutoTable; 
       doc.text(`Full Sales Report - ${format(new Date(), 'PP')}`, 14, 16);
       
       doc.autoTable({
         startY: 20,
-        head: [['ID', 'Date', 'Time', 'Customer', 'SKU', 'Product', 'Category', 'Qty', 'Unit Price', 'Total', 'Type', 'Payment Summary', 'Staff']],
+        head: [['ID', 'Date', 'Close Date', 'Time', 'Customer', 'Product', 'Category', 'Qty', 'Unit Price', 'Total', 'Type', 'Payment', 'Staff']],
         body: filteredData.map(entry => [
           entry.saleId,
           entry.saleDate,
+          entry.invoiceCloseDate || 'N/A',
           entry.saleTime,
           entry.customerName || "Walk-in",
-          entry.productSku,
           entry.productName,
           entry.productCategory,
           entry.quantity,
@@ -171,8 +203,8 @@ export default function FullReportPage() {
           entry.staffId,
         ]),
         styles: { 
-          fontSize: 8,
-          cellPadding: 2,
+          fontSize: 7,
+          cellPadding: 1.5,
           overflow: 'linebreak'
         },
         headStyles: { 
@@ -183,16 +215,18 @@ export default function FullReportPage() {
         alternateRowStyles: {
           fillColor: [240, 240, 240]
         },
+        columnStyles: {
+          5: { cellWidth: 35 }, // Product Name
+          11: { cellWidth: 35 }, // Payment Summary
+        },
         margin: { top: 20 },
         pageBreak: 'auto',
-        tableWidth: 'wrap'
+        tableWidth: 'auto'
       });
       
       doc.save(`Full_Report_${format(new Date(), 'yyyyMMdd')}.pdf`);
     } catch (error) {
       console.error("PDF generation failed:", error);
-    } finally {
-      // setIsLoading(false); 
     }
   };
 

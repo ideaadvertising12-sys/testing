@@ -106,6 +106,7 @@ export interface Sale {
   staffName?: string;
   offerApplied?: boolean;
   vehicleId?: string;
+  updatedAt?: Date;
 }
 
 // Stock Transaction Types
@@ -170,7 +171,7 @@ export interface FirestoreCartItem {
   isOfferItem?: boolean;
 }
 
-export interface FirestoreSale extends Omit<Sale, 'id' | 'saleDate' | 'items' | 'chequeDetails' | 'bankTransferDetails' | 'additionalPayments'> {
+export interface FirestoreSale extends Omit<Sale, 'id' | 'saleDate' | 'items' | 'chequeDetails' | 'bankTransferDetails' | 'additionalPayments' | 'updatedAt'> {
   items: FirestoreCartItem[];
   saleDate: Timestamp;
   chequeDetails?: FirestoreChequeInfo;
@@ -423,6 +424,7 @@ export const saleConverter = {
       customerName: data.customerName,
       offerApplied: data.offerApplied || false,
       vehicleId: data.vehicleId,
+      updatedAt: data.updatedAt?.toDate(),
     };
   }
 };
@@ -528,9 +530,9 @@ export interface NavItemConfig {
 export interface FullReportEntry {
   saleId: string;
   saleDate: string;
+  invoiceCloseDate?: string;
   saleTime: string;
   customerName: string;
-  productSku: string;
   productName: string;
   productCategory: Product["category"];
   quantity: number;
@@ -538,6 +540,10 @@ export interface FullReportEntry {
   lineTotal: number;
   saleType: 'retail' | 'wholesale';
   paymentMethod: Sale["paymentSummary"]; 
+  paymentDetails: {
+    date: Date;
+    summary: string;
+  }[];
   staffId: string;
 }
 
