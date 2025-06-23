@@ -25,7 +25,8 @@ import {
   Truck, 
   ListPlus, 
   MapPin, 
-  UserCog, 
+  UserCog,
+  Undo2, 
 } from "lucide-react";
 
 import {
@@ -73,6 +74,7 @@ const ALL_NAV_ITEMS: NavItemConfig[] = [
   { id: "customers", href: "/app/customers", label: "Customers", icon: Users, allowedRoles: ["admin", "cashier"] },
   { id: "sales", href: "/app/sales", label: "Sales (POS)", icon: ShoppingCart, allowedRoles: ["admin", "cashier"] },
   { id: "invoicing", href: "/app/invoicing", label: "Invoicing", icon: ReceiptText, allowedRoles: ["admin", "cashier"] },
+  { id: "returns", href: "/app/returns", label: "Returns", icon: Undo2, allowedRoles: ["admin", "cashier"] },
   {
     id: "inventory",
     label: "Inventory",
