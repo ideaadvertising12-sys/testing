@@ -4,14 +4,20 @@ import { db } from '@/lib/firebase';
 import { doc, runTransaction } from 'firebase/firestore';
 import { productConverter } from '@/lib/types';
 
-interface ReturnRequestItem {
+interface ReturnedItem {
+  id: string;
+  quantity: number;
+  isResellable: boolean;
+}
+
+interface ExchangedItem {
   id: string;
   quantity: number;
 }
 
 interface ReturnRequestBody {
-  returnedItems: ReturnRequestItem[];
-  exchangedItems: ReturnRequestItem[];
+  returnedItems: ReturnedItem[];
+  exchangedItems: ExchangedItem[];
 }
 
 export async function POST(request: NextRequest) {
@@ -24,14 +30,12 @@ export async function POST(request: NextRequest) {
 
     await runTransaction(db, async (transaction) => {
       // 1. Gather all unique product references and perform all reads first.
+      const allItemIds = new Set([...returnedItems.map(i => i.id), ...exchangedItems.map(i => i.id)]);
       const allItemRefs = new Map<string, any>();
-      const allItems = [...returnedItems, ...exchangedItems];
       
-      for (const item of allItems) {
-        if (!allItemRefs.has(item.id)) {
-          allItemRefs.set(item.id, doc(db, 'products', item.id).withConverter(productConverter));
-        }
-      }
+      allItemIds.forEach(id => {
+        allItemRefs.set(id, doc(db, 'products', id).withConverter(productConverter));
+      });
 
       const productDocs = await Promise.all(
         Array.from(allItemRefs.values()).map(ref => transaction.get(ref))
@@ -42,6 +46,10 @@ export async function POST(request: NextRequest) {
         if (docSnap.exists()) {
           const data = docSnap.data();
           productDataMap.set(docSnap.id, { doc: data, newStock: data.stock });
+        } else {
+            // Find which item caused the failure
+            const failedId = Array.from(allItemRefs.entries()).find(([id, ref]) => ref.path === docSnap.ref.path)?.[0];
+            throw new Error(`Product with ID ${failedId} not found.`);
         }
       });
 
@@ -66,8 +74,10 @@ export async function POST(request: NextRequest) {
         if (!productInfo) {
           throw new Error(`Product with ID ${item.id} not found for return.`);
         }
-        // Update the new stock value in our map.
-        productInfo.newStock += item.quantity;
+        // Only add stock back if the item is marked as resellable.
+        if (item.isResellable) {
+            productInfo.newStock += item.quantity;
+        }
       }
 
       // 3. Perform all writes at the end.

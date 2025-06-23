@@ -19,22 +19,14 @@ import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-
-type ReturnType = "exchange" | "refund" | "damaged" | "resellable" | "credit_note";
-
-const returnTypeOptions = [
-    { value: "exchange" as ReturnType, label: "Exchange Return", description: "Return a product and receive a different product of equal or similar value." },
-    { value: "refund" as ReturnType, label: "Refund Return (Full or Partial)", description: "Return a product and receive full or part of the purchase amount back." },
-    { value: "damaged" as ReturnType, label: "Damaged Return", description: "Products returned because they’re damaged or expired, not restocked." },
-    { value: "resellable" as ReturnType, label: "Resellable Return", description: "Returned item is still in good condition and can be sold again." },
-    { value: "credit_note" as ReturnType, label: "Credit Note Return", description: "Return processed by issuing store credit instead of cash." },
-];
-
-const formatCurrency = (amount: number) => `Rs. ${amount.toFixed(2)}`;
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface ReturnItem extends CartItem {
   returnQuantity: number;
+  isResellable: boolean;
 }
+
+const formatCurrency = (amount: number) => `Rs. ${amount.toFixed(2)}`;
 
 export function ReturnManagement() {
   const { customers, isLoading: isLoadingCustomers } = useCustomers();
@@ -52,7 +44,6 @@ export function ReturnManagement() {
   // Return Processing State
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
   const [itemsToReturn, setItemsToReturn] = useState<ReturnItem[]>([]);
-  const [returnType, setReturnType] = useState<ReturnType>("exchange");
   const [isProcessing, setIsProcessing] = useState(false);
   
   // Exchange State
@@ -88,7 +79,7 @@ export function ReturnManagement() {
         setSelectedSale(sale);
         const returnableItems = sale.items
             .filter(item => !item.isOfferItem)
-            .map(item => ({...item, returnQuantity: 0}));
+            .map(item => ({...item, returnQuantity: 0, isResellable: true}));
         setItemsToReturn(returnableItems);
     } else {
         toast({ variant: "destructive", title: "Sale not found" });
@@ -98,11 +89,11 @@ export function ReturnManagement() {
     setTimeout(() => setIsSearchingSale(false), 500);
   };
   
-  const handleReturnQuantityChange = (productId: string, newQuantityStr: string) => {
+  const handleReturnQuantityChange = (productId: string, saleType: 'retail' | 'wholesale', newQuantityStr: string) => {
     const newQuantity = parseInt(newQuantityStr) || 0;
     setItemsToReturn(prev => 
         prev.map(item => {
-            if (item.id === productId) {
+            if (item.id === productId && item.saleType === saleType) {
                 const originalQuantity = selectedSale?.items.find(i => i.id === productId && i.saleType === item.saleType)?.quantity || 0;
                 const validQuantity = Math.max(0, Math.min(newQuantity, originalQuantity));
                 return {...item, returnQuantity: validQuantity};
@@ -111,6 +102,14 @@ export function ReturnManagement() {
         })
     );
   };
+  
+  const handleResellableChange = useCallback((productId: string, saleType: 'retail' | 'wholesale', isResellable: boolean) => {
+    setItemsToReturn(prev => 
+        prev.map(item =>
+            (item.id === productId && item.saleType === saleType) ? { ...item, isResellable } : item
+        )
+    );
+  }, []);
 
   const returnTotalValue = useMemo(() => {
     return itemsToReturn.reduce((total, item) => {
@@ -173,7 +172,11 @@ export function ReturnManagement() {
     setIsProcessing(true);
     try {
         const payload = {
-            returnedItems: activeReturnedItems.map(item => ({ id: item.id, quantity: item.returnQuantity })),
+            returnedItems: activeReturnedItems.map(item => ({ 
+                id: item.id, 
+                quantity: item.returnQuantity,
+                isResellable: item.isResellable
+            })),
             exchangedItems: exchangeItems.map(item => ({ id: item.id, quantity: item.quantity })),
         };
 
@@ -296,19 +299,31 @@ export function ReturnManagement() {
                     <Label>Items to Return</Label>
                     <ScrollArea className="h-60 rounded-md border p-2">
                         {itemsToReturn.map(item => (
-                            <div key={item.id} className="flex items-center gap-2 text-sm p-1">
-                                <div className="flex-1">
-                                    <p className="font-medium truncate">{item.name}</p>
-                                    <p className="text-xs text-muted-foreground">Purchased: {item.quantity} @ {formatCurrency(item.appliedPrice)}</p>
+                            <div key={`${item.id}-${item.saleType}`} className="flex flex-col gap-2 text-sm p-2 bg-background rounded-md mb-2">
+                                <div className="flex items-center gap-2">
+                                    <div className="flex-1">
+                                        <p className="font-medium truncate">{item.name}</p>
+                                        <p className="text-xs text-muted-foreground">Purchased: {item.quantity} @ {formatCurrency(item.appliedPrice)}</p>
+                                    </div>
+                                    <Input 
+                                        type="number" 
+                                        className="w-20 h-8 text-center" 
+                                        value={item.returnQuantity}
+                                        onChange={e => handleReturnQuantityChange(item.id, item.saleType, e.target.value)}
+                                        min={0}
+                                        max={item.quantity}
+                                    />
                                 </div>
-                                <Input 
-                                    type="number" 
-                                    className="w-20 h-8 text-center" 
-                                    value={item.returnQuantity}
-                                    onChange={e => handleReturnQuantityChange(item.id, e.target.value)}
-                                    min={0}
-                                    max={item.quantity}
-                                />
+                                <div className="flex items-center space-x-2 pl-1">
+                                    <Checkbox
+                                        id={`resellable-${item.id}-${item.saleType}`}
+                                        checked={item.isResellable}
+                                        onCheckedChange={(checked) => handleResellableChange(item.id, item.saleType, !!checked)}
+                                    />
+                                    <Label htmlFor={`resellable-${item.id}-${item.saleType}`} className="text-xs font-normal">
+                                        Return to stock (Resellable)
+                                    </Label>
+                                </div>
                             </div>
                         ))}
                     </ScrollArea>
@@ -421,5 +436,3 @@ export function ReturnManagement() {
     </div>
   );
 }
-
-    
