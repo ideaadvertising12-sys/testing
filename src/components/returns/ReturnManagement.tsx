@@ -39,7 +39,7 @@ interface ReturnItem extends CartItem {
 export function ReturnManagement() {
   const { customers, isLoading: isLoadingCustomers } = useCustomers();
   const { sales, isLoading: isLoadingSales } = useSalesData(true);
-  const { products: allProducts, isLoading: isLoadingProducts } = useProducts();
+  const { products: allProducts, isLoading: isLoadingProducts, refetch: refetchProducts } = useProducts();
   const { toast } = useToast();
 
   // Search State
@@ -53,6 +53,7 @@ export function ReturnManagement() {
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
   const [itemsToReturn, setItemsToReturn] = useState<ReturnItem[]>([]);
   const [returnType, setReturnType] = useState<ReturnType>("exchange");
+  const [isProcessing, setIsProcessing] = useState(false);
   
   // Exchange State
   const [exchangeItems, setExchangeItems] = useState<CartItem[]>([]);
@@ -162,12 +163,49 @@ export function ReturnManagement() {
 
   const difference = exchangeTotalValue - returnTotalValue;
   
-  const handleProcessExchange = () => {
-      toast({
-          title: "Exchange Processed (Demo)",
-          description: "Backend logic for stock adjustment and financial records would be implemented here."
-      });
-      resetSearch();
+  const handleProcessExchange = async () => {
+    const activeReturnedItems = itemsToReturn.filter(item => item.returnQuantity > 0);
+    if (activeReturnedItems.length === 0 && exchangeItems.length === 0) {
+        toast({ variant: "destructive", title: "Nothing to Process", description: "Please specify items to return or exchange." });
+        return;
+    }
+
+    setIsProcessing(true);
+    try {
+        const payload = {
+            returnedItems: activeReturnedItems.map(item => ({ id: item.id, quantity: item.returnQuantity })),
+            exchangedItems: exchangeItems.map(item => ({ id: item.id, quantity: item.quantity })),
+        };
+
+        const response = await fetch('/api/returns', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(result.details || result.error || 'Failed to process the exchange.');
+        }
+
+        toast({
+            title: "Exchange Successful",
+            description: "Stock levels have been updated accordingly.",
+        });
+
+        await refetchProducts(); // Refetch products to get updated stock
+        resetSearch(); // Reset the form
+
+    } catch (error: any) {
+        toast({
+            variant: "destructive",
+            title: "Exchange Failed",
+            description: error.message,
+        });
+    } finally {
+        setIsProcessing(false);
+    }
   };
 
   const isLoading = isLoadingCustomers || isLoadingSales || isLoadingProducts;
@@ -364,9 +402,12 @@ export function ReturnManagement() {
                 </div>
 
                 <div className="flex justify-end mt-4">
-                    <Button onClick={handleProcessExchange} disabled={itemsToReturn.every(i => i.returnQuantity === 0)}>
-                        <ArrowRight className="mr-2 h-4 w-4"/>
-                        Process Exchange
+                     <Button 
+                        onClick={handleProcessExchange} 
+                        disabled={isProcessing || (itemsToReturn.every(i => i.returnQuantity === 0) && exchangeItems.length === 0)}
+                    >
+                        {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ArrowRight className="mr-2 h-4 w-4" />}
+                        {isProcessing ? 'Processing...' : 'Process Exchange'}
                     </Button>
                 </div>
             </CardContent>
@@ -381,3 +422,4 @@ export function ReturnManagement() {
   );
 }
 
+    
