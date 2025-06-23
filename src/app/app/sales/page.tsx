@@ -96,6 +96,7 @@ export default function SalesPage() {
 
   const { vehicles, isLoading: isLoadingVehicles } = useVehicles();
   const { currentUser } = useAuth();
+  const isCashier = currentUser?.role === 'cashier';
   
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
@@ -111,7 +112,7 @@ export default function SalesPage() {
   const [excludedOfferProductIds, setExcludedOfferProductIds] = useState<Set<string>>(new Set());
 
   // New states for vehicle stock view
-  const [viewMode, setViewMode] = useState<'main' | 'vehicle'>('main');
+  const [viewMode, setViewMode] = useState<'main' | 'vehicle'>(isCashier ? 'vehicle' : 'main');
   const [vehicleStock, setVehicleStock] = useState<Product[] | null>(null);
   const [isVehicleStockLoading, setIsVehicleStockLoading] = useState(false);
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
@@ -126,6 +127,12 @@ export default function SalesPage() {
 
   const toggleSalesPageFullScreen = () => setIsSalesPageFullScreen(!isSalesPageFullScreen);
 
+  useEffect(() => {
+    if (isCashier) {
+        setViewMode('vehicle');
+    }
+  }, [isCashier]);
+  
   useEffect(() => {
     if (!isLoadingProducts && allProducts) {
       let tempProducts = [...allProducts];
@@ -518,7 +525,7 @@ export default function SalesPage() {
     )}>
       <PageHeader
         title="Point of Sale"
-        description="Create new sales transactions quickly."
+        description={isCashier ? "Select a vehicle to begin a sale." : "Create new sales transactions quickly."}
         icon={ShoppingCart}
         action={fullscreenButton}
       />
@@ -577,43 +584,47 @@ export default function SalesPage() {
                   </Label>
                 </div>
 
-                <div className="flex items-center space-x-2 bg-muted p-2 rounded-md shrink-0">
-                  <Switch
-                    id="view-mode-toggle"
-                    checked={viewMode === 'vehicle'}
-                    onCheckedChange={(checked) => {
-                      setViewMode(checked ? 'vehicle' : 'main');
-                      setVehicleStock(null);
-                      setSelectedVehicleId(null);
-                    }}
-                    aria-label="Toggle View Mode"
-                  />
-                  <Label htmlFor="view-mode-toggle" className="flex items-center gap-1 text-sm font-medium">
-                    {viewMode === 'vehicle' ? <Truck className="h-4 w-4" /> : <Warehouse className="h-4 w-4" />}
-                    {viewMode === 'vehicle' ? 'Vehicle Stock' : 'Main Inventory'}
-                  </Label>
-                </div>
+                {!isCashier && (
+                  <div className="flex items-center space-x-2 bg-muted p-2 rounded-md shrink-0">
+                    <Switch
+                      id="view-mode-toggle"
+                      checked={viewMode === 'vehicle'}
+                      onCheckedChange={(checked) => {
+                        setViewMode(checked ? 'vehicle' : 'main');
+                        setVehicleStock(null);
+                        setSelectedVehicleId(null);
+                      }}
+                      aria-label="Toggle View Mode"
+                    />
+                    <Label htmlFor="view-mode-toggle" className="flex items-center gap-1 text-sm font-medium">
+                      {viewMode === 'vehicle' ? <Truck className="h-4 w-4" /> : <Warehouse className="h-4 w-4" />}
+                      {viewMode === 'vehicle' ? 'Vehicle Stock' : 'Main Inventory'}
+                    </Label>
+                  </div>
+                )}
               </div>
-
-              <Tabs
-                value={selectedCategory}
-                onValueChange={(value) => setSelectedCategory(value as Product["category"] | "All")}
-                className={cn("w-full sm:w-auto", viewMode === 'vehicle' ? 'hidden' : 'block')}
-              >
-                <ScrollArea className="w-full pb-2 overflow-auto">
-                  <TabsList className="whitespace-nowrap h-auto py-1 px-1 bg-transparent">
-                    {categories.map(cat => (
-                      <TabsTrigger
-                        key={cat}
-                        value={cat}
-                        className="text-xs sm:text-sm px-3 py-1.5 rounded-full data-[state=active]:bg-blue-600 data-[state=active]:text-white"
-                      >
-                        {cat}
-                      </TabsTrigger>
-                    ))}
-                  </TabsList>
-                </ScrollArea>
-              </Tabs>
+              
+              {!isCashier && (
+                <Tabs
+                  value={selectedCategory}
+                  onValueChange={(value) => setSelectedCategory(value as Product["category"] | "All")}
+                  className={cn("w-full sm:w-auto", viewMode === 'vehicle' ? 'hidden' : 'block')}
+                >
+                  <ScrollArea className="w-full pb-2 overflow-auto">
+                    <TabsList className="whitespace-nowrap h-auto py-1 px-1 bg-transparent">
+                      {categories.map(cat => (
+                        <TabsTrigger
+                          key={cat}
+                          value={cat}
+                          className="text-xs sm:text-sm px-3 py-1.5 rounded-full data-[state=active]:bg-blue-600 data-[state=active]:text-white"
+                        >
+                          {cat}
+                        </TabsTrigger>
+                      ))}
+                    </TabsList>
+                  </ScrollArea>
+                </Tabs>
+              )}
             </div>
              {viewMode === 'vehicle' && (
               <div className="flex gap-2 mt-3 sm:mt-4">
@@ -756,3 +767,5 @@ export default function SalesPage() {
     </div>
   );
 }
+
+    
