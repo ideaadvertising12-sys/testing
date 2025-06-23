@@ -8,16 +8,28 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { MinusCircle, PlusCircle, Trash2, Users, Check, ChevronsUpDown, ShoppingCart, Loader2, AlertTriangle, Gift } from "lucide-react";
+import { MinusCircle, PlusCircle, Trash2, Users, Check, ChevronsUpDown, ShoppingCart, Loader2, AlertTriangle, Gift, CreditCard } from "lucide-react";
 import Image from "next/image";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
 import { useCustomers } from "@/hooks/useCustomers";
 
+const formatCurrency = (amount: number): string => {
+  if (typeof amount !== 'number' || isNaN(amount)) return 'Rs. 0.00';
+  return new Intl.NumberFormat('en-LK', {
+    style: 'currency',
+    currency: 'LKR',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount).replace('LKR', 'Rs.');
+};
+
+
 interface CartViewProps {
   cartItems: CartItem[];
   selectedCustomer: Customer | null;
+  customerOutstandingBalance?: number;
   onUpdateQuantity: (productId: string, quantity: number, saleType: 'retail' | 'wholesale') => void;
   onRemoveItem: (productId: string, saleType: 'retail' | 'wholesale', isOfferItem: boolean) => void;
   onSelectCustomer: (customer: Customer | null) => void;
@@ -33,6 +45,7 @@ interface CartViewProps {
 export function CartView({
   cartItems,
   selectedCustomer,
+  customerOutstandingBalance,
   onUpdateQuantity,
   onRemoveItem,
   onSelectCustomer,
@@ -133,6 +146,15 @@ export function CartView({
             </PopoverContent>
           </Popover>
         </div>
+         {selectedCustomer && (customerOutstandingBalance ?? 0) > 0 && (
+            <div className="mt-2 flex items-center gap-2 rounded-lg border border-amber-500/50 bg-amber-50 p-2 text-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
+                <CreditCard className="h-5 w-5 flex-shrink-0" />
+                <div className="text-sm">
+                    <span className="font-semibold">Outstanding Balance:</span>
+                    <span className="ml-1 font-bold">{formatCurrency(customerOutstandingBalance!)}</span>
+                </div>
+            </div>
+        )}
       </CardHeader>
       
       <CardContent className="flex-grow p-0 overflow-hidden">

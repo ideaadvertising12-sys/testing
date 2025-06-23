@@ -26,6 +26,7 @@ import { AlertTriangle } from "lucide-react";
 import { useVehicles } from "@/hooks/useVehicles";
 import { useAuth } from "@/contexts/AuthContext";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useSalesData } from "@/hooks/useSalesData";
 
 // Helper function to reconcile offer items in the cart
 function reconcileOfferItems(
@@ -98,6 +99,8 @@ export default function SalesPage() {
   const { currentUser } = useAuth();
   const isCashier = currentUser?.role === 'cashier';
   
+  const { sales: allSales } = useSalesData(true); // Get all sales data
+  
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -124,6 +127,15 @@ export default function SalesPage() {
     if (isLoadingProducts || !allProducts) return ["All"];
     return ["All", ...new Set(allProducts.map(p => p.category))];
   }, [allProducts, isLoadingProducts]);
+
+  const customerOutstandingBalance = useMemo(() => {
+    if (!selectedCustomer || !allSales || allSales.length === 0) {
+      return 0;
+    }
+    return allSales
+      .filter(sale => sale.customerId === selectedCustomer.id)
+      .reduce((total, sale) => total + (sale.outstandingBalance || 0), 0);
+  }, [selectedCustomer, allSales]);
 
   const toggleSalesPageFullScreen = () => setIsSalesPageFullScreen(!isSalesPageFullScreen);
 
@@ -688,6 +700,7 @@ export default function SalesPage() {
             <CartView
               cartItems={cartItems}
               selectedCustomer={selectedCustomer}
+              customerOutstandingBalance={customerOutstandingBalance}
               onUpdateQuantity={handleUpdateQuantity}
               onRemoveItem={handleRemoveItem}
               onSelectCustomer={handleSelectCustomer} 
@@ -735,6 +748,7 @@ export default function SalesPage() {
             <CartView
               cartItems={cartItems}
               selectedCustomer={selectedCustomer}
+              customerOutstandingBalance={customerOutstandingBalance}
               onUpdateQuantity={handleUpdateQuantity}
               onRemoveItem={handleRemoveItem}
               onSelectCustomer={handleSelectCustomer} 
