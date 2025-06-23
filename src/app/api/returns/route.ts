@@ -23,38 +23,61 @@ export async function POST(request: NextRequest) {
     }
 
     await runTransaction(db, async (transaction) => {
-      // Process items being taken by the customer (stock out)
-      for (const item of exchangedItems) {
-        const productRef = doc(db, 'products', item.id).withConverter(productConverter);
-        const productDoc = await transaction.get(productRef);
+      // 1. Gather all unique product references and perform all reads first.
+      const allItemRefs = new Map<string, any>();
+      const allItems = [...returnedItems, ...exchangedItems];
+      
+      for (const item of allItems) {
+        if (!allItemRefs.has(item.id)) {
+          allItemRefs.set(item.id, doc(db, 'products', item.id).withConverter(productConverter));
+        }
+      }
 
-        if (!productDoc.exists()) {
+      const productDocs = await Promise.all(
+        Array.from(allItemRefs.values()).map(ref => transaction.get(ref))
+      );
+
+      const productDataMap = new Map<string, { doc: any; newStock: number }>();
+      productDocs.forEach(docSnap => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          productDataMap.set(docSnap.id, { doc: data, newStock: data.stock });
+        }
+      });
+
+      // 2. Perform validation and calculations based on the read data.
+      
+      // First, process items being taken by the customer (stock out).
+      for (const item of exchangedItems) {
+        const productInfo = productDataMap.get(item.id);
+        if (!productInfo) {
           throw new Error(`Product with ID ${item.id} not found.`);
         }
-
-        const currentStock = productDoc.data().stock;
-        if (currentStock < item.quantity) {
-          throw new Error(`Insufficient stock for ${productDoc.data().name}. Available: ${currentStock}, Requested: ${item.quantity}`);
+        if (productInfo.newStock < item.quantity) {
+          throw new Error(`Insufficient stock for ${productInfo.doc.name}. Available: ${productInfo.newStock}, Requested: ${item.quantity}`);
         }
-
-        const newStock = currentStock - item.quantity;
-        transaction.update(productRef, { stock: newStock });
+        // Update the new stock value in our map.
+        productInfo.newStock -= item.quantity;
       }
 
-      // Process items being returned by the customer (stock in)
-      // Assuming all returned items are resellable for now.
+      // Second, process items being returned by the customer (stock in).
       for (const item of returnedItems) {
-        const productRef = doc(db, 'products', item.id).withConverter(productConverter);
-        const productDoc = await transaction.get(productRef);
-
-        if (!productDoc.exists()) {
-          // This should ideally not happen if the item was on the original invoice
+        const productInfo = productDataMap.get(item.id);
+        if (!productInfo) {
           throw new Error(`Product with ID ${item.id} not found for return.`);
         }
-
-        const newStock = productDoc.data().stock + item.quantity;
-        transaction.update(productRef, { stock: newStock });
+        // Update the new stock value in our map.
+        productInfo.newStock += item.quantity;
       }
+
+      // 3. Perform all writes at the end.
+      productDataMap.forEach((info, id) => {
+        const productRef = allItemRefs.get(id);
+        if (productRef) {
+          // Write the final calculated stock level.
+          transaction.update(productRef, { stock: info.newStock });
+        }
+      });
     });
 
     return NextResponse.json({ message: 'Exchange processed successfully and stock updated.' });
@@ -65,5 +88,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to process exchange', details: errorMessage }, { status: 500 });
   }
 }
-
-    
