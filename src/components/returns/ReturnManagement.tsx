@@ -8,15 +8,17 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Search, Package, Hash, Loader2, Users, ChevronsUpDown, Check, ArrowRight, Undo2, XCircle } from "lucide-react";
-import type { Customer, Sale, CartItem } from "@/lib/types";
+import { Search, Package, Hash, Loader2, Users, ChevronsUpDown, Check, ArrowRight, Undo2, XCircle, PlusCircle, MinusCircle, Trash2 } from "lucide-react";
+import type { Customer, Sale, CartItem, Product } from "@/lib/types";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useSalesData } from "@/hooks/useSalesData";
+import { useProducts } from "@/hooks/useProducts";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 type ReturnType = "exchange" | "refund" | "damaged" | "resellable" | "credit_note";
 
@@ -37,6 +39,7 @@ interface ReturnItem extends CartItem {
 export function ReturnManagement() {
   const { customers, isLoading: isLoadingCustomers } = useCustomers();
   const { sales, isLoading: isLoadingSales } = useSalesData(true);
+  const { products: allProducts, isLoading: isLoadingProducts } = useProducts();
   const { toast } = useToast();
 
   // Search State
@@ -50,6 +53,10 @@ export function ReturnManagement() {
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
   const [itemsToReturn, setItemsToReturn] = useState<ReturnItem[]>([]);
   const [returnType, setReturnType] = useState<ReturnType>("exchange");
+  
+  // Exchange State
+  const [exchangeItems, setExchangeItems] = useState<CartItem[]>([]);
+  const [openProductPopover, setOpenProductPopover] = useState(false);
 
   const customerOptions = useMemo(() => {
     if (!customers) return [];
@@ -116,12 +123,61 @@ export function ReturnManagement() {
     setSelectedSaleId("");
     setSelectedSale(null);
     setItemsToReturn([]);
+    setExchangeItems([]);
   };
 
-  const isLoading = isLoadingCustomers || isLoadingSales;
+  // --- Exchange Logic ---
+  const handleAddToExchange = (product: Product) => {
+      setExchangeItems(prev => {
+          const existingItem = prev.find(item => item.id === product.id);
+          if (existingItem) {
+              return prev.map(item => item.id === product.id ? {...item, quantity: item.quantity + 1} : item);
+          }
+          return [...prev, {
+              ...product,
+              quantity: 1,
+              appliedPrice: product.price, // Defaulting to retail for exchanges
+              saleType: 'retail',
+              isOfferItem: false,
+          }];
+      });
+      setOpenProductPopover(false);
+  }
+
+  const handleUpdateExchangeQuantity = (productId: string, newQuantity: number) => {
+      if (newQuantity < 1) {
+          handleRemoveFromExchange(productId);
+          return;
+      }
+      setExchangeItems(prev => prev.map(item => item.id === productId ? {...item, quantity: newQuantity} : item));
+  }
+
+  const handleRemoveFromExchange = (productId: string) => {
+      setExchangeItems(prev => prev.filter(item => item.id !== productId));
+  }
+
+  const exchangeTotalValue = useMemo(() => {
+      return exchangeItems.reduce((total, item) => total + item.appliedPrice * item.quantity, 0);
+  }, [exchangeItems]);
+
+  const difference = exchangeTotalValue - returnTotalValue;
+  
+  const handleProcessExchange = () => {
+      toast({
+          title: "Exchange Processed (Demo)",
+          description: "Backend logic for stock adjustment and financial records would be implemented here."
+      });
+      resetSearch();
+  };
+
+  const isLoading = isLoadingCustomers || isLoadingSales || isLoadingProducts;
   const currentCustomerLabel = selectedCustomer
     ? `${selectedCustomer.name} (${selectedCustomer.shopName || selectedCustomer.phone})`
     : "Select a customer...";
+
+  const availableProductsForExchange = allProducts.filter(
+    p => !exchangeItems.some(item => item.id === p.id)
+  );
 
   const renderInitialSearchView = () => (
     <Card className="lg:col-span-3">
@@ -200,9 +256,9 @@ export function ReturnManagement() {
                  <Separator/>
                 <div className="space-y-2">
                     <Label>Items to Return</Label>
-                    <div className="max-h-60 overflow-y-auto space-y-2 rounded-md border p-2">
+                    <ScrollArea className="h-60 rounded-md border p-2">
                         {itemsToReturn.map(item => (
-                            <div key={item.id} className="flex items-center gap-2 text-sm">
+                            <div key={item.id} className="flex items-center gap-2 text-sm p-1">
                                 <div className="flex-1">
                                     <p className="font-medium truncate">{item.name}</p>
                                     <p className="text-xs text-muted-foreground">Purchased: {item.quantity} @ {formatCurrency(item.appliedPrice)}</p>
@@ -217,7 +273,7 @@ export function ReturnManagement() {
                                 />
                             </div>
                         ))}
-                    </div>
+                    </ScrollArea>
                 </div>
                  <div className="pt-2 border-t text-right">
                     <p className="text-sm text-muted-foreground">Total Return Value</p>
@@ -231,21 +287,84 @@ export function ReturnManagement() {
                  <CardDescription>Choose the new products the customer will receive.</CardDescription>
             </CardHeader>
             <CardContent>
-                <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-64 border-2 border-dashed rounded-lg">
-                    <Package className="h-10 w-10 mb-4" />
-                    <p className="font-medium">Product Selection Area</p>
-                    <p className="text-sm">This is where you'll choose the new items for the exchange.</p>
+                <Popover open={openProductPopover} onOpenChange={setOpenProductPopover}>
+                    <PopoverTrigger asChild>
+                        <Button variant="outline" className="w-full justify-start mb-4">
+                           <PlusCircle className="mr-2 h-4 w-4" /> Add product to exchange...
+                        </Button>
+                    </PopoverTrigger>
+                     <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                        <Command>
+                           <CommandInput placeholder="Search products..." />
+                           <CommandList>
+                            <CommandEmpty>No products found.</CommandEmpty>
+                            <CommandGroup>
+                                {availableProductsForExchange.map(product => (
+                                    <CommandItem key={product.id} onSelect={() => handleAddToExchange(product)}>
+                                        {product.name}
+                                    </CommandItem>
+                                ))}
+                            </CommandGroup>
+                           </CommandList>
+                        </Command>
+                     </PopoverContent>
+                </Popover>
+
+                <ScrollArea className="h-[220px] rounded-md border">
+                    {exchangeItems.length === 0 ? (
+                        <div className="flex items-center justify-center h-full text-muted-foreground">
+                            <p>No exchange items added yet.</p>
+                        </div>
+                    ) : (
+                        <div className="p-2 space-y-2">
+                           {exchangeItems.map(item => (
+                                <div key={item.id} className="flex items-center gap-2 p-2 rounded-md bg-muted/50">
+                                    <div className="flex-1">
+                                        <p className="text-sm font-medium">{item.name}</p>
+                                        <p className="text-xs text-muted-foreground">{formatCurrency(item.appliedPrice)}</p>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleUpdateExchangeQuantity(item.id, item.quantity - 1)}>
+                                            <MinusCircle className="h-4 w-4"/>
+                                        </Button>
+                                        <span>{item.quantity}</span>
+                                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleUpdateExchangeQuantity(item.id, item.quantity + 1)}>
+                                            <PlusCircle className="h-4 w-4"/>
+                                        </Button>
+                                        <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => handleRemoveFromExchange(item.id)}>
+                                            <Trash2 className="h-4 w-4"/>
+                                        </Button>
+                                    </div>
+                                    <p className="w-20 text-right font-medium text-sm">{formatCurrency(item.quantity * item.appliedPrice)}</p>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </ScrollArea>
+                
+                <Separator className="my-4"/>
+
+                <div className="space-y-2">
+                    <div className="flex justify-between items-center text-sm">
+                        <span className="text-muted-foreground">Return Value:</span>
+                        <span className="font-medium">{formatCurrency(returnTotalValue)}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm">
+                        <span className="text-muted-foreground">New Items Total:</span>
+                        <span className="font-medium">{formatCurrency(exchangeTotalValue)}</span>
+                    </div>
+                    <Separator/>
+                    <div className={cn(
+                        "flex justify-between items-center font-bold text-lg",
+                        difference >= 0 ? "text-destructive" : "text-green-600"
+                    )}>
+                        <span>{difference >= 0 ? 'Amount to Pay:' : 'Credit Due:'}</span>
+                        <span>{formatCurrency(Math.abs(difference))}</span>
+                    </div>
                 </div>
-                <div className="mt-4 flex justify-between items-center font-bold text-lg">
-                    <span>New Items Total:</span>
-                    <span>{formatCurrency(0)}</span>
-                </div>
-                 <div className="mt-2 flex justify-between items-center font-bold text-lg text-destructive">
-                    <span>Difference to Pay:</span>
-                    <span>{formatCurrency(0)}</span>
-                </div>
+
                 <div className="flex justify-end mt-4">
-                    <Button disabled>
+                    <Button onClick={handleProcessExchange} disabled={itemsToReturn.every(i => i.returnQuantity === 0)}>
                         <ArrowRight className="mr-2 h-4 w-4"/>
                         Process Exchange
                     </Button>
@@ -261,3 +380,4 @@ export function ReturnManagement() {
     </div>
   );
 }
+
