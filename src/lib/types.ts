@@ -64,6 +64,19 @@ export interface FirestoreBankTransferInfo extends Omit<BankTransferInfo, 'amoun
    amount?: number;
 }
 
+export interface Payment {
+  amount: number;
+  method: 'Cash' | 'Cheque' | 'BankTransfer';
+  date: Date;
+  notes?: string;
+  details?: ChequeInfo | BankTransferInfo;
+  staffId: string;
+}
+
+export interface FirestorePayment extends Omit<Payment, 'date'> {
+  date: Timestamp;
+}
+
 export interface Sale {
   id: string;
   customerId?: string;
@@ -79,6 +92,8 @@ export interface Sale {
   chequeDetails?: ChequeInfo; 
   paidAmountBankTransfer?: number;
   bankTransferDetails?: BankTransferInfo;
+
+  additionalPayments?: Payment[];
 
   totalAmountPaid: number; // Sum of all payments made
   outstandingBalance: number; // totalAmount - totalAmountPaid (if positive, amount due)
@@ -155,11 +170,12 @@ export interface FirestoreCartItem {
   isOfferItem?: boolean;
 }
 
-export interface FirestoreSale extends Omit<Sale, 'id' | 'saleDate' | 'items' | 'chequeDetails' | 'bankTransferDetails'> {
+export interface FirestoreSale extends Omit<Sale, 'id' | 'saleDate' | 'items' | 'chequeDetails' | 'bankTransferDetails' | 'additionalPayments'> {
   items: FirestoreCartItem[];
   saleDate: Timestamp;
   chequeDetails?: FirestoreChequeInfo;
   bankTransferDetails?: FirestoreBankTransferInfo;
+  additionalPayments?: FirestorePayment[];
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
   offerApplied?: boolean;
@@ -299,6 +315,13 @@ export const saleConverter = {
       updatedAt: Timestamp.now(),
     };
     
+    if (sale.additionalPayments) {
+        firestoreSale.additionalPayments = sale.additionalPayments.map(p => {
+            const fp: FirestorePayment = { ...p, date: Timestamp.fromDate(p.date) };
+            return fp;
+        });
+    }
+
     if (sale.chequeDetails) {
       const chequeDetailsToSave: Partial<FirestoreChequeInfo> = {...sale.chequeDetails};
        if (sale.chequeDetails.date && !(sale.chequeDetails.date instanceof Timestamp)) {
@@ -384,7 +407,10 @@ export const saleConverter = {
       chequeDetails: chequeDetails,
       paidAmountBankTransfer: data.paidAmountBankTransfer,
       bankTransferDetails: bankTransferDetails,
-
+      additionalPayments: data.additionalPayments ? data.additionalPayments.map((p: FirestorePayment) => ({
+        ...p,
+        date: p.date.toDate()
+      })) : undefined,
       totalAmountPaid: data.totalAmountPaid,
       outstandingBalance: data.outstandingBalance,
       changeGiven: data.changeGiven,

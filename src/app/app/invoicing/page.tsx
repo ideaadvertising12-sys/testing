@@ -1,3 +1,4 @@
+
 "use client";
 
 import { ReceiptText, AlertTriangle } from "lucide-react";
@@ -16,7 +17,7 @@ export default function InvoicingPage() {
   const router = useRouter();
   
   // Use the centralized hook for fetching sales data with real-time polling
-  const { sales, isLoading, error, totalRevenue } = useSalesData(true);
+  const { sales, isLoading, error, totalRevenue, refetchSales } = useSalesData(true);
 
   useEffect(() => {
     if (currentUser === null) { // Explicitly check for not logged in
@@ -71,6 +72,7 @@ export default function InvoicingPage() {
             sales={sales} 
             isLoading={isLoading && sales.length === 0} // Show full loading screen only on initial load
             error={error}
+            refetchSales={refetchSales}
           />
         </CardContent>
       </Card>

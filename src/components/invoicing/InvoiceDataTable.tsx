@@ -17,11 +17,12 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { CalendarIcon, FilterX, Search, ReceiptText, Printer, Eye, ChevronDown, ChevronUp, Loader2, AlertTriangle, Info } from "lucide-react";
+import { CalendarIcon, FilterX, Search, ReceiptText, Printer, Eye, ChevronDown, ChevronUp, Loader2, AlertTriangle, Info, WalletCards } from "lucide-react";
 import { format, isValid, parseISO, isWithinInterval, startOfDay, endOfDay } from "date-fns";
 import type { Sale } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { BillDialog } from "@/components/sales/BillDialog";
+import { PaymentDialog } from "@/components/invoicing/PaymentDialog";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -30,9 +31,10 @@ interface InvoiceDataTableProps {
   sales: Sale[];
   isLoading: boolean;
   error?: string | null;
+  refetchSales: () => void;
 }
 
-export function InvoiceDataTable({ sales: initialSales, isLoading, error }: InvoiceDataTableProps) {
+export function InvoiceDataTable({ sales: initialSales, isLoading, error, refetchSales }: InvoiceDataTableProps) {
   const isMobile = useMediaQuery("(max-width: 768px)");
   const [searchTerm, setSearchTerm] = useState("");
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
@@ -41,6 +43,9 @@ export function InvoiceDataTable({ sales: initialSales, isLoading, error }: Invo
   const [selectedInvoiceForReprint, setSelectedInvoiceForReprint] = useState<Sale | null>(null);
   const [isBillDialogOpen, setIsBillDialogOpen] = useState(false);
   const [localSales, setLocalSales] = useState<Sale[]>(initialSales);
+
+  const [saleForPayment, setSaleForPayment] = useState<Sale | null>(null);
+  const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
 
   useEffect(() => {
     setLocalSales(initialSales);
@@ -93,6 +98,11 @@ export function InvoiceDataTable({ sales: initialSales, isLoading, error }: Invo
   const handleReprintInvoice = (sale: Sale) => {
     setSelectedInvoiceForReprint(sale);
     setIsBillDialogOpen(true);
+  };
+
+  const handleAddPayment = (sale: Sale) => {
+    setSaleForPayment(sale);
+    setIsPaymentDialogOpen(true);
   };
 
   const toggleExpandInvoice = (invoiceId: string) => {
@@ -260,15 +270,18 @@ export function InvoiceDataTable({ sales: initialSales, isLoading, error }: Invo
                           {sale.changeGiven && <div className="flex justify-between pl-2"><span className="text-muted-foreground">Change:</span><span>{formatCurrency(sale.changeGiven)}</span></div>}
                           {sale.outstandingBalance > 0 && <div className="flex justify-between text-destructive"><span className="text-muted-foreground">Outstanding:</span><span>{formatCurrency(sale.outstandingBalance)}</span></div>}
                            <p className="text-muted-foreground mt-1 pt-1 border-t text-xs">Items: {sale.items.length}</p>
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="w-full mt-2 h-8 text-xs"
-                            onClick={() => handleReprintInvoice(sale)}
-                          >
-                            <Printer className="h-3.5 w-3.5 mr-1.5" />
-                            Print Invoice
-                          </Button>
+                           <div className="flex gap-2 pt-2">
+                            {(sale.outstandingBalance ?? 0) > 0 && (
+                                <Button variant="default" size="sm" className="flex-1 h-8 text-xs" onClick={() => handleAddPayment(sale)}>
+                                    <WalletCards className="h-3.5 w-3.5 mr-1.5" />
+                                    Add Payment
+                                </Button>
+                            )}
+                            <Button variant="outline" size="sm" className="flex-1 h-8 text-xs" onClick={() => handleReprintInvoice(sale)}>
+                                <Printer className="h-3.5 w-3.5 mr-1.5" />
+                                Print Invoice
+                            </Button>
+                           </div>
                         </div>
                       )}
                     </Card>
@@ -286,7 +299,7 @@ export function InvoiceDataTable({ sales: initialSales, isLoading, error }: Invo
                       <TableHead className="text-right">Outstanding</TableHead>
                       <TableHead className="w-[150px]">Payment Method</TableHead>
                        <TableHead className="text-center w-[100px]">Status</TableHead>
-                      <TableHead className="text-center w-[80px]">Actions</TableHead>
+                      <TableHead className="text-center w-[130px]">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -314,7 +327,13 @@ export function InvoiceDataTable({ sales: initialSales, isLoading, error }: Invo
                         </TableCell>
                         <TableCell className="text-center">{getPaymentStatusBadge(sale)}</TableCell>
                         <TableCell className="text-center">
-                          <Button variant="ghost" size="icon" onClick={() => handleReprintInvoice(sale)} title="View / Print Invoice" className="h-8 w-8">
+                          {(sale.outstandingBalance ?? 0) > 0 && (
+                            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => handleAddPayment(sale)}>
+                                <WalletCards className="h-4 w-4 mr-1"/>
+                                Pay
+                            </Button>
+                          )}
+                          <Button variant="ghost" size="icon" onClick={() => handleReprintInvoice(sale)} title="View / Print Invoice" className="h-8 w-8 ml-1">
                             <Printer className="h-4 w-4" />
                           </Button>
                         </TableCell>
@@ -342,6 +361,19 @@ export function InvoiceDataTable({ sales: initialSales, isLoading, error }: Invo
           }}
           existingSaleData={selectedInvoiceForReprint}
           onConfirmSale={() => { /* No confirm action needed for reprint */ }}
+        />
+      )}
+
+      {saleForPayment && (
+        <PaymentDialog
+            isOpen={isPaymentDialogOpen}
+            onOpenChange={setIsPaymentDialogOpen}
+            sale={saleForPayment}
+            onSuccess={() => {
+                refetchSales();
+                setIsPaymentDialogOpen(false);
+                setSaleForPayment(null);
+            }}
         />
       )}
     </>
