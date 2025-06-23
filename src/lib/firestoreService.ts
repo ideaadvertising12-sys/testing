@@ -1,6 +1,6 @@
 
 
-import { db } from "./firebase";
+import { db, checkFirebase } from "./firebase";
 import { 
   collection, 
   addDoc, 
@@ -34,14 +34,6 @@ import {
   type StockTransaction,
   stockTransactionConverter,
 } from "./types";
-
-
-function checkFirebase() {
-  if (!db) {
-    console.error("Firestore database instance (db) is not available. Firebase might not be initialized correctly or there was an initialization error.");
-    throw new Error("Firestore database instance is not available. Firebase might not be initialized correctly or there was an initialization error.");
-  }
-}
 
 // Product Services
 export const getProducts = async (): Promise<Product[]> => {
@@ -123,6 +115,7 @@ export const deleteCustomer = async (id: string): Promise<void> => {
 // Sale Services
 
 async function generateCustomSaleId(): Promise<string> {
+  checkFirebase();
   const today = new Date();
   const datePart = format(today, "MMdd"); // Format: MMDD
   const counterDocId = format(today, "yyyy-MM-dd"); // Doc ID for the counter for a specific day

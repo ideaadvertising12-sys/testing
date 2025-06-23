@@ -1,5 +1,5 @@
 
-import { db } from "./firebase";
+import { db, checkFirebase } from "./firebase";
 import { Timestamp, collection, addDoc, getDocs, query, where, orderBy, onSnapshot } from 'firebase/firestore';
 import { 
   stockTransactionConverter, 
@@ -9,6 +9,7 @@ import {
 
 export const StockService = {
   async createTransaction(transaction: Omit<StockTransaction, 'id'>): Promise<string> {
+    checkFirebase();
     const docRef = await addDoc(
       collection(db, 'stockTransactions').withConverter(stockTransactionConverter as any),
       transaction
@@ -17,6 +18,7 @@ export const StockService = {
   },
 
   async getAllTransactions(): Promise<StockTransaction[]> {
+    checkFirebase();
     const q = query(
       collection(db, 'stockTransactions').withConverter(stockTransactionConverter as any),
       orderBy('transactionDate', 'desc')
@@ -26,6 +28,7 @@ export const StockService = {
   },
 
   async getTransactionsByProduct(productId: string): Promise<StockTransaction[]> {
+    checkFirebase();
     const q = query(
       collection(db, 'stockTransactions').withConverter(stockTransactionConverter as any),
       where('productId', '==', productId),
@@ -37,6 +40,7 @@ export const StockService = {
   },
 
   async getTransactionsByVehicleId(vehicleId: string): Promise<StockTransaction[]> {
+    checkFirebase();
     const q = query(
       collection(db, 'stockTransactions').withConverter(stockTransactionConverter as any),
       where('vehicleId', '==', vehicleId)
@@ -54,6 +58,7 @@ export const StockService = {
     callback: (transactions: StockTransaction[]) => void,
     onError?: (error: Error) => void
     ): () => void {
+    checkFirebase();
     const q = query(
       collection(db, 'stockTransactions').withConverter(stockTransactionConverter as any),
       orderBy('transactionDate', 'desc')

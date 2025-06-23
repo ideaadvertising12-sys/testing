@@ -1,5 +1,5 @@
 
-import { db } from "./firebase";
+import { db, checkFirebase } from "./firebase";
 import { 
   collection, 
   addDoc, 
@@ -19,6 +19,7 @@ import { format } from 'date-fns';
 import { productConverter, FirestoreProduct, Product } from "./types";
 
 async function generateCustomProductId(): Promise<string> {
+  checkFirebase();
   const today = new Date();
   const datePart = format(today, "MMdd");
   const counterDocId = format(today, "yyyy-MM-dd");
@@ -48,6 +49,7 @@ async function generateCustomProductId(): Promise<string> {
 
 export const ProductService = {
   async getAllProducts(): Promise<Product[]> {
+    checkFirebase();
     const q = query(collection(db, 'products')).withConverter(productConverter);
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({
@@ -57,12 +59,14 @@ export const ProductService = {
   },
 
   async getProductById(id: string): Promise<Product | null> {
+    checkFirebase();
     const docRef = doc(db, 'products', id).withConverter(productConverter);
     const snapshot = await getDoc(docRef);
     return snapshot.exists() ? { id: snapshot.id, ...snapshot.data() } : null;
   },
 
   async createProduct(productData: Omit<Product, 'id'>): Promise<Product> {
+    checkFirebase();
     const newCustomId = await generateCustomProductId();
     const productDocRef = doc(db, 'products', newCustomId);
 
@@ -74,6 +78,7 @@ export const ProductService = {
   },
 
   async updateProduct(id: string, productData: Partial<Omit<Product, 'id'>>): Promise<void> {
+    checkFirebase();
     try {
       const docRef = doc(db, 'products', id);
       
@@ -108,11 +113,13 @@ export const ProductService = {
   },
 
   async deleteProduct(id: string): Promise<void> {
+    checkFirebase();
     const docRef = doc(db, 'products', id);
     await deleteDoc(docRef);
   },
 
   async searchProducts(searchTerm: string): Promise<Product[]> {
+    checkFirebase();
     const products = await this.getAllProducts();
     return products.filter(product => 
       product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -121,6 +128,7 @@ export const ProductService = {
   },
 
   subscribeToProducts(callback: (products: Product[]) => void): () => void {
+    checkFirebase();
     const q = query(collection(db, 'products')).withConverter(productConverter);
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const products = snapshot.docs.map(doc => ({

@@ -1,5 +1,5 @@
 
-import { db } from "./firebase";
+import { db, checkFirebase } from "./firebase";
 import { 
   collection, 
   addDoc, 
@@ -16,6 +16,7 @@ import { vehicleConverter, FirestoreVehicle, Vehicle } from "./types";
 
 export const VehicleService = {
   async getAllVehicles(): Promise<Vehicle[]> {
+    checkFirebase();
     const q = query(collection(db, 'vehicles')).withConverter(vehicleConverter);
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({
@@ -25,6 +26,7 @@ export const VehicleService = {
   },
 
   async getVehicleById(id: string): Promise<Vehicle | null> {
+    checkFirebase();
     const docRef = doc(db, 'vehicles', id).withConverter(vehicleConverter);
     const snapshot = await getDoc(docRef);
     return snapshot.exists() ? {
@@ -34,6 +36,7 @@ export const VehicleService = {
   },
 
   async createVehicle(vehicleData: Omit<Vehicle, 'id'>): Promise<string> {
+    checkFirebase();
     const dataToCreate = vehicleConverter.toFirestore(vehicleData as FirestoreVehicle);
     const docRef = await addDoc(
       collection(db, 'vehicles'),
@@ -43,6 +46,7 @@ export const VehicleService = {
   },
 
   async updateVehicle(id: string, vehicleData: Partial<Omit<Vehicle, 'id'>>): Promise<void> {
+    checkFirebase();
     const docRef = doc(db, 'vehicles', id);
     const dataToUpdate: Partial<FirestoreVehicle> = {
       ...vehicleData,
@@ -52,6 +56,7 @@ export const VehicleService = {
   },
 
   async deleteVehicle(id: string): Promise<void> {
+    checkFirebase();
     const docRef = doc(db, 'vehicles', id);
     await deleteDoc(docRef);
   },
@@ -60,6 +65,7 @@ export const VehicleService = {
     callback: (vehicles: Vehicle[]) => void,
     onError?: (error: Error) => void
   ): () => void {
+    checkFirebase();
     const q = query(collection(db, 'vehicles')).withConverter(vehicleConverter);
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const vehicles = snapshot.docs.map(docSnapshot => ({

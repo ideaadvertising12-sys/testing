@@ -21,4 +21,12 @@ try {
   console.error("Firebase initialization error", error);
 }
 
+export function checkFirebase() {
+  if (!db) {
+    const errorMessage = "Firestore database instance (db) is not available. Firebase might not be initialized correctly, possibly due to missing environment variables.";
+    console.error(errorMessage);
+    throw new Error(errorMessage);
+  }
+}
+
 export { db };

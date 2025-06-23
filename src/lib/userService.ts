@@ -1,5 +1,5 @@
 
-import { db } from "./firebase";
+import { db, checkFirebase } from "./firebase";
 import {
   collection,
   addDoc,
@@ -16,18 +16,21 @@ import { userConverter, FirestoreUser, User } from "./types";
 
 export const UserService = {
   async getAllUsers(): Promise<(User & { id: string })[]> {
+    checkFirebase();
     const q = query(collection(db, 'users')).withConverter(userConverter as any);
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => doc.data());
   },
 
   async getUserById(id: string): Promise<(User & { id: string }) | null> {
+    checkFirebase();
     const docRef = doc(db, 'users', id).withConverter(userConverter as any);
     const snapshot = await getDoc(docRef);
     return snapshot.exists() ? snapshot.data() : null;
   },
 
   async getUserByUsername(username: string): Promise<(User & { id: string }) | null> {
+    checkFirebase();
     const q = query(
       collection(db, 'users').withConverter(userConverter as any),
       where('username', '==', username)
@@ -40,6 +43,7 @@ export const UserService = {
   },
 
   async createUser(userData: Omit<User, 'id'>): Promise<string> {
+    checkFirebase();
     const existingUser = await this.getUserByUsername(userData.username);
     if (existingUser) {
         throw new Error("Username already exists.");
@@ -57,6 +61,7 @@ export const UserService = {
   },
 
   async updateUser(id: string, userData: Partial<Omit<User, 'id'>>): Promise<void> {
+    checkFirebase();
     const docRef = doc(db, 'users', id);
     const dataToUpdate: any = {
       ...userData,
@@ -69,6 +74,7 @@ export const UserService = {
   },
   
   async deleteUser(id: string): Promise<void> {
+    checkFirebase();
     const docRef = doc(db, 'users', id);
     await deleteDoc(docRef);
   },
