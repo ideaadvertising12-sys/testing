@@ -25,6 +25,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertTriangle } from "lucide-react";
 import { useVehicles } from "@/hooks/useVehicles";
 import { useAuth } from "@/contexts/AuthContext";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 // Helper function to reconcile offer items in the cart
 function reconcileOfferItems(
@@ -111,10 +112,8 @@ export default function SalesPage() {
 
   // New states for vehicle stock view
   const [viewMode, setViewMode] = useState<'main' | 'vehicle'>('main');
-  const [vehicleIdInput, setVehicleIdInput] = useState('');
   const [vehicleStock, setVehicleStock] = useState<Product[] | null>(null);
   const [isVehicleStockLoading, setIsVehicleStockLoading] = useState(false);
-  const [searchedVehicle, setSearchedVehicle] = useState<string | null>(null);
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
 
   const { toast } = useToast();
@@ -157,26 +156,24 @@ export default function SalesPage() {
   };
 
 
-  const handleFetchVehicleStock = async () => {
-    if (!vehicleIdInput.trim()) {
-      toast({ variant: "destructive", title: "Input Required", description: "Please enter a vehicle number." });
+  const handleFetchVehicleStock = async (vehicleId: string) => {
+    if (!vehicleId) {
+      setVehicleStock(null);
+      setSelectedVehicleId(null);
       return;
     }
-    
+
     setIsVehicleStockLoading(true);
     setVehicleStock(null);
-    setSearchedVehicle(vehicleIdInput.trim().toUpperCase());
-    setSelectedVehicleId(null);
+    setSelectedVehicleId(vehicleId);
 
-    const targetVehicle = vehicles.find(v => v.vehicleNumber.toUpperCase() === vehicleIdInput.trim().toUpperCase());
+    const targetVehicle = vehicles.find(v => v.id === vehicleId);
 
     if (!targetVehicle) {
-      toast({ variant: "destructive", title: "Not Found", description: `Vehicle with number "${vehicleIdInput.trim().toUpperCase()}" not found.` });
+      toast({ variant: "destructive", title: "Error", description: `Vehicle not found.` });
       setIsVehicleStockLoading(false);
       return;
     }
-
-    setSelectedVehicleId(targetVehicle.id);
 
     try {
       const response = await fetch(`/api/stock-transactions?vehicleId=${targetVehicle.id}`);
@@ -453,8 +450,8 @@ export default function SalesPage() {
 
       handleCancelOrder(); 
       await refetchProducts();
-      if (viewMode === 'vehicle') {
-        await handleFetchVehicleStock(); // Refresh vehicle stock after sale
+      if (viewMode === 'vehicle' && selectedVehicleId) {
+        await handleFetchVehicleStock(selectedVehicleId); // Refresh vehicle stock after sale
       }
       return newSaleResponse;
 
@@ -587,8 +584,6 @@ export default function SalesPage() {
                     onCheckedChange={(checked) => {
                       setViewMode(checked ? 'vehicle' : 'main');
                       setVehicleStock(null);
-                      setVehicleIdInput('');
-                      setSearchedVehicle(null);
                       setSelectedVehicleId(null);
                     }}
                     aria-label="Toggle View Mode"
@@ -622,17 +617,20 @@ export default function SalesPage() {
             </div>
              {viewMode === 'vehicle' && (
               <div className="flex gap-2 mt-3 sm:mt-4">
-                <Input
-                  placeholder="Enter Vehicle Number (e.g., VAN-001)"
-                  className="h-12 text-sm"
-                  value={vehicleIdInput}
-                  onChange={(e) => setVehicleIdInput(e.target.value)}
-                  onKeyDown={(e) => {if (e.key === 'Enter') handleFetchVehicleStock()}}
-                />
-                <Button onClick={handleFetchVehicleStock} disabled={isVehicleStockLoading || isLoadingVehicles} className="h-12 px-4">
-                  {isVehicleStockLoading ? <Loader2 className="animate-spin h-5 w-5"/> : <Search className="h-5 w-5"/>}
-                  <span className="sr-only">Search Vehicle Stock</span>
-                </Button>
+                <Select 
+                  value={selectedVehicleId ?? ''} 
+                  onValueChange={handleFetchVehicleStock} 
+                  disabled={isVehicleStockLoading || isLoadingVehicles}
+                >
+                  <SelectTrigger className="h-12 text-sm">
+                    <SelectValue placeholder={isLoadingVehicles ? "Loading vehicles..." : "Select a vehicle"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {vehicles.map(v => (
+                      <SelectItem key={v.id} value={v.id}>{v.vehicleNumber}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             )}
           </div>
@@ -641,12 +639,12 @@ export default function SalesPage() {
             { isVehicleStockLoading ? (
                <div className="flex flex-col items-center justify-center text-muted-foreground pt-10 h-full">
                   <Loader2 className="w-12 h-12 animate-spin text-primary mb-4" />
-                  <p className="text-lg">Loading vehicle stock for {searchedVehicle}...</p>
+                  <p className="text-lg">Loading stock for {vehicles.find(v => v.id === selectedVehicleId)?.vehicleNumber}...</p>
               </div>
             ) : viewMode === 'vehicle' && vehicleStock === null ? (
                <div className="flex flex-col items-center justify-center text-muted-foreground pt-10 h-full">
                   <AlertCircle className="w-16 h-16 mb-4 text-gray-300 dark:text-gray-600" />
-                  <p className="text-xl font-medium text-gray-500 dark:text-gray-400">Enter a vehicle number to view its stock.</p>
+                  <p className="text-xl font-medium text-gray-500 dark:text-gray-400">Please select a vehicle to view its stock.</p>
                </div>
             ) : productsForDisplay === null || productsForDisplay.length === 0 ? (
               <div className="flex flex-col items-center justify-center text-muted-foreground pt-10 h-full">
@@ -654,7 +652,7 @@ export default function SalesPage() {
                 <p className="text-xl font-medium text-gray-500 dark:text-gray-400">No products found</p>
                 <p className="text-gray-400 dark:text-gray-500">
                   {viewMode === 'vehicle' 
-                    ? `No stock found for vehicle "${searchedVehicle}".` 
+                    ? `No stock found for vehicle "${vehicles.find(v => v.id === selectedVehicleId)?.vehicleNumber || ''}".`
                     : "Try adjusting your search or category filters."
                   }
                 </p>
