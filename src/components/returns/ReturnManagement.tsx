@@ -395,6 +395,9 @@ export function ReturnManagement() {
                     <p><strong>Customer:</strong> {selectedCustomer?.name}</p>
                     <p><strong>Original Sale ID:</strong> <span className="font-mono text-xs">{selectedSale?.id}</span></p>
                     <p><strong>Sale Date:</strong> {selectedSale ? format(new Date(selectedSale.saleDate), 'PPp') : ''}</p>
+                    <p className={cn("font-semibold", (selectedSale?.outstandingBalance ?? 0) > 0 ? "text-destructive" : "text-green-600")}>
+                        Bill Outstanding: {formatCurrency(selectedSale?.outstandingBalance || 0)}
+                    </p>
                  </div>
                  <Separator/>
                 <div className="space-y-2">
