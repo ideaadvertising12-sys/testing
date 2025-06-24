@@ -20,11 +20,18 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
+import { ReturnInvoiceDialog } from "./ReturnInvoiceDialog";
 
 interface ReturnItem extends CartItem {
   returnQuantity: number;
   isResellable: boolean;
   maxReturnable: number;
+}
+
+interface ReturnReceiptData {
+  originalSale: Sale;
+  returnedItems: ReturnItem[];
+  exchangedItems: CartItem[];
 }
 
 const formatCurrency = (amount: number) => `Rs. ${amount.toFixed(2)}`;
@@ -50,6 +57,10 @@ export function ReturnManagement() {
   // Exchange State
   const [exchangeItems, setExchangeItems] = useState<CartItem[]>([]);
   const [openProductPopover, setOpenProductPopover] = useState(false);
+
+  // Receipt State
+  const [returnReceiptData, setReturnReceiptData] = useState<ReturnReceiptData | null>(null);
+  const [isReceiptOpen, setIsReceiptOpen] = useState(false);
 
   const customerOptions = useMemo(() => {
     if (!customers) return [];
@@ -215,9 +226,15 @@ export function ReturnManagement() {
             description: "Stock levels and sale record have been updated.",
         });
 
+        setReturnReceiptData({
+          originalSale: selectedSale,
+          returnedItems: activeReturnedItems,
+          exchangedItems: exchangeItems,
+        });
+        setIsReceiptOpen(true);
+
         await refetchProducts();
         await refetchSales();
-        resetSearch();
 
     } catch (error: any) {
         toast({
@@ -457,6 +474,24 @@ export function ReturnManagement() {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         { selectedSale ? renderReturnProcessingView() : renderInitialSearchView() }
+        {returnReceiptData && (
+          <ReturnInvoiceDialog
+            isOpen={isReceiptOpen}
+            onOpenChange={(open) => {
+              if (!open) {
+                // When dialog is closed, reset everything
+                setIsReceiptOpen(false);
+                setReturnReceiptData(null);
+                resetSearch();
+              } else {
+                setIsReceiptOpen(open);
+              }
+            }}
+            originalSale={returnReceiptData.originalSale}
+            returnedItems={returnReceiptData.returnedItems}
+            exchangedItems={returnReceiptData.exchangedItems}
+          />
+        )}
     </div>
   );
 }
