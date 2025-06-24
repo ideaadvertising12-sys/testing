@@ -2,7 +2,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { addSale, getSales } from '@/lib/firestoreService';
 import type { Sale, CartItem, ChequeInfo, BankTransferInfo } from '@/lib/types'; 
-import { adminDb } from '@/lib/firebase-admin';
 
 // GET /api/sales - Fetch all sales
 export async function GET(request: NextRequest) {
