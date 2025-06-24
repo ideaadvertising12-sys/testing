@@ -73,7 +73,16 @@ const ALL_NAV_ITEMS: NavItemConfig[] = [
   { id: "products", href: "/app/products", label: "Products", icon: Package, allowedRoles: ["admin"] },
   { id: "customers", href: "/app/customers", label: "Customers", icon: Users, allowedRoles: ["admin", "cashier"] },
   { id: "sales", href: "/app/sales", label: "Sales (POS)", icon: ShoppingCart, allowedRoles: ["admin", "cashier"] },
-  { id: "invoicing", href: "/app/invoicing", label: "Invoicing", icon: ReceiptText, allowedRoles: ["admin", "cashier"] },
+  {
+    id: "invoicing",
+    label: "Invoicing",
+    icon: ReceiptText,
+    allowedRoles: ["admin", "cashier"],
+    children: [
+      { id: "standard-invoice", href: "/app/invoicing", label: "Standard Invoice", icon: ReceiptText, allowedRoles: ["admin", "cashier"] },
+      { id: "return-invoice", href: "/app/invoicing/returns", label: "Return Invoice", icon: Undo2, allowedRoles: ["admin", "cashier"] },
+    ],
+  },
   { id: "returns", href: "/app/returns", label: "Returns", icon: Undo2, allowedRoles: ["admin", "cashier"] },
   {
     id: "inventory",
