@@ -98,6 +98,7 @@ export interface Sale {
 
   totalAmountPaid: number; // Sum of all payments made
   outstandingBalance: number; // totalAmount - totalAmountPaid (if positive, amount due)
+  initialOutstandingBalance?: number;
   changeGiven?: number; // If cash_tendered > totalAmount and paid fully by cash (considering cash was the only or last part of payment)
 
   paymentSummary: string; // e.g., "Cash", "Cheque (123)", "Partial (Cash + Cheque)", "Full Credit"
@@ -173,9 +174,10 @@ export interface FirestoreCartItem {
   returnedQuantity?: number;
 }
 
-export interface FirestoreSale extends Omit<Sale, 'id' | 'saleDate' | 'items' | 'chequeDetails' | 'bankTransferDetails' | 'additionalPayments' | 'updatedAt'> {
+export interface FirestoreSale extends Omit<Sale, 'id' | 'saleDate' | 'items' | 'chequeDetails' | 'bankTransferDetails' | 'additionalPayments' | 'updatedAt' | 'initialOutstandingBalance'> {
   items: FirestoreCartItem[];
   saleDate: Timestamp;
+  initialOutstandingBalance?: number;
   chequeDetails?: FirestoreChequeInfo;
   bankTransferDetails?: FirestoreBankTransferInfo;
   additionalPayments?: FirestorePayment[];
@@ -310,6 +312,7 @@ export const saleConverter = {
       
       totalAmountPaid: sale.totalAmountPaid,
       outstandingBalance: sale.outstandingBalance,
+      initialOutstandingBalance: sale.initialOutstandingBalance,
       changeGiven: sale.changeGiven,
       paymentSummary: sale.paymentSummary,
 
@@ -342,6 +345,8 @@ export const saleConverter = {
     if (sale.offerApplied !== undefined) firestoreSale.offerApplied = sale.offerApplied;
     if (sale.vehicleId) firestoreSale.vehicleId = sale.vehicleId;
     if (!sale.createdAt) firestoreSale.createdAt = Timestamp.now();
+    if (sale.initialOutstandingBalance !== undefined) firestoreSale.initialOutstandingBalance = sale.initialOutstandingBalance;
+
 
     // Remove undefined fields to prevent Firestore errors
     Object.keys(firestoreSale).forEach(key => {
@@ -417,6 +422,7 @@ export const saleConverter = {
       })) : undefined,
       totalAmountPaid: data.totalAmountPaid,
       outstandingBalance: data.outstandingBalance,
+      initialOutstandingBalance: data.initialOutstandingBalance,
       changeGiven: data.changeGiven,
       paymentSummary: data.paymentSummary || "N/A",
 

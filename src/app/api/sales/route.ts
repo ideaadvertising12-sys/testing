@@ -93,6 +93,7 @@ export async function POST(request: NextRequest) {
       bankTransferDetails: bankTransferDetailsForDb,
       totalAmountPaid: saleDataFromClient.totalAmountPaid,
       outstandingBalance: saleDataFromClient.outstandingBalance,
+      initialOutstandingBalance: saleDataFromClient.outstandingBalance,
       changeGiven: saleDataFromClient.changeGiven,
       paymentSummary: saleDataFromClient.paymentSummary,
       

@@ -55,57 +55,96 @@ export default function DayEndReportPage() {
       const dateStart = startOfDay(selectedDate);
       const dateEnd = endOfDay(selectedDate);
 
+      // --- Collections on the selected day ---
+      let totalCollectedByCash = 0;
+      let totalCollectedByCheque = 0;
+      let totalCollectedByBankTransfer = 0;
+      let totalChangeGiven = 0;
+      const chequeNumbersList: string[] = [];
+      const bankTransferRefs: string[] = [];
+
+      allSales.forEach(sale => {
+        // 1. Check initial payments for sales created on this day
+        const saleDateObj = sale.saleDate instanceof Date ? sale.saleDate : new Date(sale.saleDate);
+        if (saleDateObj >= dateStart && saleDateObj <= dateEnd) {
+          if (sale.paidAmountCash) totalCollectedByCash += sale.paidAmountCash;
+          if (sale.paidAmountCheque) {
+            totalCollectedByCheque += sale.paidAmountCheque;
+            if (sale.chequeDetails?.number) chequeNumbersList.push(sale.chequeDetails.number);
+          }
+          if (sale.paidAmountBankTransfer) {
+            totalCollectedByBankTransfer += sale.paidAmountBankTransfer;
+            if(sale.bankTransferDetails?.referenceNumber) bankTransferRefs.push(sale.bankTransferDetails.referenceNumber);
+          }
+          if (sale.changeGiven) totalChangeGiven += sale.changeGiven;
+        }
+
+        // 2. Check for additional payments made on this day for *any* sale
+        if (sale.additionalPayments) {
+          sale.additionalPayments.forEach(payment => {
+            const paymentDateObj = payment.date instanceof Date ? payment.date : new Date(payment.date);
+            if (paymentDateObj >= dateStart && paymentDateObj <= dateEnd) {
+              switch (payment.method) {
+                case 'Cash':
+                  totalCollectedByCash += payment.amount;
+                  break;
+                case 'Cheque':
+                  totalCollectedByCheque += payment.amount;
+                  if (payment.details && 'number' in payment.details && payment.details.number) {
+                    chequeNumbersList.push(payment.details.number);
+                  }
+                  break;
+                case 'BankTransfer':
+                   totalCollectedByBankTransfer += payment.amount;
+                  break;
+              }
+            }
+          });
+        }
+      });
+      
+      const totalCollectedOverall = totalCollectedByCash + totalCollectedByCheque + totalCollectedByBankTransfer;
+      
+      // --- Sales and outstanding created on the selected day ---
       const salesForDay = allSales.filter(sale => {
         const saleDateObj = sale.saleDate instanceof Date ? sale.saleDate : new Date(sale.saleDate);
         return saleDateObj >= dateStart && saleDateObj <= dateEnd;
       });
 
-      let totalCollectedByCash = 0;
-      let totalCollectedByCheque = 0;
-      let totalCollectedByBankTransfer = 0;
-      let totalChangeGiven = 0;
-      let totalOutstanding = 0;
-      const chequeNumbersList: string[] = [];
-      const bankTransferRefs: string[] = [];
-
-      salesForDay.forEach(s => {
-        if (s.paidAmountCash) totalCollectedByCash += s.paidAmountCash;
-        if (s.paidAmountCheque) {
-            totalCollectedByCheque += s.paidAmountCheque;
-            if (s.chequeDetails?.number) chequeNumbersList.push(s.chequeDetails.number);
-        }
-        if (s.paidAmountBankTransfer) {
-            totalCollectedByBankTransfer += s.paidAmountBankTransfer;
-            if(s.bankTransferDetails?.referenceNumber) bankTransferRefs.push(s.bankTransferDetails.referenceNumber);
-        }
-        if (s.changeGiven) totalChangeGiven += s.changeGiven;
-        if (s.outstandingBalance) totalOutstanding += s.outstandingBalance;
-      });
-      
       const totalSalesValue = salesForDay.reduce((sum, s) => sum + s.totalAmount, 0);
-      const totalCollectedOverall = totalCollectedByCash + totalCollectedByCheque + totalCollectedByBankTransfer;
+
+      const totalOutstandingAmount = salesForDay.reduce((sum, s) => {
+        // Use the new initialOutstandingBalance field if it exists.
+        // Otherwise, calculate it based on initial payment methods for backward compatibility.
+        const initialOutstanding = typeof s.initialOutstandingBalance === 'number'
+          ? s.initialOutstandingBalance
+          : s.totalAmount - ((s.paidAmountCash || 0) + (s.paidAmountCheque || 0) + (s.paidAmountBankTransfer || 0));
+        return sum + initialOutstanding;
+      }, 0);
 
 
       setReportSummary({
         reportDate: selectedDate,
         totalTransactions: salesForDay.length,
         totalSalesAmount: totalSalesValue,
+        
+        // Use the newly calculated collection values
         totalAmountCollectedByCash: totalCollectedByCash,
         totalAmountCollectedByCheque: totalCollectedByCheque,
         totalAmountCollectedByBankTransfer: totalCollectedByBankTransfer,
-        totalChangeGiven: totalChangeGiven,
-        totalOutstandingAmount: totalOutstanding,
-        
-        // These are for compatibility with old PDF structure if needed, can be removed/refactored
+        totalChangeGiven: totalChangeGiven, // This is change given out on the day from new sales
+        totalOutstandingAmount: totalOutstandingAmount, // This is new credit given out on the day
+
+        // These are for compatibility with old PDF structure if needed, can be refactored
         cashSales: { count: 0, amount: 0, cashReceived: totalCollectedByCash, balanceReturned: totalChangeGiven }, // Simplified
         chequeSales: { count: salesForDay.filter(s => s.paidAmountCheque && s.paidAmountCheque > 0).length, amount: totalCollectedByCheque, chequeNumbers: chequeNumbersList },
         // For 'creditSales', it's better to directly use totalOutstandingAmount
-        creditSales: { count: salesForDay.filter(s => s.outstandingBalance && s.outstandingBalance > 0).length, amount: totalOutstanding, amountPaidOnCredit: 0, remainingCreditBalance: totalOutstanding },
+        creditSales: { count: salesForDay.filter(s => (s.initialOutstandingBalance ?? 0) > 0).length, amount: totalOutstandingAmount, amountPaidOnCredit: 0, remainingCreditBalance: totalOutstandingAmount },
         
         overallTotalSales: totalSalesValue,
         overallTotalCashReceived: totalCollectedOverall,
         overallTotalBalanceReturned: totalChangeGiven,
-        overallTotalCreditOutstanding: totalOutstanding,
+        overallTotalCreditOutstanding: totalOutstandingAmount,
       });
     } else {
       setReportSummary(null);
