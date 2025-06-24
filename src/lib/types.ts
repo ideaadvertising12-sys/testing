@@ -151,6 +151,12 @@ export interface ReturnTransaction {
   returnedItems: CartItem[];
   exchangedItems: CartItem[];
   notes?: string;
+  // Fields for payment made during exchange
+  amountPaid?: number;
+  paymentSummary?: string;
+  chequeDetails?: ChequeInfo;
+  bankTransferDetails?: BankTransferInfo;
+  changeGiven?: number;
 }
 
 // Firestore-specific types
@@ -220,11 +226,17 @@ export interface FirestoreUser extends Omit<User, 'id'> {
     updatedAt?: Timestamp;
 }
 
-export interface FirestoreReturnTransaction extends Omit<ReturnTransaction, 'id' | 'returnDate' | 'returnedItems' | 'exchangedItems'> {
+export interface FirestoreReturnTransaction extends Omit<ReturnTransaction, 'id' | 'returnDate' | 'returnedItems' | 'exchangedItems' | 'chequeDetails' | 'bankTransferDetails'> {
   returnDate: Timestamp;
   createdAt: Timestamp;
   returnedItems: FirestoreCartItem[];
   exchangedItems: FirestoreCartItem[];
+  // Fields for payment made during exchange
+  amountPaid?: number;
+  paymentSummary?: string;
+  chequeDetails?: FirestoreChequeInfo;
+  bankTransferDetails?: FirestoreBankTransferInfo;
+  changeGiven?: number;
 }
 
 
@@ -509,13 +521,22 @@ export const stockTransactionConverter = {
 
 export const returnTransactionConverter = {
   toFirestore: (returnData: FirestoreReturnTransaction): Partial<FirestoreReturnTransaction> => {
-    return {
+    const dataToSave: Partial<FirestoreReturnTransaction> = {
       ...returnData,
       createdAt: Timestamp.now(),
     };
+    Object.keys(dataToSave).forEach(key => ((dataToSave as any)[key] === undefined) && delete (dataToSave as any)[key]);
+    return dataToSave;
   },
   fromFirestore: (snapshot: any): ReturnTransaction => {
     const data = snapshot.data();
+    let chequeDetails;
+    if (data.chequeDetails) {
+        chequeDetails = {
+            ...data.chequeDetails,
+            date: data.chequeDetails.date instanceof Timestamp ? data.chequeDetails.date.toDate() : undefined,
+        }
+    }
     return {
       id: snapshot.id,
       originalSaleId: data.originalSaleId,
@@ -523,9 +544,14 @@ export const returnTransactionConverter = {
       staffId: data.staffId,
       customerId: data.customerId,
       customerName: data.customerName,
-      returnedItems: data.returnedItems, // Assuming they are stored in a compatible format
+      returnedItems: data.returnedItems,
       exchangedItems: data.exchangedItems,
       notes: data.notes,
+      amountPaid: data.amountPaid,
+      paymentSummary: data.paymentSummary,
+      chequeDetails: chequeDetails,
+      bankTransferDetails: data.bankTransferDetails,
+      changeGiven: data.changeGiven,
     };
   }
 };

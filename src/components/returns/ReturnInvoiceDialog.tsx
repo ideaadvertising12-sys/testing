@@ -15,31 +15,36 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Printer } from "lucide-react";
-import type { Sale, CartItem } from '@/lib/types';
+import type { ReturnTransaction } from '@/lib/types';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-
-// Cast returned items to include returnQuantity
-interface ReturnedItemForReceipt extends CartItem {
-  returnQuantity: number;
-}
 
 interface ReturnInvoiceProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
-  originalSale: Sale | null;
-  returnedItems: ReturnedItemForReceipt[];
-  exchangedItems: CartItem[];
-  returnId: string | null;
+  returnTransaction: ReturnTransaction | null;
 }
 
 const formatCurrency = (amount: number) => `Rs. ${amount.toFixed(2)}`;
 
-export function ReturnInvoiceDialog({ isOpen, onOpenChange, originalSale, returnedItems, exchangedItems, returnId }: ReturnInvoiceProps) {
-  if (!originalSale) return null;
+export function ReturnInvoiceDialog({ isOpen, onOpenChange, returnTransaction }: ReturnInvoiceProps) {
+  if (!returnTransaction) return null;
+
+  const {
+    id: returnId,
+    originalSaleId,
+    returnDate,
+    customerName,
+    staffId,
+    returnedItems,
+    exchangedItems,
+    amountPaid,
+    paymentSummary,
+    changeGiven
+  } = returnTransaction;
 
   const returnTotalValue = returnedItems.reduce((total, item) => {
-      return total + (item.appliedPrice * item.returnQuantity);
+      return total + (item.appliedPrice * item.quantity);
   }, 0);
 
   const exchangeTotalValue = exchangedItems.reduce((total, item) => {
@@ -76,9 +81,10 @@ export function ReturnInvoiceDialog({ isOpen, onOpenChange, originalSale, return
               
               <div className="text-xs mb-4">
                 <p><strong>Return ID:</strong> <span className="font-mono">{returnId || 'N/A'}</span></p>
-                <p><strong>Return Date:</strong> {format(new Date(), "PP, p")}</p>
-                <p><strong>Original Sale ID:</strong> {originalSale.id}</p>
-                <p><strong>Customer:</strong> {originalSale.customerName || "N/A"}</p>
+                <p><strong>Return Date:</strong> {format(returnDate, "PP, p")}</p>
+                <p><strong>Original Sale ID:</strong> {originalSaleId}</p>
+                <p><strong>Customer:</strong> {customerName || "N/A"}</p>
+                <p><strong>Served by:</strong> {staffId}</p>
               </div>
               <Separator className="my-4"/>
 
@@ -89,12 +95,12 @@ export function ReturnInvoiceDialog({ isOpen, onOpenChange, originalSale, return
                   <table className="w-full text-xs print:w-full">
                     <thead><tr className="border-b"><th className="text-left py-1 font-normal w-[50%]">Item</th><th className="text-center py-1 font-normal">Qty</th><th className="text-right py-1 font-normal">Credit Each</th><th className="text-right py-1 font-normal">Total Credit</th></tr></thead>
                     <tbody>
-                      {returnedItems.map(item => (
-                        <tr key={item.id} className="border-b border-dashed">
+                      {returnedItems.map((item, index) => (
+                        <tr key={`${item.id}-${index}`} className="border-b border-dashed">
                           <td className="py-1.5 break-words">{item.name}</td>
-                          <td className="text-center py-1.5">{item.returnQuantity}</td>
+                          <td className="text-center py-1.5">{item.quantity}</td>
                           <td className="text-right py-1.5">{formatCurrency(item.appliedPrice)}</td>
-                          <td className="text-right py-1.5 font-semibold">{formatCurrency(item.appliedPrice * item.returnQuantity)}</td>
+                          <td className="text-right py-1.5 font-semibold">{formatCurrency(item.appliedPrice * item.quantity)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -114,8 +120,8 @@ export function ReturnInvoiceDialog({ isOpen, onOpenChange, originalSale, return
                   <table className="w-full text-xs print:w-full">
                     <thead><tr className="border-b"><th className="text-left py-1 font-normal w-[50%]">Item</th><th className="text-center py-1 font-normal">Qty</th><th className="text-right py-1 font-normal">Price Each</th><th className="text-right py-1 font-normal">Total Cost</th></tr></thead>
                     <tbody>
-                      {exchangedItems.map(item => (
-                        <tr key={item.id} className="border-b border-dashed">
+                      {exchangedItems.map((item, index) => (
+                        <tr key={`${item.id}-${index}`} className="border-b border-dashed">
                           <td className="py-1.5 break-words">{item.name}</td>
                           <td className="text-center py-1.5">{item.quantity}</td>
                           <td className="text-right py-1.5">{formatCurrency(item.appliedPrice)}</td>
@@ -133,12 +139,43 @@ export function ReturnInvoiceDialog({ isOpen, onOpenChange, originalSale, return
               )}
               
               {/* Summary */}
-              <div className={cn(
-                "flex justify-end text-lg font-bold",
-                 difference >= 0 ? "text-destructive" : "text-green-600"
-              )}>
-                 <span>{difference >= 0 ? 'Amount to Pay:' : 'Credit Due:'}</span>
-                 <span className="ml-4">{formatCurrency(Math.abs(difference))}</span>
+              <div className="space-y-1 text-sm">
+                  <div className="flex justify-between">
+                      <span className="text-muted-foreground">Return Credit:</span>
+                      <span>- {formatCurrency(returnTotalValue)}</span>
+                  </div>
+                   <div className="flex justify-between">
+                      <span className="text-muted-foreground">New Items Cost:</span>
+                      <span>+ {formatCurrency(exchangeTotalValue)}</span>
+                  </div>
+                  <div className={cn(
+                    "flex justify-between font-bold text-lg",
+                    difference >= 0 ? "text-destructive" : "text-green-600"
+                  )}>
+                    <span>{difference >= 0 ? 'Subtotal Due:' : 'Subtotal Credit:'}</span>
+                    <span>{formatCurrency(Math.abs(difference))}</span>
+                  </div>
+                  {amountPaid && amountPaid > 0 && (
+                     <div className="flex justify-between text-base">
+                        <span>Amount Paid:</span>
+                        <span>- {formatCurrency(amountPaid)}</span>
+                    </div>
+                  )}
+                  {changeGiven && changeGiven > 0 && (
+                      <div className="flex justify-between text-base text-green-600">
+                          <span>Change Given:</span>
+                          <span>{formatCurrency(changeGiven)}</span>
+                      </div>
+                  )}
+                  <Separator className="my-2"/>
+                  <div className={cn(
+                    "flex justify-between font-bold text-lg",
+                    (difference - (amountPaid || 0)) > 0.01 ? "text-destructive" : "text-primary"
+                  )}>
+                    <span>{difference >= 0 ? 'FINAL BALANCE DUE:' : 'FINAL CREDIT:'}</span>
+                    <span>{formatCurrency(Math.abs(difference - (amountPaid || 0)))}</span>
+                  </div>
+                  {paymentSummary && <p className="text-xs text-muted-foreground text-right">{paymentSummary}</p>}
               </div>
               
               <p className="text-center text-xs mt-6">Thank you!</p>

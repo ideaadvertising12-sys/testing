@@ -1,6 +1,7 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { processReturnTransaction } from '@/lib/firestoreService';
+import type { ChequeInfo, BankTransferInfo } from '@/lib/types';
 
 interface ReturnRequestBody {
   saleId: string;
@@ -30,6 +31,13 @@ interface ReturnRequestBody {
   staffId: string;
   customerId?: string;
   customerName?: string;
+  payment?: {
+    amountPaid: number;
+    paymentSummary: string;
+    changeGiven?: number;
+    chequeDetails?: ChequeInfo;
+    bankTransferDetails?: BankTransferInfo;
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -40,24 +48,33 @@ export async function POST(request: NextRequest) {
         exchangedItems,
         staffId,
         customerId,
-        customerName
+        customerName,
+        payment
     }: ReturnRequestBody = await request.json();
 
-    if (!saleId || !returnedItems || !exchangedItems || !staffId) {
+    if (!saleId || !staffId) {
       return NextResponse.json({ error: 'Invalid request body. Missing required fields.' }, { status: 400 });
     }
+     if (returnedItems.length === 0 && exchangedItems.length === 0) {
+      return NextResponse.json({ error: 'Cannot process an empty transaction.' }, { status: 400 });
+    }
 
-    const { returnId } = await processReturnTransaction({
+    const { returnId, returnData } = await processReturnTransaction({
         saleId,
         returnedItems,
         exchangedItems,
         staffId,
         customerId,
         customerName,
+        payment,
     });
 
 
-    return NextResponse.json({ message: 'Return/Exchange processed successfully and stock updated.', returnId });
+    return NextResponse.json({ 
+        message: 'Return/Exchange processed successfully and stock updated.', 
+        returnId,
+        returnData 
+    });
 
   } catch (error) {
     console.error('Error processing return/exchange:', error);

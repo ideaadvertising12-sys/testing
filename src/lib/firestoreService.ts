@@ -335,6 +335,13 @@ interface ProcessReturnArgs {
   staffId: string;
   customerId?: string;
   customerName?: string;
+  payment?: {
+    amountPaid: number;
+    paymentSummary: string;
+    changeGiven?: number;
+    chequeDetails?: ChequeInfo;
+    bankTransferDetails?: BankTransferInfo;
+  }
 }
 
 export const processReturnTransaction = async ({
@@ -344,9 +351,11 @@ export const processReturnTransaction = async ({
   staffId,
   customerId,
   customerName,
-}: ProcessReturnArgs): Promise<{ returnId: string }> => {
+  payment
+}: ProcessReturnArgs): Promise<{ returnId: string, returnData: ReturnTransaction }> => {
   checkFirebase();
   const returnId = await generateCustomReturnId();
+  let finalReturnData: ReturnTransaction | null = null;
   
   await runTransaction(db, async (transaction) => {
     // 1. GATHER ALL REFS & PERFORM READS
@@ -438,7 +447,7 @@ export const processReturnTransaction = async ({
 
     // Create the new return transaction document
     const returnDocRef = doc(db, 'returns', returnId);
-    const returnData: FirestoreReturnTransaction = {
+    const returnDataForFirestore: FirestoreReturnTransaction = {
       originalSaleId: saleId,
       returnDate: Timestamp.now(),
       createdAt: Timestamp.now(),
@@ -466,10 +475,31 @@ export const processReturnTransaction = async ({
         productSku: item.sku
       })),
     };
-    transaction.set(returnDocRef, returnTransactionConverter.toFirestore(returnData));
+    
+    if (payment) {
+        returnDataForFirestore.amountPaid = payment.amountPaid;
+        returnDataForFirestore.paymentSummary = payment.paymentSummary;
+        returnDataForFirestore.changeGiven = payment.changeGiven;
+        if (payment.chequeDetails) {
+            returnDataForFirestore.chequeDetails = {
+                ...payment.chequeDetails,
+                date: payment.chequeDetails.date ? Timestamp.fromDate(payment.chequeDetails.date) : undefined
+            }
+        }
+        returnDataForFirestore.bankTransferDetails = payment.bankTransferDetails;
+    }
+    
+    transaction.set(returnDocRef, returnTransactionConverter.toFirestore(returnDataForFirestore));
+    
+    // Set the data to be returned outside the transaction
+    finalReturnData = returnTransactionConverter.fromFirestore({ id: returnId, data: () => returnDataForFirestore });
   });
 
-  return { returnId };
+  if (!finalReturnData) {
+      throw new Error("Transaction failed and return data could not be constructed.");
+  }
+
+  return { returnId, returnData: finalReturnData };
 };
 
 export const updateProductStock = async (productId: string, newStockLevel: number): Promise<void> => {
