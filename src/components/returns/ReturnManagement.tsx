@@ -31,7 +31,7 @@ const formatCurrency = (amount: number) => `Rs. ${amount.toFixed(2)}`;
 
 export function ReturnManagement() {
   const { customers, isLoading: isLoadingCustomers } = useCustomers();
-  const { sales, isLoading: isLoadingSales, refetchSales } = useSalesData(true);
+  const { sales, isLoading: isLoadingSales, refetchSales } = useSalesData(false);
   const { products: allProducts, isLoading: isLoadingProducts, refetch: refetchProducts } = useProducts();
   const { toast } = useToast();
 
