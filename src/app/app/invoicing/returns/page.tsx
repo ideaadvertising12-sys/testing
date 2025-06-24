@@ -1,4 +1,3 @@
-
 "use client";
 
 import React from "react";
@@ -8,10 +7,13 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import { GlobalPreloaderScreen } from "@/components/GlobalPreloaderScreen";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useReturns } from "@/hooks/useReturns";
+import { ReturnInvoiceDataTable } from "@/components/invoicing/ReturnInvoiceDataTable";
 
 export default function ReturnInvoicesPage() {
   const { currentUser } = useAuth();
   const router = useRouter();
+  const { returns, isLoading, error } = useReturns();
 
   React.useEffect(() => {
     if (!currentUser) {
@@ -34,11 +36,15 @@ export default function ReturnInvoicesPage() {
         <CardHeader>
           <CardTitle>All Returns</CardTitle>
           <CardDescription>
-            A complete log of all return and exchange transactions. This feature is under development.
+            A complete log of all return and exchange transactions.
           </CardDescription>
         </CardHeader>
-        <CardContent className="flex items-center justify-center h-64 text-muted-foreground">
-          <p>Return invoice data table will be displayed here.</p>
+        <CardContent>
+            <ReturnInvoiceDataTable 
+                returns={returns}
+                isLoading={isLoading}
+                error={error}
+            />
         </CardContent>
       </Card>
     </>
