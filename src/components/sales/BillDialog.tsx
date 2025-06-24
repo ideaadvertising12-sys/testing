@@ -24,6 +24,16 @@ import { Calendar } from "@/components/ui/calendar";
 import { format, isValid, parseISO } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 
+const formatCurrency = (amount: number | undefined): string => {
+  if (typeof amount !== 'number' || isNaN(amount)) return 'Rs. 0.00';
+  return new Intl.NumberFormat('en-LK', {
+    style: 'currency',
+    currency: 'LKR',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(amount).replace('LKR', 'Rs.');
+};
+
 interface BillDialogProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
@@ -501,5 +511,3 @@ export function BillDialog({
     </Dialog>
   );
 }
-
-    
