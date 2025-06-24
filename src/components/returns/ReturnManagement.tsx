@@ -21,6 +21,7 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ReturnInvoiceDialog } from "./ReturnInvoiceDialog";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface ReturnItem extends CartItem {
   returnQuantity: number;
@@ -32,6 +33,7 @@ interface ReturnReceiptData {
   originalSale: Sale;
   returnedItems: ReturnItem[];
   exchangedItems: CartItem[];
+  returnId: string | null;
 }
 
 const formatCurrency = (amount: number) => `Rs. ${amount.toFixed(2)}`;
@@ -40,6 +42,7 @@ export function ReturnManagement() {
   const { customers, isLoading: isLoadingCustomers } = useCustomers();
   const { sales, isLoading: isLoadingSales, refetchSales } = useSalesData(false);
   const { products: allProducts, isLoading: isLoadingProducts, refetch: refetchProducts } = useProducts();
+  const { currentUser } = useAuth();
   const { toast } = useToast();
 
   // Search State
@@ -188,7 +191,7 @@ export function ReturnManagement() {
   const difference = exchangeTotalValue - returnTotalValue;
   
   const handleProcessExchange = async () => {
-    if (!selectedSale) return;
+    if (!selectedSale || !currentUser) return;
 
     const activeReturnedItems = itemsToReturn.filter(item => item.returnQuantity > 0);
     if (activeReturnedItems.length === 0 && exchangeItems.length === 0) {
@@ -204,9 +207,26 @@ export function ReturnManagement() {
                 id: item.id,
                 saleType: item.saleType,
                 quantity: item.returnQuantity,
-                isResellable: item.isResellable
+                isResellable: item.isResellable,
+                name: item.name,
+                category: item.category,
+                price: item.price,
+                appliedPrice: item.appliedPrice,
+                sku: item.sku
             })),
-            exchangedItems: exchangeItems.map(item => ({ id: item.id, quantity: item.quantity })),
+            exchangedItems: exchangeItems.map(item => ({ 
+                id: item.id,
+                quantity: item.quantity,
+                name: item.name,
+                category: item.category,
+                price: item.price,
+                appliedPrice: item.appliedPrice,
+                sku: item.sku,
+                saleType: item.saleType
+            })),
+            staffId: currentUser.username,
+            customerId: selectedSale.customerId,
+            customerName: selectedSale.customerName,
         };
 
         const response = await fetch('/api/returns', {
@@ -223,13 +243,14 @@ export function ReturnManagement() {
 
         toast({
             title: "Exchange Successful",
-            description: "Stock levels and sale record have been updated.",
+            description: `Return ID: ${result.returnId}`,
         });
 
         setReturnReceiptData({
           originalSale: selectedSale,
           returnedItems: activeReturnedItems,
           exchangedItems: exchangeItems,
+          returnId: result.returnId,
         });
         setIsReceiptOpen(true);
 
@@ -490,6 +511,7 @@ export function ReturnManagement() {
             originalSale={returnReceiptData.originalSale}
             returnedItems={returnReceiptData.returnedItems}
             exchangedItems={returnReceiptData.exchangedItems}
+            returnId={returnReceiptData.returnId}
           />
         )}
     </div>

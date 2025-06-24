@@ -30,11 +30,12 @@ interface ReturnInvoiceProps {
   originalSale: Sale | null;
   returnedItems: ReturnedItemForReceipt[];
   exchangedItems: CartItem[];
+  returnId: string | null;
 }
 
 const formatCurrency = (amount: number) => `Rs. ${amount.toFixed(2)}`;
 
-export function ReturnInvoiceDialog({ isOpen, onOpenChange, originalSale, returnedItems, exchangedItems }: ReturnInvoiceProps) {
+export function ReturnInvoiceDialog({ isOpen, onOpenChange, originalSale, returnedItems, exchangedItems, returnId }: ReturnInvoiceProps) {
   if (!originalSale) return null;
 
   const returnTotalValue = returnedItems.reduce((total, item) => {
@@ -74,6 +75,7 @@ export function ReturnInvoiceDialog({ isOpen, onOpenChange, originalSale, return
               <Separator className="my-4"/>
               
               <div className="text-xs mb-4">
+                <p><strong>Return ID:</strong> <span className="font-mono">{returnId || 'N/A'}</span></p>
                 <p><strong>Return Date:</strong> {format(new Date(), "PP, p")}</p>
                 <p><strong>Original Sale ID:</strong> {originalSale.id}</p>
                 <p><strong>Customer:</strong> {originalSale.customerName || "N/A"}</p>

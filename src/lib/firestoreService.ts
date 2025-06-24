@@ -12,7 +12,8 @@ import {
   writeBatch,
   serverTimestamp,
   Timestamp,
-  runTransaction
+  runTransaction,
+  setDoc,
 } from "firebase/firestore";
 import { format } from 'date-fns';
 import { 
@@ -33,6 +34,9 @@ import {
   type FirestoreBankTransferInfo,
   type StockTransaction,
   stockTransactionConverter,
+  type ReturnTransaction,
+  returnTransactionConverter,
+  type FirestoreReturnTransaction
 } from "./types";
 
 // Product Services
@@ -292,6 +296,180 @@ export const getSales = async (): Promise<Sale[]> => {
   const salesCol = collection(db, "sales").withConverter(saleConverter);
   const salesSnapshot = await getDocs(salesCol);
   return salesSnapshot.docs.map(doc => doc.data());
+};
+
+// Return Services
+
+async function generateCustomReturnId(): Promise<string> {
+  checkFirebase();
+  const today = new Date();
+  const datePart = format(today, "MM.dd");
+  const counterDocId = format(today, "yyyy-MM-dd");
+
+  const counterRef = doc(db, "dailyReturnCounters", counterDocId);
+
+  try {
+    const newCount = await runTransaction(db, async (transaction) => {
+      const counterDoc = await transaction.get(counterRef);
+      if (!counterDoc.exists()) {
+        transaction.set(counterRef, { count: 1 });
+        return 1;
+      } else {
+        const count = counterDoc.data().count + 1;
+        transaction.update(counterRef, { count });
+        return count;
+      }
+    });
+    return `return-${datePart}-${newCount}`;
+  } catch (e) {
+    console.error("Custom return ID transaction failed: ", e);
+    const randomPart = Math.random().toString(36).substring(2, 8);
+    return `return-${datePart}-err-${randomPart}`;
+  }
+}
+
+interface ProcessReturnArgs {
+  saleId: string;
+  returnedItems: (CartItem & { isResellable: boolean })[];
+  exchangedItems: CartItem[];
+  staffId: string;
+  customerId?: string;
+  customerName?: string;
+}
+
+export const processReturnTransaction = async ({
+  saleId,
+  returnedItems,
+  exchangedItems,
+  staffId,
+  customerId,
+  customerName,
+}: ProcessReturnArgs): Promise<{ returnId: string }> => {
+  checkFirebase();
+  const returnId = await generateCustomReturnId();
+  
+  await runTransaction(db, async (transaction) => {
+    // 1. GATHER ALL REFS & PERFORM READS
+    const saleRef = doc(db, 'sales', saleId).withConverter(saleConverter);
+    const productRefs = new Map<string, ReturnType<typeof doc>>();
+    const allProductIds = new Set([
+      ...returnedItems.map(i => i.id),
+      ...exchangedItems.map(i => i.id)
+    ]);
+    allProductIds.forEach(id => {
+      productRefs.set(id, doc(db, 'products', id).withConverter(productConverter));
+    });
+
+    const saleDoc = await transaction.get(saleRef);
+    if (!saleDoc.exists()) {
+      throw new Error(`Sale with ID ${saleId} not found.`);
+    }
+
+    const productDocs = await Promise.all(
+      Array.from(productRefs.values()).map(ref => transaction.get(ref))
+    );
+
+    const productDataMap = new Map<string, { doc: Product, newStock: number }>();
+    productDocs.forEach(docSnap => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        productDataMap.set(docSnap.id, { doc: data, newStock: data.stock });
+      } else {
+        const failedId = Array.from(productRefs.entries()).find(([, ref]) => ref.path === docSnap.ref.path)?.[0];
+        throw new Error(`Product with ID ${failedId} not found.`);
+      }
+    });
+    
+    // 2. CALCULATE & VALIDATE
+    // Calculate stock changes for EXCHANGED (new) items
+    for (const item of exchangedItems) {
+      const productInfo = productDataMap.get(item.id);
+      if (!productInfo) {
+        throw new Error(`Product with ID ${item.id} for exchange not found.`);
+      }
+      if (productInfo.newStock < item.quantity) {
+        throw new Error(`Insufficient stock for ${productInfo.doc.name}. Available: ${productInfo.newStock}, Requested: ${item.quantity}`);
+      }
+      productInfo.newStock -= item.quantity;
+    }
+
+    // Calculate stock changes and update sale for RETURNED items
+    const currentSaleData = saleDoc.data();
+    const newSaleItems = [...currentSaleData.items];
+    for (const item of returnedItems) {
+      if (item.isResellable) {
+        const productInfo = productDataMap.get(item.id);
+        if (!productInfo) { throw new Error(`Product with ID ${item.id} for return not found.`); }
+        productInfo.newStock += item.quantity;
+      }
+      const saleItemIndex = newSaleItems.findIndex(saleItem => saleItem.id === item.id && saleItem.saleType === item.saleType);
+      if (saleItemIndex === -1) { throw new Error(`Item with product ID ${item.id} and sale type ${item.saleType} not found in the original sale.`); }
+      const originalSaleItem = newSaleItems[saleItemIndex];
+      const alreadyReturned = originalSaleItem.returnedQuantity || 0;
+      if ((alreadyReturned + item.quantity) > originalSaleItem.quantity) {
+        throw new Error(`Cannot return ${item.quantity} of ${originalSaleItem.name}. Only ${originalSaleItem.quantity - alreadyReturned} are available.`);
+      }
+      newSaleItems[saleItemIndex] = { ...originalSaleItem, returnedQuantity: alreadyReturned + item.quantity };
+    }
+
+    // 3. PERFORM ALL WRITES
+    // Update product stock levels
+    productDataMap.forEach((info, id) => {
+      const prodRef = productRefs.get(id);
+      if (prodRef) {
+        transaction.update(prodRef, { stock: info.newStock, updatedAt: Timestamp.now() });
+      }
+    });
+
+    // Update returned quantities in the original sale document
+    const firestoreSaleItems = newSaleItems.map((item: CartItem): FirestoreCartItem => ({
+      productRef: doc(db, 'products', item.id).path,
+      quantity: item.quantity,
+      appliedPrice: item.appliedPrice,
+      saleType: item.saleType,
+      productName: item.name, 
+      productCategory: item.category,
+      productPrice: item.price, 
+      isOfferItem: item.isOfferItem || false,
+      returnedQuantity: item.returnedQuantity || 0,
+      ...(item.sku !== undefined && { productSku: item.sku }),
+    }));
+    transaction.update(saleRef, { items: firestoreSaleItems, updatedAt: Timestamp.now() });
+
+    // Create the new return transaction document
+    const returnDocRef = doc(db, 'returns', returnId);
+    const returnData: FirestoreReturnTransaction = {
+      originalSaleId: saleId,
+      returnDate: Timestamp.now(),
+      createdAt: Timestamp.now(),
+      staffId,
+      customerId,
+      customerName,
+      returnedItems: returnedItems.map(item => ({
+        productRef: doc(db, 'products', item.id),
+        quantity: item.quantity,
+        appliedPrice: item.appliedPrice,
+        saleType: item.saleType,
+        productName: item.name,
+        productCategory: item.category,
+        productPrice: item.price,
+        productSku: item.sku
+      })),
+      exchangedItems: exchangedItems.map(item => ({
+        productRef: doc(db, 'products', item.id),
+        quantity: item.quantity,
+        appliedPrice: item.appliedPrice,
+        saleType: item.saleType,
+        productName: item.name,
+        productCategory: item.category,
+        productPrice: item.price,
+        productSku: item.sku
+      })),
+    };
+    transaction.set(returnDocRef, returnTransactionConverter.toFirestore(returnData));
+  });
+
+  return { returnId };
 };
 
 export const updateProductStock = async (productId: string, newStockLevel: number): Promise<void> => {

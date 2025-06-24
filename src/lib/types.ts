@@ -1,6 +1,6 @@
 
 // location src/lib/types.ts
-import { Timestamp } from 'firebase/firestore';
+import { Timestamp, DocumentReference } from 'firebase/firestore';
 
 // Base Interfaces
 export interface Product {
@@ -141,6 +141,18 @@ export interface Vehicle {
   notes?: string;
 }
 
+export interface ReturnTransaction {
+  id: string; // The generated ID like "return-06.25-1"
+  originalSaleId: string;
+  returnDate: Date;
+  staffId: string;
+  customerId?: string;
+  customerName?: string;
+  returnedItems: CartItem[];
+  exchangedItems: CartItem[];
+  notes?: string;
+}
+
 // Firestore-specific types
 export interface FirestoreProduct extends Omit<Product, 'id'> {
   createdAt?: Timestamp;
@@ -159,7 +171,7 @@ export interface FirestoreVehicle extends Omit<Vehicle, 'id'> {
 
 // Stored in Firestore for each item in a sale
 export interface FirestoreCartItem {
-  productRef: string; // Reference to the original product document
+  productRef: string | DocumentReference; // Can accept a string path or a DocumentReference
   quantity: number;
   appliedPrice: number;
   saleType: 'retail' | 'wholesale';
@@ -207,6 +219,14 @@ export interface FirestoreUser extends Omit<User, 'id'> {
     createdAt?: Timestamp;
     updatedAt?: Timestamp;
 }
+
+export interface FirestoreReturnTransaction extends Omit<ReturnTransaction, 'id' | 'returnDate' | 'returnedItems' | 'exchangedItems'> {
+  returnDate: Timestamp;
+  createdAt: Timestamp;
+  returnedItems: FirestoreCartItem[];
+  exchangedItems: FirestoreCartItem[];
+}
+
 
 // Data Converters
 export const productConverter = {
@@ -393,19 +413,28 @@ export const saleConverter = {
 
     return {
       id: snapshot.id,
-      items: data.items.map((item: FirestoreCartItem): CartItem => ({
-        id: item.productRef ? item.productRef.split('/')[1] : 'unknown_id', 
-        quantity: item.quantity,
-        appliedPrice: item.appliedPrice,
-        saleType: item.saleType,
-        name: item.productName || "N/A", 
-        category: item.productCategory || "Other",
-        price: typeof item.productPrice === 'number' ? item.productPrice : 0, 
-        sku: item.productSku, 
-        isOfferItem: item.isOfferItem || false,
-        returnedQuantity: item.returnedQuantity,
-        imageUrl: undefined, // Not typically stored per item in sale, but CartItem requires it.
-      })),
+      items: data.items.map((item: FirestoreCartItem): CartItem => {
+        let id = 'unknown_id';
+        if (typeof item.productRef === 'string') {
+          id = item.productRef.split('/')[1];
+        } else if (item.productRef instanceof DocumentReference) {
+          id = item.productRef.id;
+        }
+
+        return {
+          id,
+          quantity: item.quantity,
+          appliedPrice: item.appliedPrice,
+          saleType: item.saleType,
+          name: item.productName || "N/A", 
+          category: item.productCategory || "Other",
+          price: typeof item.productPrice === 'number' ? item.productPrice : 0, 
+          sku: item.productSku, 
+          isOfferItem: item.isOfferItem || false,
+          returnedQuantity: item.returnedQuantity,
+          imageUrl: undefined,
+        };
+      }),
       subTotal: data.subTotal,
       discountPercentage: data.discountPercentage,
       discountAmount: data.discountAmount,
@@ -447,7 +476,7 @@ export const stockTransactionConverter = {
       quantity: transaction.quantity,
       previousStock: transaction.previousStock,
       newStock: transaction.newStock,
-      transactionDate: transaction.transactionDate,
+      transactionDate: transaction.transactionDate as any, // Will be converted to Timestamp by Firestore
       userId: transaction.userId,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
@@ -474,6 +503,29 @@ export const stockTransactionConverter = {
       notes: data.notes,
       vehicleId: data.vehicleId,
       userId: data.userId
+    };
+  }
+};
+
+export const returnTransactionConverter = {
+  toFirestore: (returnData: FirestoreReturnTransaction): Partial<FirestoreReturnTransaction> => {
+    return {
+      ...returnData,
+      createdAt: Timestamp.now(),
+    };
+  },
+  fromFirestore: (snapshot: any): ReturnTransaction => {
+    const data = snapshot.data();
+    return {
+      id: snapshot.id,
+      originalSaleId: data.originalSaleId,
+      returnDate: data.returnDate.toDate(),
+      staffId: data.staffId,
+      customerId: data.customerId,
+      customerName: data.customerName,
+      returnedItems: data.returnedItems, // Assuming they are stored in a compatible format
+      exchangedItems: data.exchangedItems,
+      notes: data.notes,
     };
   }
 };
