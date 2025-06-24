@@ -298,6 +298,14 @@ export const getSales = async (): Promise<Sale[]> => {
   return salesSnapshot.docs.map(doc => doc.data());
 };
 
+export const getReturns = async (): Promise<ReturnTransaction[]> => {
+  checkFirebase();
+  const returnsCol = collection(db, "returns").withConverter(returnTransactionConverter);
+  const returnsSnapshot = await getDocs(returnsCol);
+  return returnsSnapshot.docs.map(doc => doc.data());
+};
+
+
 // Return Services
 
 async function generateCustomReturnId(): Promise<string> {

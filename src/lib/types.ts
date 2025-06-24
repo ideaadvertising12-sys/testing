@@ -537,6 +537,30 @@ export const returnTransactionConverter = {
             date: data.chequeDetails.date instanceof Timestamp ? data.chequeDetails.date.toDate() : undefined,
         }
     }
+    
+    const processItems = (items: FirestoreCartItem[] = []): CartItem[] => {
+        return items.map((item: FirestoreCartItem): CartItem => {
+            let id = 'unknown_id';
+            if (typeof item.productRef === 'string') {
+              id = item.productRef.split('/')[1];
+            } else if (item.productRef instanceof DocumentReference) {
+              id = item.productRef.id;
+            }
+
+            return {
+              id,
+              quantity: item.quantity,
+              appliedPrice: item.appliedPrice,
+              saleType: item.saleType,
+              name: item.productName || "N/A", 
+              category: item.productCategory || "Other",
+              price: typeof item.productPrice === 'number' ? item.productPrice : 0, 
+              sku: item.productSku, 
+              isOfferItem: false, // Not relevant for this context
+            };
+        });
+    };
+
     return {
       id: snapshot.id,
       originalSaleId: data.originalSaleId,
@@ -544,8 +568,8 @@ export const returnTransactionConverter = {
       staffId: data.staffId,
       customerId: data.customerId,
       customerName: data.customerName,
-      returnedItems: data.returnedItems,
-      exchangedItems: data.exchangedItems,
+      returnedItems: processItems(data.returnedItems),
+      exchangedItems: processItems(data.exchangedItems),
       notes: data.notes,
       amountPaid: data.amountPaid,
       paymentSummary: data.paymentSummary,
