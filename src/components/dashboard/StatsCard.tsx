@@ -28,7 +28,7 @@ export function StatsCard({
   trend,
   additionalInfo
 }: StatsCardProps) {
-  const trendIcon = trend && trend > 0 ? ArrowUpRight : ArrowDownRight;
+  const TrendIcon = trend && trend > 0 ? ArrowUpRight : ArrowDownRight;
   const trendColor = trend && trend > 0 ? "text-green-600" : trend && trend < 0 ? "text-destructive" : "text-muted-foreground";
 
   return (
@@ -49,7 +49,7 @@ export function StatsCard({
         <CardFooter className="pt-0 pb-4 text-xs text-muted-foreground flex items-center justify-between">
            {trend !== undefined && trend !== 0 ? (
             <Badge variant="outline" className={cn("border-none text-xs font-medium", trendColor)}>
-              <trendIcon className="mr-1 h-3.5 w-3.5" />
+              <TrendIcon className="mr-1 h-3.5 w-3.5" />
               {Math.abs(trend).toFixed(1)}%
             </Badge>
           ) : (
