@@ -64,16 +64,25 @@ export default function DashboardPage() {
 
     const salesRevenueToday = todaySales.reduce((sum, sale) => sum + (Number(sale.totalAmount) || 0), 0);
 
-    const sameDayRefundsToday = returns
+    const refundsForTodaySales = returns
       .filter(ret => {
+        // Must be a refund made today
         if (!ret.refundAmount || ret.refundAmount <= 0) return false;
         const returnDate = ret.returnDate instanceof Date ? ret.returnDate : new Date(ret.returnDate);
-        return returnDate >= today && returnDate <= endOfToday;
+        if (returnDate < today || returnDate > endOfToday) return false;
+        
+        // Find the original sale
+        const originalSale = sales.find(s => s.id === ret.originalSaleId);
+        if (!originalSale) return false; // Can't determine original date
+
+        // Check if original sale was also today
+        const originalSaleDate = originalSale.saleDate instanceof Date ? originalSale.saleDate : new Date(originalSale.saleDate);
+        return originalSaleDate >= today && originalSaleDate <= endOfToday;
       })
       .reduce((sum, ret) => sum + (ret.refundAmount || 0), 0);
       
     return {
-      revenueToday: salesRevenueToday - sameDayRefundsToday,
+      revenueToday: salesRevenueToday - refundsForTodaySales,
       salesCountToday: todaySales.length
     };
   }, [sales, returns, isLoadingSales, isLoadingReturns]);
@@ -345,7 +354,7 @@ export default function DashboardPage() {
             formatCurrency(netTotalRevenue),
             Banknote,
             "text-green-600",
-            "Net revenue after refunds",
+            `Net revenue after all refunds`,
             monthlyComparison[new Date().getMonth()]
           )
         )}
