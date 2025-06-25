@@ -12,12 +12,13 @@ import { useAuth } from "@/contexts/AuthContext";
 import { AccessDenied } from "@/components/AccessDenied";
 import { useRouter } from "next/navigation";
 import { GlobalPreloaderScreen } from "@/components/GlobalPreloaderScreen";
-import type { Sale, DayEndReportSummary } from "@/lib/types"; // Updated DayEndReportSummary type might be needed
+import type { Sale, DayEndReportSummary, ReturnTransaction } from "@/lib/types";
 import { format, startOfDay, endOfDay } from "date-fns";
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { cn } from "@/lib/utils";
 import { useSalesData } from "@/hooks/useSalesData"; 
+import { useReturns } from "@/hooks/useReturns";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { AlertTriangle } from "lucide-react";
 
@@ -39,6 +40,7 @@ export default function DayEndReportPage() {
   const [reportSummary, setReportSummary] = useState<DayEndReportSummary | null>(null);
 
   const { sales: allSales, isLoading: isLoadingSales, error: salesError } = useSalesData(true); 
+  const { returns, isLoading: isLoadingReturns, error: returnsError } = useReturns();
 
   useEffect(() => {
     if (!currentUser) {
@@ -51,7 +53,7 @@ export default function DayEndReportPage() {
   }, [currentUser, router]);
 
   useEffect(() => {
-    if (selectedDate && !isLoadingSales && allSales) {
+    if (selectedDate && !isLoadingSales && allSales && !isLoadingReturns && returns) {
       const dateStart = startOfDay(selectedDate);
       const dateEnd = endOfDay(selectedDate);
 
@@ -111,11 +113,26 @@ export default function DayEndReportPage() {
         return saleDateObj >= dateStart && saleDateObj <= dateEnd;
       });
 
-      const totalSalesValue = salesForDay.reduce((sum, s) => sum + s.totalAmount, 0);
+      const grossSalesValue = salesForDay.reduce((sum, s) => sum + s.totalAmount, 0);
+      
+      // --- Calculate Refunds for Sales made on the same day ---
+      const sameDayRefundsValue = returns.filter(ret => {
+          if (!ret.refundAmount || ret.refundAmount <= 0) return false;
+          
+          const returnDateObj = ret.returnDate instanceof Date ? ret.returnDate : new Date(ret.returnDate);
+          if (returnDateObj < dateStart || returnDateObj > dateEnd) return false;
+          
+          const originalSale = allSales.find(s => s.id === ret.originalSaleId);
+          if (!originalSale) return false;
+          
+          const originalSaleDateObj = originalSale.saleDate instanceof Date ? originalSale.saleDate : new Date(originalSale.saleDate);
+          
+          return originalSaleDateObj >= dateStart && originalSaleDateObj <= dateEnd;
+      }).reduce((sum, ret) => sum + (ret.refundAmount || 0), 0);
+
+      const netSalesValue = grossSalesValue - sameDayRefundsValue;
 
       const totalOutstandingAmount = salesForDay.reduce((sum, s) => {
-        // Use the new initialOutstandingBalance field if it exists.
-        // Otherwise, calculate it based on initial payment methods for backward compatibility.
         const initialOutstanding = typeof s.initialOutstandingBalance === 'number'
           ? s.initialOutstandingBalance
           : s.totalAmount - ((s.paidAmountCash || 0) + (s.paidAmountCheque || 0) + (s.paidAmountBankTransfer || 0));
@@ -126,22 +143,19 @@ export default function DayEndReportPage() {
       setReportSummary({
         reportDate: selectedDate,
         totalTransactions: salesForDay.length,
-        totalSalesAmount: totalSalesValue,
+        totalSalesAmount: netSalesValue,
         
-        // Use the newly calculated collection values
         totalAmountCollectedByCash: totalCollectedByCash,
         totalAmountCollectedByCheque: totalCollectedByCheque,
         totalAmountCollectedByBankTransfer: totalCollectedByBankTransfer,
-        totalChangeGiven: totalChangeGiven, // This is change given out on the day from new sales
-        totalOutstandingAmount: totalOutstandingAmount, // This is new credit given out on the day
-
-        // These are for compatibility with old PDF structure if needed, can be refactored
-        cashSales: { count: 0, amount: 0, cashReceived: totalCollectedByCash, balanceReturned: totalChangeGiven }, // Simplified
+        totalChangeGiven: totalChangeGiven, 
+        totalOutstandingAmount: totalOutstandingAmount,
+        
+        cashSales: { count: 0, amount: 0, cashReceived: totalCollectedByCash, balanceReturned: totalChangeGiven }, 
         chequeSales: { count: salesForDay.filter(s => s.paidAmountCheque && s.paidAmountCheque > 0).length, amount: totalCollectedByCheque, chequeNumbers: chequeNumbersList },
-        // For 'creditSales', it's better to directly use totalOutstandingAmount
         creditSales: { count: salesForDay.filter(s => (s.initialOutstandingBalance ?? 0) > 0).length, amount: totalOutstandingAmount, amountPaidOnCredit: 0, remainingCreditBalance: totalOutstandingAmount },
         
-        overallTotalSales: totalSalesValue,
+        overallTotalSales: netSalesValue,
         overallTotalCashReceived: totalCollectedOverall,
         overallTotalBalanceReturned: totalChangeGiven,
         overallTotalCreditOutstanding: totalOutstandingAmount,
@@ -149,7 +163,7 @@ export default function DayEndReportPage() {
     } else {
       setReportSummary(null);
     }
-  }, [selectedDate, allSales, isLoadingSales]);
+  }, [selectedDate, allSales, isLoadingSales, returns, isLoadingReturns]);
 
   if (!currentUser) {
     return <GlobalPreloaderScreen message="Loading report..." />;
@@ -186,7 +200,6 @@ export default function DayEndReportPage() {
     }
     yPos += lineSpacing;
     doc.text(`Total Amount Collected by Bank Transfer: ${formatCurrency(reportSummary.totalAmountCollectedByBankTransfer)}`, 18, yPos);
-    // Add bank transfer refs if needed
     yPos += sectionSpacing;
 
 
@@ -196,7 +209,7 @@ export default function DayEndReportPage() {
     doc.setFontSize(10);
     doc.text(`Total Transactions: ${reportSummary.totalTransactions}`, 18, yPos);
     yPos += lineSpacing;
-    doc.text(`Total Sales Value (Amount Due): ${formatCurrency(reportSummary.totalSalesAmount)}`, 18, yPos);
+    doc.text(`Net Sales Value (Amount Due): ${formatCurrency(reportSummary.totalSalesAmount)}`, 18, yPos);
     yPos += lineSpacing;
     doc.text(`Total Amount Collected (All Methods): ${formatCurrency(reportSummary.overallTotalCashReceived)}`, 18, yPos);
     yPos += lineSpacing;
@@ -232,14 +245,14 @@ export default function DayEndReportPage() {
             />
             </PopoverContent>
         </Popover>
-      <Button onClick={handleExportPDF} variant="outline" size="sm" disabled={!reportSummary || isLoadingSales}>
+      <Button onClick={handleExportPDF} variant="outline" size="sm" disabled={!reportSummary || isLoadingSales || isLoadingReturns}>
         <DownloadCloud className="mr-2 h-4 w-4" /> Export PDF
       </Button>
     </div>
   );
 
-  if (isLoadingSales && !reportSummary) {
-    return <GlobalPreloaderScreen message="Fetching sales data for report..." />
+  if ((isLoadingSales || isLoadingReturns) && !reportSummary) {
+    return <GlobalPreloaderScreen message="Fetching report data..." />
   }
 
   return (
@@ -251,11 +264,11 @@ export default function DayEndReportPage() {
         action={reportActions}
       />
 
-      {salesError && (
+      {(salesError || returnsError) && (
         <Alert variant="destructive" className="mb-4">
           <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Error Loading Sales Data</AlertTitle>
-          <AlertDescription>{salesError}</AlertDescription>
+          <AlertTitle>Error Loading Data</AlertTitle>
+          <AlertDescription>{salesError || returnsError}</AlertDescription>
         </Alert>
       )}
 
@@ -298,13 +311,12 @@ export default function DayEndReportPage() {
               </CardHeader>
               <CardContent className="space-y-1 text-sm">
                 <p>Total Transfer Amount: <span className="font-semibold">{formatCurrency(reportSummary.totalAmountCollectedByBankTransfer)}</span></p>
-                {/* Add display for bank transfer references if needed */}
               </CardContent>
             </Card>
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2"><CreditCard className="h-5 w-5"/>Credit / Outstanding</CardTitle>
-                <CardDescription>Total amount currently due</CardDescription>
+                <CardDescription>Total new credit issued today</CardDescription>
               </CardHeader>
               <CardContent className="space-y-1 text-sm">
                 <p>Total Outstanding: <span className="font-semibold">{formatCurrency(reportSummary.totalOutstandingAmount)}</span></p>
@@ -317,7 +329,7 @@ export default function DayEndReportPage() {
               <CardTitle className="font-headline">Overall Financial Summary</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 text-md">
-              <p>Total Sales Value (Amount Due): <strong className="text-primary">{formatCurrency(reportSummary.totalSalesAmount)}</strong></p>
+              <p>Net Sales Value (Amount Due): <strong className="text-primary">{formatCurrency(reportSummary.totalSalesAmount)}</strong></p>
               <hr className="my-2"/>
               <p>Total Amount Collected (All Methods): <strong className="text-green-600">{formatCurrency(reportSummary.overallTotalCashReceived)}</strong></p>
               <p>Total Change Given (from Cash): <strong>{formatCurrency(reportSummary.totalChangeGiven)}</strong></p>
