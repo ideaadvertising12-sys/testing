@@ -24,6 +24,7 @@ import { GlobalPreloaderScreen } from "@/components/GlobalPreloaderScreen";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useSalesData } from "@/hooks/useSalesData";
 import { useProducts } from "@/hooks/useProducts";
+import { useReturns } from "@/hooks/useReturns";
 
 export default function DashboardPage() {
   const { currentUser } = useAuth();
@@ -34,26 +35,56 @@ export default function DashboardPage() {
     sales, 
     isLoading: isLoadingSales, 
     error: salesError, 
-    totalRevenue: hookTotalRevenue 
-  } = useSalesData(true); // Enable real-time updates
+    totalRevenue: grossTotalRevenue
+  } = useSalesData(true);
   const { 
     products: allProducts, 
     isLoading: isLoadingProducts, 
     error: productsError 
   } = useProducts();
+  const { returns, isLoading: isLoadingReturns, error: returnsError } = useReturns();
 
 
   const revenueToday = useMemo(() => {
-    if (isLoadingSales || !sales || sales.length === 0) return 0;
+    if (isLoadingSales || isLoadingReturns || !sales || !returns) return 0;
+    
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    return sales
+    const endOfToday = new Date();
+    endOfToday.setHours(23, 59, 59, 999);
+
+    const salesRevenueToday = sales
       .filter(sale => {
         const saleDate = sale.saleDate instanceof Date ? sale.saleDate : new Date(sale.saleDate);
-        return saleDate >= today;
+        return saleDate >= today && saleDate <= endOfToday;
       })
       .reduce((sum, sale) => sum + (Number(sale.totalAmount) || 0), 0);
-  }, [sales, isLoadingSales]);
+
+    const sameDayRefundsToday = returns
+      .filter(ret => {
+        if (!ret.refundAmount || ret.refundAmount <= 0) return false;
+        
+        const returnDate = ret.returnDate instanceof Date ? ret.returnDate : new Date(ret.returnDate);
+        if (returnDate < today || returnDate > endOfToday) return false;
+        
+        const originalSale = sales.find(s => s.id === ret.originalSaleId);
+        if (!originalSale) return false;
+        
+        const originalSaleDate = originalSale.saleDate instanceof Date ? originalSale.saleDate : new Date(originalSale.saleDate);
+        
+        return originalSaleDate >= today && originalSaleDate <= endOfToday;
+      })
+      .reduce((sum, ret) => sum + (ret.refundAmount || 0), 0);
+      
+    return salesRevenueToday - sameDayRefundsToday;
+  }, [sales, returns, isLoadingSales, isLoadingReturns]);
+
+  const netTotalRevenue = useMemo(() => {
+    if (isLoadingSales || isLoadingReturns || !returns || grossTotalRevenue === undefined) return 0;
+    const totalRefundsAllTime = returns.reduce((sum, ret) => sum + (ret.refundAmount || 0), 0);
+    return grossTotalRevenue - totalRefundsAllTime;
+  }, [grossTotalRevenue, returns, isLoadingSales, isLoadingReturns]);
+
 
   const liveLowStockItemsCount = useMemo(() => {
     if (isLoadingProducts || !allProducts || allProducts.length === 0) return 0;
@@ -173,15 +204,15 @@ export default function DashboardPage() {
         }
         break;
       case 'liveTotalRevenue':
-        isLoadingValue = isLoadingSales;
-        hasError = salesError;
-        if (!isLoadingValue && !hasError && hookTotalRevenue !== undefined) { 
-          displayValue = formatCurrency(hookTotalRevenue);
+        isLoadingValue = isLoadingSales || isLoadingReturns;
+        hasError = salesError || returnsError;
+        if (!isLoadingValue && !hasError && netTotalRevenue !== undefined) { 
+          displayValue = formatCurrency(netTotalRevenue);
         }
         break;
       case 'liveRevenueToday':
-        isLoadingValue = isLoadingSales; 
-        hasError = salesError;
+        isLoadingValue = isLoadingSales || isLoadingReturns; 
+        hasError = salesError || returnsError;
         if (!isLoadingValue && !hasError && sales) {
           displayValue = formatCurrency(revenueToday);
         }
