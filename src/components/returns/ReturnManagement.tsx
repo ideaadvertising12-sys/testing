@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Search, Package, Hash, Loader2, Users, ChevronsUpDown, Check, ArrowRight, Undo2, XCircle, PlusCircle, MinusCircle, Trash2, CalendarIcon, Wallet } from "lucide-react";
+import { Search, Package, Hash, Loader2, Users, ChevronsUpDown, Check, ArrowRight, Undo2, XCircle, PlusCircle, MinusCircle, Trash2, CalendarIcon, Wallet, Gift, Tag } from "lucide-react";
 import type { Customer, Sale, CartItem, Product, ReturnTransaction, ChequeInfo, BankTransferInfo } from "@/lib/types";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useSalesData } from "@/hooks/useSalesData";
@@ -24,6 +24,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ReturnInvoiceDialog } from "./ReturnInvoiceDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { Calendar } from "@/components/ui/calendar";
+import { Switch } from "@/components/ui/switch";
 
 interface ReturnItem extends CartItem {
   returnQuantity: number;
@@ -56,6 +57,7 @@ export function ReturnManagement() {
   // Exchange State
   const [exchangeItems, setExchangeItems] = useState<CartItem[]>([]);
   const [openProductPopover, setOpenProductPopover] = useState(false);
+  const [currentExchangeSaleType, setCurrentExchangeSaleType] = useState<'retail' | 'wholesale'>('retail');
 
   // Payment State (for when customer owes money)
   const [cashTendered, setCashTendered] = useState<string>("");
@@ -165,33 +167,48 @@ export function ReturnManagement() {
     setBankTransferReference("");
   };
 
-  const handleAddToExchange = (product: Product) => {
-      setExchangeItems(prev => {
-          const existingItem = prev.find(item => item.id === product.id);
-          if (existingItem) {
-              return prev.map(item => item.id === product.id ? {...item, quantity: item.quantity + 1} : item);
-          }
-          return [...prev, {
-              ...product,
-              quantity: 1,
-              appliedPrice: product.price, // Defaulting to retail for exchanges
-              saleType: 'retail',
-              isOfferItem: false,
-          }];
-      });
-      setOpenProductPopover(false);
+  const handleAddToExchange = (productToAdd: Product) => {
+    const existingItemIndex = exchangeItems.findIndex(
+        item => item.id === productToAdd.id && item.saleType === currentExchangeSaleType
+    );
+
+    const priceToUse = (currentExchangeSaleType === 'wholesale' && productToAdd.wholesalePrice)
+        ? productToAdd.wholesalePrice
+        : productToAdd.price;
+        
+    setExchangeItems(prev => {
+        if (existingItemIndex > -1) {
+            const newItems = [...prev];
+            newItems[existingItemIndex].quantity += 1;
+            return newItems;
+        } else {
+            return [...prev, {
+                ...productToAdd,
+                quantity: 1,
+                appliedPrice: priceToUse,
+                saleType: currentExchangeSaleType,
+                isOfferItem: false,
+            }];
+        }
+    });
+
+    setOpenProductPopover(false);
   }
 
-  const handleUpdateExchangeQuantity = (productId: string, newQuantity: number) => {
+  const handleUpdateExchangeQuantity = (productId: string, saleType: 'retail' | 'wholesale', newQuantity: number) => {
       if (newQuantity < 1) {
-          handleRemoveFromExchange(productId);
+          handleRemoveFromExchange(productId, saleType);
           return;
       }
-      setExchangeItems(prev => prev.map(item => item.id === productId ? {...item, quantity: newQuantity} : item));
+      setExchangeItems(prev => prev.map(item => 
+        (item.id === productId && item.saleType === saleType) 
+        ? {...item, quantity: newQuantity} 
+        : item
+      ));
   }
 
-  const handleRemoveFromExchange = (productId: string) => {
-      setExchangeItems(prev => prev.filter(item => item.id !== productId));
+  const handleRemoveFromExchange = (productId: string, saleType: 'retail' | 'wholesale') => {
+      setExchangeItems(prev => prev.filter(item => !(item.id === productId && item.saleType === saleType)));
   }
 
   const {
@@ -340,9 +357,8 @@ export function ReturnManagement() {
     ? `${selectedCustomer.name} (${selectedCustomer.shopName || selectedCustomer.phone})`
     : "Select a customer...";
 
-  const availableProductsForExchange = allProducts.filter(
-    p => !exchangeItems.some(item => item.id === p.id)
-  );
+  const availableProductsForExchange = allProducts.filter(p => p.stock > 0);
+
 
   const renderInitialSearchView = () => (
     <Card className="lg:col-span-3">
@@ -474,8 +490,21 @@ export function ReturnManagement() {
             <CardContent>
               <ScrollArea className="h-[calc(100vh-20rem)] -mr-4 pr-4">
                 <div className="space-y-4">
-                    <div>
-                      <Label>Exchange Items</Label>
+                    <div className="flex flex-col sm:flex-row gap-4 items-center">
+                      <Label className="whitespace-nowrap">Exchange Items</Label>
+                       <div className="flex items-center space-x-2 bg-muted p-1 rounded-md shrink-0">
+                          <Switch
+                            id="exchange-sale-type-toggle"
+                            checked={currentExchangeSaleType === 'wholesale'}
+                            onCheckedChange={(checked) => setCurrentExchangeSaleType(checked ? 'wholesale' : 'retail')}
+                            aria-label="Toggle exchange sale type"
+                            className="data-[state=checked]:bg-blue-600"
+                          />
+                          <Label htmlFor="exchange-sale-type-toggle" className="flex items-center gap-1 text-sm font-medium px-2 cursor-pointer">
+                            <Tag className="h-4 w-4" />
+                            {currentExchangeSaleType === 'wholesale' ? 'Wholesale' : 'Retail'}
+                          </Label>
+                        </div>
                       <Popover open={openProductPopover} onOpenChange={setOpenProductPopover}>
                           <PopoverTrigger asChild>
                               <Button variant="outline" className="w-full justify-start mt-1">
@@ -490,7 +519,10 @@ export function ReturnManagement() {
                                   <CommandGroup>
                                       {availableProductsForExchange.map(product => (
                                           <CommandItem key={product.id} onSelect={() => handleAddToExchange(product)}>
-                                              {product.name}
+                                              <div className="flex justify-between w-full">
+                                                <span>{product.name}</span>
+                                                <span className="text-xs text-muted-foreground">Stock: {product.stock}</span>
+                                              </div>
                                           </CommandItem>
                                       ))}
                                   </CommandGroup>
@@ -503,20 +535,20 @@ export function ReturnManagement() {
                     {exchangeItems.length > 0 && (
                       <div className="p-2 space-y-2 rounded-md border">
                           {exchangeItems.map(item => (
-                              <div key={item.id} className="flex items-center gap-2 p-2 rounded-md bg-muted/50">
+                              <div key={`${item.id}-${item.saleType}`} className="flex items-center gap-2 p-2 rounded-md bg-muted/50">
                                   <div className="flex-1">
-                                      <p className="text-sm font-medium">{item.name}</p>
+                                      <p className="text-sm font-medium">{item.name} {item.saleType === 'wholesale' && <span className="text-xs text-blue-600">(W)</span>}</p>
                                       <p className="text-xs text-muted-foreground">{formatCurrency(item.appliedPrice)}</p>
                                   </div>
                                   <div className="flex items-center gap-2">
-                                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleUpdateExchangeQuantity(item.id, item.quantity - 1)}>
+                                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleUpdateExchangeQuantity(item.id, item.saleType, item.quantity - 1)}>
                                           <MinusCircle className="h-4 w-4"/>
                                       </Button>
                                       <span>{item.quantity}</span>
-                                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleUpdateExchangeQuantity(item.id, item.quantity + 1)}>
+                                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleUpdateExchangeQuantity(item.id, item.saleType, item.quantity + 1)}>
                                           <PlusCircle className="h-4 w-4"/>
                                       </Button>
-                                      <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => handleRemoveFromExchange(item.id)}>
+                                      <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => handleRemoveFromExchange(item.id, item.saleType)}>
                                           <Trash2 className="h-4 w-4"/>
                                       </Button>
                                   </div>
