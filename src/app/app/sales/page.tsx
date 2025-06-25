@@ -243,6 +243,30 @@ export default function SalesPage() {
   const productsForDisplay = viewMode === 'vehicle' ? vehicleStock : filteredProducts;
   
   const handleAddToCart = (productToAdd: Product) => {
+    const existingItemInCart = cartItems.find(
+      (item) => item.id === productToAdd.id && item.saleType === currentSaleType && !item.isOfferItem
+    );
+  
+    if (existingItemInCart) {
+      if (existingItemInCart.quantity >= productToAdd.stock) {
+        toast({
+          variant: "destructive",
+          title: "Out of Stock",
+          description: `Cannot add more ${productToAdd.name}. Maximum stock reached.`,
+        });
+        return; // Exit the function
+      }
+    } else {
+      if (productToAdd.stock <= 0) {
+        toast({
+          variant: "destructive",
+          title: "Out of Stock",
+          description: `${productToAdd.name} is currently out of stock.`,
+        });
+        return; // Exit the function
+      }
+    }
+
     setCartItems(prevItems => {
       let updatedCart = [...prevItems];
       const existingItemIndex = updatedCart.findIndex(
@@ -254,26 +278,18 @@ export default function SalesPage() {
         : productToAdd.price;
   
       if (existingItemIndex > -1) {
-        const existingItem = updatedCart[existingItemIndex];
-        if (productToAdd.stock > existingItem.quantity) {
-          updatedCart[existingItemIndex] = { ...existingItem, quantity: existingItem.quantity + 1 };
-        } else {
-          toast({ variant: "destructive", title: "Out of Stock", description: `Cannot add more ${productToAdd.name}. Maximum stock reached.`});
-          return prevItems; // Return original state
-        }
+        updatedCart[existingItemIndex] = { 
+            ...updatedCart[existingItemIndex], 
+            quantity: updatedCart[existingItemIndex].quantity + 1 
+        };
       } else {
-        if (productToAdd.stock > 0) {
-          updatedCart.push({
-            ...productToAdd, 
-            quantity: 1,
-            appliedPrice: priceToUse,
-            saleType: currentSaleType,
-            isOfferItem: false 
-          });
-        } else {
-          toast({ variant: "destructive", title: "Out of Stock", description: `${productToAdd.name} is currently out of stock.`});
-          return prevItems; // Return original state
-        }
+        updatedCart.push({
+          ...productToAdd, 
+          quantity: 1,
+          appliedPrice: priceToUse,
+          saleType: currentSaleType,
+          isOfferItem: false 
+        });
       }
       return reconcileOfferItems(updatedCart, isBuy12Get1FreeActive, allProducts, excludedOfferProductIds);
     });
