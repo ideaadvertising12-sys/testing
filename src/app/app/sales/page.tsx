@@ -243,28 +243,19 @@ export default function SalesPage() {
   const productsForDisplay = viewMode === 'vehicle' ? vehicleStock : filteredProducts;
   
   const handleAddToCart = (productToAdd: Product) => {
-    const existingItemInCart = cartItems.find(
-      (item) => item.id === productToAdd.id && item.saleType === currentSaleType && !item.isOfferItem
-    );
-  
-    if (existingItemInCart) {
-      if (existingItemInCart.quantity >= productToAdd.stock) {
-        toast({
-          variant: "destructive",
-          title: "Out of Stock",
-          description: `Cannot add more ${productToAdd.name}. Maximum stock reached.`,
-        });
-        return; // Exit the function
-      }
-    } else {
-      if (productToAdd.stock <= 0) {
-        toast({
-          variant: "destructive",
-          title: "Out of Stock",
-          description: `${productToAdd.name} is currently out of stock.`,
-        });
-        return; // Exit the function
-      }
+    // Calculate total quantity of this specific product already in the cart, regardless of sale type.
+    const totalQuantityInCart = cartItems
+      .filter(item => item.id === productToAdd.id && !item.isOfferItem)
+      .reduce((sum, item) => sum + item.quantity, 0);
+
+    // Check against available stock
+    if (totalQuantityInCart >= productToAdd.stock) {
+      toast({
+        variant: "destructive",
+        title: "Out of Stock",
+        description: `Cannot add more ${productToAdd.name}. All available stock (${productToAdd.stock} units) is already in the cart.`,
+      });
+      return; // Exit if no more stock is available
     }
 
     setCartItems(prevItems => {
