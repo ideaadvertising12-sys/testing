@@ -17,7 +17,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { FileText, Smartphone, Laptop, Filter, Download } from "lucide-react";
+import { FileText, Smartphone, Laptop, Filter, Download, Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -28,6 +28,7 @@ import {
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useState } from "react";
 import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 interface FullReportTableProps {
   data: FullReportEntry[];
@@ -69,20 +70,12 @@ export function FullReportTable({ data, isLoading }: FullReportTableProps) {
   if (isMobile) {
     return (
       <div className="space-y-2 p-2">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="font-medium">Sales Report</h3>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm">
-              <Download className="h-4 w-4 mr-2" />
-              Export
-            </Button>
-          </div>
-        </div>
-        
         {data.map((entry, index) => {
-          const rowKey = `${entry.saleId}-${entry.productName}-${index}`;
+          const rowKey = `${entry.transactionId}-${entry.productName}-${index}`;
           const isExpanded = expandedRow === rowKey;
-          
+          const isReturn = entry.transactionType === 'Return';
+          const isReturnedItem = isReturn && entry.quantity < 0;
+
           return (
             <div 
               key={rowKey}
@@ -92,20 +85,17 @@ export function FullReportTable({ data, isLoading }: FullReportTableProps) {
               <div className="flex justify-between items-start">
                 <div>
                   <p className="font-medium text-sm">{entry.productName}</p>
-                  <p className="text-xs text-muted-foreground">{entry.saleDate}</p>
+                  <p className="text-xs text-muted-foreground">{entry.transactionDate}</p>
                 </div>
-                <Badge 
-                  variant={entry.saleType === 'wholesale' ? 'default' : 'outline'} 
-                  className={entry.saleType === 'wholesale' ? 'bg-blue-500 hover:bg-blue-600' : ''}
-                >
-                  {entry.saleType}
+                <Badge variant={isReturn ? "destructive" : "default"}>
+                  {entry.transactionType}
                 </Badge>
               </div>
               
               <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
                 <div>
                   <p className="text-xs text-muted-foreground">Qty</p>
-                  <p>{entry.quantity}</p>
+                  <p className={cn(entry.quantity < 0 && 'text-destructive')}>{entry.quantity}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Price</p>
@@ -113,20 +103,28 @@ export function FullReportTable({ data, isLoading }: FullReportTableProps) {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Total</p>
-                  <p className="font-medium">Rs. {entry.lineTotal.toFixed(2)}</p>
+                  <p className={cn("font-medium", entry.lineTotal < 0 && 'text-destructive')}>
+                    Rs. {entry.lineTotal.toFixed(2)}
+                  </p>
                 </div>
                  <div>
-                  <p className="text-xs text-muted-foreground">Close Date</p>
-                  <p>{entry.invoiceCloseDate || "N/A"}</p>
+                  <p className="text-xs text-muted-foreground">Sale Type</p>
+                  <p>{entry.saleType || "N/A"}</p>
                 </div>
               </div>
               
               {isExpanded && (
                 <div className="mt-3 pt-3 border-t space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <p className="text-muted-foreground">Sale ID</p>
-                    <p className="font-mono">{entry.saleId}</p>
+                    <p className="text-muted-foreground">Transaction ID</p>
+                    <p className="font-mono">{entry.transactionId}</p>
                   </div>
+                   {entry.relatedId && (
+                     <div className="flex justify-between">
+                        <p className="text-muted-foreground">Original Sale ID</p>
+                        <p className="font-mono">{entry.relatedId}</p>
+                     </div>
+                   )}
                   <div className="flex justify-between">
                     <p className="text-muted-foreground">Customer</p>
                     <p>{entry.customerName || "Walk-in"}</p>
@@ -137,7 +135,7 @@ export function FullReportTable({ data, isLoading }: FullReportTableProps) {
                   </div>
                   <div className="flex justify-between">
                     <p className="text-muted-foreground">Payment</p>
-                    <p className="text-right">{entry.paymentMethod}</p>
+                    <p className="text-right">{entry.paymentSummary || 'N/A'}</p>
                   </div>
                   <div className="flex justify-between">
                     <p className="text-muted-foreground">Staff</p>
@@ -158,9 +156,9 @@ export function FullReportTable({ data, isLoading }: FullReportTableProps) {
         <table className="w-full caption-bottom text-sm min-w-[1200px]">
           <TableHeader className="sticky top-0 bg-background z-10 shadow-sm">
             <TableRow className="hover:bg-transparent">
-              <TableHead className="w-[100px]">Sale ID</TableHead>
-              <TableHead className="w-[90px]">Sale Date</TableHead>
-              <TableHead className="w-[90px]">Close Date</TableHead>
+              <TableHead className="w-[120px]">Transaction ID</TableHead>
+              <TableHead className="w-[100px]">Type</TableHead>
+              <TableHead className="w-[90px]">Date</TableHead>
               <TableHead className="w-[80px]">Time</TableHead>
               <TableHead className="min-w-[120px]">Customer</TableHead>
               <TableHead className="min-w-[150px]">Product</TableHead>
@@ -168,98 +166,113 @@ export function FullReportTable({ data, isLoading }: FullReportTableProps) {
               <TableHead className="w-[60px] text-right">Qty</TableHead>
               <TableHead className="w-[90px] text-right">Unit Price</TableHead>
               <TableHead className="w-[100px] text-right">Total</TableHead>
-              <TableHead className="w-[100px]">Type</TableHead>
+              <TableHead className="w-[100px]">Sale Type</TableHead>
               <TableHead className="w-[150px]">Payment</TableHead>
               <TableHead className="w-[80px]">Staff</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {data.map((entry, index) => (
-              <TableRow 
-                key={`${entry.saleId}-${entry.productName}-${index}`} 
-                className="hover:bg-muted/50 transition-colors"
-              >
-                <TableCell className="font-mono text-xs">
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger className="block truncate max-w-[80px]">
-                        {entry.saleId}
-                      </TooltipTrigger>
-                      <TooltipContent>{entry.saleId}</TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </TableCell>
-                <TableCell>{entry.saleDate}</TableCell>
-                <TableCell>{entry.invoiceCloseDate || 'N/A'}</TableCell>
-                <TableCell>{entry.saleTime}</TableCell>
-                <TableCell className="truncate max-w-[120px]">
-                   <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger className="truncate block">
-                        {entry.customerName || "Walk-in"}
-                      </TooltipTrigger>
-                      <TooltipContent>{entry.customerName || "Walk-in"}</TooltipContent>
-                    </Tooltip>
-                   </TooltipProvider>
-                </TableCell>
-                <TableCell className="font-medium truncate max-w-[150px]">
-                   <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger className="truncate block">
-                        {entry.productName}
-                      </TooltipTrigger>
-                      <TooltipContent>{entry.productName}</TooltipContent>
-                    </Tooltip>
-                   </TooltipProvider>
-                </TableCell>
-                <TableCell>
-                  <Badge variant="secondary" className="max-w-[100px] truncate">
-                    {entry.productCategory}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-right">{entry.quantity}</TableCell>
-                <TableCell className="text-right">Rs. {entry.appliedPrice.toFixed(2)}</TableCell>
-                <TableCell className="text-right font-medium">
-                  Rs. {entry.lineTotal.toFixed(2)}
-                </TableCell>
-                <TableCell>
-                  <Badge 
-                    variant={entry.saleType === 'wholesale' ? 'default' : 'outline'} 
-                    className={
-                      entry.saleType === 'wholesale' 
-                        ? 'bg-blue-500 hover:bg-blue-600 text-white' 
-                        : 'bg-gray-100 hover:bg-gray-200'
-                    }
-                  >
-                    {entry.saleType}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-xs">
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger className="truncate block max-w-[140px] cursor-default text-left">
-                        {entry.paymentMethod}
-                      </TooltipTrigger>
-                      <TooltipContent className="max-w-xs bg-card p-2 border shadow-lg rounded-md">
-                        <div className="font-bold text-sm mb-1">Payment History</div>
-                        <div className="space-y-1">
-                          {entry.paymentDetails.map((detail, i) => (
-                            <div key={i} className="text-xs">
-                              <span className="font-semibold">{format(detail.date, 'PP p')}: </span>
-                              <span>{detail.summary}</span>
+            {data.map((entry, index) => {
+              const isReturn = entry.transactionType === 'Return';
+              return (
+                <TableRow 
+                  key={`${entry.transactionId}-${entry.productName}-${index}`} 
+                  className={cn("hover:bg-muted/50 transition-colors", isReturn && "bg-destructive/5 hover:bg-destructive/10")}
+                >
+                  <TableCell className="font-mono text-xs">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger className="block truncate max-w-[80px]">
+                          {entry.transactionId}
+                          {entry.relatedId && <Undo2 className="h-3 w-3 inline-block ml-1 text-muted-foreground"/>}
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>{entry.transactionId}</p>
+                          {entry.relatedId && <p className="text-muted-foreground">Original Sale: {entry.relatedId}</p>}
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={isReturn ? "destructive" : "outline"}>{entry.transactionType}</Badge>
+                  </TableCell>
+                  <TableCell>{entry.transactionDate}</TableCell>
+                  <TableCell>{entry.transactionTime}</TableCell>
+                  <TableCell className="truncate max-w-[120px]">
+                     <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger className="truncate block">
+                          {entry.customerName || "Walk-in"}
+                        </TooltipTrigger>
+                        <TooltipContent>{entry.customerName || "Walk-in"}</TooltipContent>
+                      </Tooltip>
+                     </TooltipProvider>
+                  </TableCell>
+                  <TableCell className="font-medium truncate max-w-[150px]">
+                     <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger className="truncate block">
+                          {entry.productName}
+                        </TooltipTrigger>
+                        <TooltipContent>{entry.productName}</TooltipContent>
+                      </Tooltip>
+                     </TooltipProvider>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="secondary" className="max-w-[100px] truncate">
+                      {entry.productCategory}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className={cn("text-right font-semibold", entry.quantity < 0 && 'text-destructive')}>
+                    {entry.quantity}
+                  </TableCell>
+                  <TableCell className="text-right">Rs. {entry.appliedPrice.toFixed(2)}</TableCell>
+                  <TableCell className={cn("text-right font-medium", entry.lineTotal < 0 && 'text-destructive')}>
+                    Rs. {entry.lineTotal.toFixed(2)}
+                  </TableCell>
+                  <TableCell>
+                    {entry.saleType ? (
+                      <Badge 
+                        variant={entry.saleType === 'wholesale' ? 'default' : 'outline'} 
+                        className={
+                          entry.saleType === 'wholesale' 
+                            ? 'bg-blue-500 hover:bg-blue-600 text-white' 
+                            : 'bg-gray-100 hover:bg-gray-200'
+                        }
+                      >
+                        {entry.saleType}
+                      </Badge>
+                    ) : <span className="text-muted-foreground text-xs">N/A</span>}
+                  </TableCell>
+                  <TableCell className="text-xs">
+                    {entry.paymentSummary ? (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger className="truncate block max-w-[140px] cursor-default text-left">
+                            {entry.paymentSummary}
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-xs bg-card p-2 border shadow-lg rounded-md">
+                            <div className="font-bold text-sm mb-1">Payment History</div>
+                            <div className="space-y-1">
+                              {entry.paymentDetails?.map((detail, i) => (
+                                <div key={i} className="text-xs">
+                                  <span className="font-semibold">{format(detail.date, 'PP p')}: </span>
+                                  <span>{detail.summary}</span>
+                                </div>
+                              ))}
+                              {(!entry.paymentDetails || entry.paymentDetails.length === 0) && <p className="text-xs">No payment details recorded.</p>}
                             </div>
-                          ))}
-                          {entry.paymentDetails.length === 0 && <p className="text-xs">No payment details recorded.</p>}
-                        </div>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </TableCell>
-                <TableCell className="font-mono text-xs">
-                  {entry.staffId}
-                </TableCell>
-              </TableRow>
-            ))}
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    ) : <span className="text-muted-foreground text-xs">N/A</span>}
+                  </TableCell>
+                  <TableCell className="font-mono text-xs">
+                    {entry.staffId}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </table>
       </div>

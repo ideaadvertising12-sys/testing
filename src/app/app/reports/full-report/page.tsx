@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FullReportTable } from "@/components/reports/FullReportTable";
-import type { FullReportEntry, Sale } from "@/lib/types"; 
+import type { FullReportEntry, Sale, ReturnTransaction, Product } from "@/lib/types"; 
 import { useAuth } from "@/contexts/AuthContext";
 import { AccessDenied } from "@/components/AccessDenied";
 import React, { useEffect, useState, useMemo } from "react";
@@ -21,24 +21,26 @@ import type { DateRange } from "react-day-picker";
 import { addDays, format, parseISO } from "date-fns"; 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useSalesData } from "@/hooks/useSalesData"; 
+import { useReturns } from "@/hooks/useReturns";
 
 interface jsPDFWithAutoTable extends jsPDF {
   autoTable: (options: any) => jsPDF;
 }
 
-function transformSalesToFullReportEntries(sales: Sale[]): FullReportEntry[] {
+function transformTransactionsToFullReportEntries(
+  sales: Sale[],
+  returns: ReturnTransaction[]
+): FullReportEntry[] {
   const reportEntries: FullReportEntry[] = [];
   const formatCurrency = (amount: number) => new Intl.NumberFormat('en-LK', { style: 'currency', currency: 'LKR' }).format(amount);
   
+  // Process Sales
   sales.forEach(sale => {
     const paymentDetails: { date: Date; summary: string }[] = [];
     
-    // Initial Payments on Sale Date
     if (sale.paidAmountCash && sale.paidAmountCash > 0) {
       let summary = `Cash Paid: ${formatCurrency(sale.paidAmountCash)}`;
-      if (sale.changeGiven && sale.changeGiven > 0) {
-          summary += ` (Change: ${formatCurrency(sale.changeGiven)})`
-      }
+      if (sale.changeGiven && sale.changeGiven > 0) summary += ` (Change: ${formatCurrency(sale.changeGiven)})`;
       paymentDetails.push({ date: sale.saleDate, summary });
     }
     if (sale.paidAmountCheque && sale.paidAmountCheque > 0) {
@@ -48,31 +50,25 @@ function transformSalesToFullReportEntries(sales: Sale[]): FullReportEntry[] {
       paymentDetails.push({ date: sale.saleDate, summary: `Bank Transfer: ${formatCurrency(sale.paidAmountBankTransfer)}` });
     }
     
-    // Subsequent payments
     sale.additionalPayments?.forEach(p => {
       let summary = `${p.method}: ${formatCurrency(p.amount)}`;
-      if (p.method === 'Cheque' && p.details && 'number' in p.details) {
-        summary += ` (#${p.details.number})`;
-      }
-      if (p.method === 'BankTransfer' && p.details && 'referenceNumber' in p.details) {
-        summary += ` (Ref: ${p.details.referenceNumber || 'N/A'})`
-      }
-      if(p.notes) {
-          summary += ` - Notes: ${p.notes}`
-      }
+      if (p.method === 'Cheque' && p.details && 'number' in p.details) summary += ` (#${p.details.number})`;
+      if (p.method === 'BankTransfer' && p.details && 'referenceNumber' in p.details) summary += ` (Ref: ${p.details.referenceNumber || 'N/A'})`;
+      if(p.notes) summary += ` - Notes: ${p.notes}`;
       paymentDetails.push({ date: p.date, summary });
     });
 
     const invoiceCloseDate = (sale.outstandingBalance <= 0 && sale.updatedAt) 
-      ? format(sale.updatedAt, "yyyy-MM-dd") 
+      ? format(new Date(sale.updatedAt), "yyyy-MM-dd") 
       : undefined;
 
     sale.items.forEach(item => {
       reportEntries.push({
-        saleId: sale.id,
-        saleDate: format(sale.saleDate, "yyyy-MM-dd"),
+        transactionId: sale.id,
+        transactionType: 'Sale',
+        transactionDate: format(sale.saleDate, "yyyy-MM-dd"),
+        transactionTime: format(sale.saleDate, "HH:mm:ss"),
         invoiceCloseDate,
-        saleTime: format(sale.saleDate, "HH:mm:ss"),
         customerName: sale.customerName || "Walk-in",
         productName: item.name,
         productCategory: item.category,
@@ -80,13 +76,55 @@ function transformSalesToFullReportEntries(sales: Sale[]): FullReportEntry[] {
         appliedPrice: item.appliedPrice,
         lineTotal: item.quantity * item.appliedPrice,
         saleType: item.saleType,
-        paymentMethod: sale.paymentSummary,
+        paymentSummary: sale.paymentSummary,
         paymentDetails,
         staffId: sale.staffId,
       });
     });
   });
-  return reportEntries.sort((a,b) => new Date(b.saleDate + 'T' + b.saleTime).getTime() - new Date(a.saleDate + 'T' + a.saleTime).getTime());
+
+  // Process Returns
+  returns.forEach(ret => {
+    // Returned items (credit to customer, negative quantity)
+    ret.returnedItems.forEach(item => {
+      reportEntries.push({
+        transactionId: ret.id,
+        transactionType: 'Return',
+        transactionDate: format(ret.returnDate, "yyyy-MM-dd"),
+        transactionTime: format(ret.returnDate, "HH:mm:ss"),
+        relatedId: ret.originalSaleId,
+        customerName: ret.customerName || 'N/A',
+        productName: item.name,
+        productCategory: item.category,
+        quantity: -item.quantity,
+        appliedPrice: item.appliedPrice,
+        lineTotal: -item.quantity * item.appliedPrice,
+        saleType: item.saleType,
+        staffId: ret.staffId,
+      });
+    });
+
+    // Exchanged items (debit from customer, positive quantity)
+    ret.exchangedItems.forEach(item => {
+        reportEntries.push({
+            transactionId: ret.id,
+            transactionType: 'Return',
+            transactionDate: format(ret.returnDate, "yyyy-MM-dd"),
+            transactionTime: format(ret.returnDate, "HH:mm:ss"),
+            relatedId: ret.originalSaleId,
+            customerName: ret.customerName || 'N/A',
+            productName: item.name,
+            productCategory: item.category,
+            quantity: item.quantity,
+            appliedPrice: item.appliedPrice,
+            lineTotal: item.quantity * item.appliedPrice,
+            saleType: item.saleType,
+            staffId: ret.staffId,
+        });
+    });
+  });
+
+  return reportEntries.sort((a,b) => new Date(b.transactionDate + 'T' + b.transactionTime).getTime() - new Date(a.transactionDate + 'T' + a.transactionTime).getTime());
 }
 
 
@@ -94,7 +132,8 @@ export default function FullReportPage() {
   const { currentUser } = useAuth();
   const router = useRouter();
   
-  const { sales: liveSales, isLoading: isLoadingSales, error: salesError } = useSalesData(false); 
+  const { sales: liveSales, isLoading: isLoadingSales, error: salesError } = useSalesData(false);
+  const { returns, isLoading: isLoadingReturns, error: returnsError } = useReturns();
 
   const [reportData, setReportData] = useState<FullReportEntry[]>([]);
   const [filteredData, setFilteredData] = useState<FullReportEntry[]>([]);
@@ -104,13 +143,15 @@ export default function FullReportPage() {
     to: new Date(),
   });
   const [saleTypeFilter, setSaleTypeFilter] = useState<string>("all");
-  const [paymentSummaryFilter, setPaymentSummaryFilter] = useState<string>("all"); 
+  const [paymentSummaryFilter, setPaymentSummaryFilter] = useState<string>("all");
+  const [transactionTypeFilter, setTransactionTypeFilter] = useState<string>("all");
+
 
   useEffect(() => {
-    if (!isLoadingSales && liveSales) {
-      setReportData(transformSalesToFullReportEntries(liveSales));
+    if (!isLoadingSales && !isLoadingReturns && liveSales && returns) {
+      setReportData(transformTransactionsToFullReportEntries(liveSales, returns));
     }
-  }, [liveSales, isLoadingSales]);
+  }, [liveSales, returns, isLoadingSales, isLoadingReturns]);
 
 
   // Apply filters
@@ -120,7 +161,7 @@ export default function FullReportPage() {
     // Date filter
     if (dateRange?.from && dateRange.to) {
       result = result.filter(entry => {
-        const entryDate = parseISO(entry.saleDate); 
+        const entryDate = parseISO(entry.transactionDate); 
         return entryDate >= dateRange.from! && entryDate <= dateRange.to!;
       });
     }
@@ -129,14 +170,19 @@ export default function FullReportPage() {
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       result = result.filter(entry => 
-        (entry.saleId && entry.saleId.toLowerCase().includes(term)) ||
+        (entry.transactionId && entry.transactionId.toLowerCase().includes(term)) ||
         (entry.customerName && entry.customerName.toLowerCase().includes(term)) ||
         (entry.productName && entry.productName.toLowerCase().includes(term)) ||
         (entry.staffId && entry.staffId.toLowerCase().includes(term)) ||
-        (entry.paymentMethod && entry.paymentMethod.toLowerCase().includes(term)) 
+        (entry.paymentSummary && entry.paymentSummary.toLowerCase().includes(term)) 
       );
     }
     
+    // Transaction type filter
+    if (transactionTypeFilter !== "all") {
+        result = result.filter(entry => entry.transactionType === transactionTypeFilter);
+    }
+
     // Sale type filter
     if (saleTypeFilter !== "all") {
       result = result.filter(entry => entry.saleType === saleTypeFilter);
@@ -144,11 +190,11 @@ export default function FullReportPage() {
     
     // Payment summary filter
     if (paymentSummaryFilter !== "all") {
-      result = result.filter(entry => entry.paymentMethod.toLowerCase().includes(paymentSummaryFilter.toLowerCase()));
+      result = result.filter(entry => entry.paymentSummary && entry.paymentSummary.toLowerCase().includes(paymentSummaryFilter.toLowerCase()));
     }
     
     setFilteredData(result);
-  }, [reportData, searchTerm, dateRange, saleTypeFilter, paymentSummaryFilter]);
+  }, [reportData, searchTerm, dateRange, saleTypeFilter, paymentSummaryFilter, transactionTypeFilter]);
 
   useEffect(() => {
     if (!currentUser) {
@@ -159,6 +205,8 @@ export default function FullReportPage() {
        router.replace(currentUser.role === "cashier" ? "/app/sales" : "/app/dashboard");
     }
   }, [currentUser, router]);
+
+  const pageIsLoading = isLoadingSales || isLoadingReturns;
 
   if (!currentUser) {
      return <GlobalPreloaderScreen message="Loading report..." />;
@@ -172,19 +220,20 @@ export default function FullReportPage() {
 
   const handleExportExcel = () => {
     const dataToExport = filteredData.map(entry => ({
-        'Sale ID': entry.saleId,
-        'Sale Date': entry.saleDate,
-        'Close Date': entry.invoiceCloseDate || 'N/A',
-        'Time': entry.saleTime,
+        'Transaction ID': entry.transactionId,
+        'Type': entry.transactionType,
+        'Date': entry.transactionDate,
+        'Time': entry.transactionTime,
         'Customer': entry.customerName,
         'Product': entry.productName,
         'Category': entry.productCategory,
         'Quantity': entry.quantity,
         'Unit Price': entry.appliedPrice,
         'Line Total': entry.lineTotal,
-        'Sale Type': entry.saleType,
-        'Payment Summary': entry.paymentMethod,
-        'Staff': entry.staffId
+        'Sale Type': entry.saleType || 'N/A',
+        'Payment Summary': entry.paymentSummary || 'N/A',
+        'Staff': entry.staffId,
+        'Original Sale ID': entry.transactionType === 'Return' ? entry.relatedId : 'N/A'
     }));
     const worksheet = XLSX.utils.json_to_sheet(dataToExport);
     const workbook = XLSX.utils.book_new();
@@ -195,24 +244,22 @@ export default function FullReportPage() {
   const handleExportPDF = () => {
     try {
       const doc = new jsPDF('landscape') as jsPDFWithAutoTable; 
-      doc.text(`Full Sales Report - ${format(new Date(), 'PP')}`, 14, 16);
+      doc.text(`Full Transaction Report - ${format(new Date(), 'PP')}`, 14, 16);
       
       doc.autoTable({
         startY: 20,
-        head: [['ID', 'Date', 'Close Date', 'Time', 'Customer', 'Product', 'Category', 'Qty', 'Unit Price', 'Total', 'Type', 'Payment', 'Staff']],
+        head: [['ID', 'Type', 'Date', 'Time', 'Customer', 'Product', 'Qty', 'Unit Price', 'Total', 'Sale Type', 'Staff']],
         body: filteredData.map(entry => [
-          entry.saleId,
-          entry.saleDate,
-          entry.invoiceCloseDate || 'N/A',
-          entry.saleTime,
+          entry.transactionId,
+          entry.transactionType,
+          entry.transactionDate,
+          entry.transactionTime,
           entry.customerName || "Walk-in",
           entry.productName,
-          entry.productCategory,
           entry.quantity,
           entry.appliedPrice.toFixed(2),
           entry.lineTotal.toFixed(2),
-          entry.saleType,
-          entry.paymentMethod, 
+          entry.saleType || 'N/A',
           entry.staffId,
         ]),
         styles: { 
@@ -229,8 +276,9 @@ export default function FullReportPage() {
           fillColor: [240, 240, 240]
         },
         columnStyles: {
-          5: { cellWidth: 35 }, // Product Name
-          11: { cellWidth: 35 }, // Payment Summary
+          0: { cellWidth: 25 },
+          4: { cellWidth: 25 },
+          5: { cellWidth: 35 },
         },
         margin: { top: 20 },
         pageBreak: 'auto',
@@ -248,10 +296,10 @@ export default function FullReportPage() {
   };
   
   const paymentSummaryOptions = useMemo(() => {
-    if (isLoadingSales || !reportData) return [{ value: "all", label: "All Payment Summaries" }];
-    const summaries = new Set(reportData.map(entry => entry.paymentMethod));
-    return [{ value: "all", label: "All Payment Summaries" }, ...Array.from(summaries).map(s => ({ value: s, label: s }))];
-  }, [reportData, isLoadingSales]);
+    if (pageIsLoading || !reportData) return [{ value: "all", label: "All Payment Summaries" }];
+    const summaries = new Set(reportData.filter(e => e.transactionType === 'Sale' && e.paymentSummary).map(entry => entry.paymentSummary));
+    return [{ value: "all", label: "All Payment Summaries" }, ...Array.from(summaries).map(s => ({ value: s!, label: s! }))];
+  }, [reportData, pageIsLoading]);
 
 
   const reportActions = (
@@ -260,9 +308,9 @@ export default function FullReportPage() {
         onClick={handleExportExcel} 
         variant="outline" 
         size="sm"
-        disabled={isLoadingSales || filteredData.length === 0}
+        disabled={pageIsLoading || filteredData.length === 0}
       >
-        {isLoadingSales ? ( 
+        {pageIsLoading ? ( 
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
         ) : (
           <DownloadCloud className="mr-2 h-4 w-4" />
@@ -273,9 +321,9 @@ export default function FullReportPage() {
         onClick={handleExportPDF} 
         variant="outline" 
         size="sm"
-        disabled={isLoadingSales || filteredData.length === 0}
+        disabled={pageIsLoading || filteredData.length === 0}
       >
-        {isLoadingSales ? (
+        {pageIsLoading ? (
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
         ) : (
           <FileText className="mr-2 h-4 w-4" />
@@ -294,15 +342,15 @@ export default function FullReportPage() {
     </div>
   );
   
-  if (isLoadingSales && reportData.length === 0) { 
+  if (pageIsLoading && reportData.length === 0) { 
     return <GlobalPreloaderScreen message="Loading full report data..." />;
   }
 
   return (
     <div className="space-y-6 print:space-y-0">
       <PageHeader 
-        title="Full Sales Report" 
-        description="Comprehensive overview of all sales transactions and item details."
+        title="Full Transaction Report" 
+        description="Comprehensive overview of all sales, returns, and exchanges."
         icon={ClipboardList}
         action={reportActions}
       />
@@ -314,7 +362,8 @@ export default function FullReportPage() {
               <CardTitle className="font-headline">Detailed Transaction Log</CardTitle>
               <CardDescription>
                 {filteredData.length} transactions found
-                {salesError && <span className="text-destructive ml-2"> (Error: {salesError})</span>}
+                {salesError && <span className="text-destructive ml-2"> (Sales Error: {salesError})</span>}
+                {returnsError && <span className="text-destructive ml-2"> (Returns Error: {returnsError})</span>}
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
@@ -323,12 +372,12 @@ export default function FullReportPage() {
             </div>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             <Input
               placeholder="Search transactions..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full"
+              className="w-full lg:col-span-2"
             />
             
             <DateRangePicker 
@@ -337,32 +386,29 @@ export default function FullReportPage() {
               className="w-full"
             />
             
-            <Select value={saleTypeFilter} onValueChange={setSaleTypeFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="Sale Type" />
-              </SelectTrigger>
+            <Select value={transactionTypeFilter} onValueChange={setTransactionTypeFilter}>
+              <SelectTrigger><SelectValue placeholder="Transaction Type" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Transaction Types</SelectItem>
+                <SelectItem value="Sale">Sale</SelectItem>
+                <SelectItem value="Return">Return / Exchange</SelectItem>
+              </SelectContent>
+            </Select>
+
+             <Select value={saleTypeFilter} onValueChange={setSaleTypeFilter}>
+              <SelectTrigger><SelectValue placeholder="Sale Type" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Sale Types</SelectItem>
                 <SelectItem value="retail">Retail</SelectItem>
                 <SelectItem value="wholesale">Wholesale</SelectItem>
               </SelectContent>
             </Select>
-            
-            <Select value={paymentSummaryFilter} onValueChange={setPaymentSummaryFilter}>
-                <SelectTrigger>
-                    <SelectValue placeholder="Payment Summary" />
-                </SelectTrigger>
-                <SelectContent>
-                    {paymentSummaryOptions.map(option => (
-                        <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-                    ))}
-                </SelectContent>
-            </Select>
+
           </div>
         </CardHeader>
         
         <CardContent className="print:p-0">
-          <FullReportTable data={filteredData} isLoading={isLoadingSales && reportData.length === 0} />
+          <FullReportTable data={filteredData} isLoading={pageIsLoading && reportData.length === 0} />
         </CardContent>
       </Card>
       

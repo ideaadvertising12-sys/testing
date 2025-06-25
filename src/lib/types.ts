@@ -646,24 +646,27 @@ export interface NavItemConfig {
 }
 
 export interface FullReportEntry {
-  saleId: string;
-  saleDate: string;
-  invoiceCloseDate?: string;
-  saleTime: string;
+  transactionId: string; // From Sale.id or ReturnTransaction.id
+  transactionType: 'Sale' | 'Return';
+  transactionDate: string; // Formatted yyyy-MM-dd
+  transactionTime: string; // Formatted HH:mm:ss
+  relatedId?: string; // For Returns, this is the originalSaleId
+  invoiceCloseDate?: string; // Only applicable to Sales
   customerName: string;
   productName: string;
   productCategory: Product["category"];
-  quantity: number;
+  quantity: number; // Can be negative for returned items
   appliedPrice: number;
-  lineTotal: number;
-  saleType: 'retail' | 'wholesale';
-  paymentMethod: Sale["paymentSummary"]; 
-  paymentDetails: {
+  lineTotal: number; // Can be negative for returned items
+  saleType?: 'retail' | 'wholesale'; // For sales or exchanged items
+  paymentSummary?: Sale["paymentSummary"];
+  paymentDetails?: {
     date: Date;
     summary: string;
   }[];
   staffId: string;
 }
+
 
 export interface ActivityItem {
   id: string;
