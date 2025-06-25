@@ -21,6 +21,7 @@ import { useSalesData } from "@/hooks/useSalesData";
 import { useReturns } from "@/hooks/useReturns";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { AlertTriangle } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
 
 
 const formatCurrency = (amount: number | undefined): string => {
@@ -115,29 +116,33 @@ export default function DayEndReportPage() {
 
       const grossSalesValue = salesForDay.reduce((sum, s) => sum + s.totalAmount, 0);
       
-      // --- Calculate Refunds for Sales made on the same day ---
       const sameDayRefundsValue = returns.filter(ret => {
           if (!ret.refundAmount || ret.refundAmount <= 0) return false;
-          
           const returnDateObj = ret.returnDate instanceof Date ? ret.returnDate : new Date(ret.returnDate);
           if (returnDateObj < dateStart || returnDateObj > dateEnd) return false;
-          
           const originalSale = allSales.find(s => s.id === ret.originalSaleId);
           if (!originalSale) return false;
-          
           const originalSaleDateObj = originalSale.saleDate instanceof Date ? originalSale.saleDate : new Date(originalSale.saleDate);
-          
           return originalSaleDateObj >= dateStart && originalSaleDateObj <= dateEnd;
       }).reduce((sum, ret) => sum + (ret.refundAmount || 0), 0);
 
       const netSalesValue = grossSalesValue - sameDayRefundsValue;
 
-      const totalOutstandingAmount = salesForDay.reduce((sum, s) => {
-        const initialOutstanding = typeof s.initialOutstandingBalance === 'number'
-          ? s.initialOutstandingBalance
-          : s.totalAmount - ((s.paidAmountCash || 0) + (s.paidAmountCheque || 0) + (s.paidAmountBankTransfer || 0));
-        return sum + initialOutstanding;
-      }, 0);
+      const newCreditIssuedToday = salesForDay.reduce((sum, s) => sum + (s.initialOutstandingBalance || 0), 0);
+      
+      const amountPaidAgainstTodaysCredit = salesForDay
+        .filter(s => (s.initialOutstandingBalance ?? 0) > 0)
+        .reduce((sum, sale) => {
+            const paymentsOnSameDay = (sale.additionalPayments || [])
+                .filter(p => {
+                    const paymentDateObj = p.date instanceof Date ? p.date : new Date(p.date);
+                    return paymentDateObj >= dateStart && paymentDateObj <= dateEnd;
+                })
+                .reduce((paymentSum, p) => paymentSum + p.amount, 0);
+            return sum + paymentsOnSameDay;
+        }, 0);
+
+      const netOutstandingFromToday = newCreditIssuedToday - amountPaidAgainstTodaysCredit;
 
 
       setReportSummary({
@@ -149,16 +154,22 @@ export default function DayEndReportPage() {
         totalAmountCollectedByCheque: totalCollectedByCheque,
         totalAmountCollectedByBankTransfer: totalCollectedByBankTransfer,
         totalChangeGiven: totalChangeGiven, 
-        totalOutstandingAmount: totalOutstandingAmount,
+        
+        totalOutstandingAmount: newCreditIssuedToday,
         
         cashSales: { count: 0, amount: 0, cashReceived: totalCollectedByCash, balanceReturned: totalChangeGiven }, 
         chequeSales: { count: salesForDay.filter(s => s.paidAmountCheque && s.paidAmountCheque > 0).length, amount: totalCollectedByCheque, chequeNumbers: chequeNumbersList },
-        creditSales: { count: salesForDay.filter(s => (s.initialOutstandingBalance ?? 0) > 0).length, amount: totalOutstandingAmount, amountPaidOnCredit: 0, remainingCreditBalance: totalOutstandingAmount },
+        creditSales: {
+          count: salesForDay.filter(s => (s.initialOutstandingBalance ?? 0) > 0).length,
+          amount: newCreditIssuedToday,
+          amountPaidOnCredit: amountPaidAgainstTodaysCredit,
+          remainingCreditBalance: netOutstandingFromToday
+        },
         
         overallTotalSales: netSalesValue,
         overallTotalCashReceived: totalCollectedOverall,
         overallTotalBalanceReturned: totalChangeGiven,
-        overallTotalCreditOutstanding: totalOutstandingAmount,
+        overallTotalCreditOutstanding: netOutstandingFromToday,
       });
     } else {
       setReportSummary(null);
@@ -202,9 +213,20 @@ export default function DayEndReportPage() {
     doc.text(`Total Amount Collected by Bank Transfer: ${formatCurrency(reportSummary.totalAmountCollectedByBankTransfer)}`, 18, yPos);
     yPos += sectionSpacing;
 
+    doc.setFontSize(14);
+    doc.text("Today's Credit Summary", 14, yPos);
+    yPos += lineSpacing * 1.5;
+    doc.setFontSize(10);
+    doc.text(`New Credit Issued: ${formatCurrency(reportSummary.creditSales.amount)}`, 18, yPos);
+    yPos += lineSpacing;
+    doc.text(`Paid against Today's Credit: ${formatCurrency(reportSummary.creditSales.amountPaidOnCredit)}`, 18, yPos);
+    yPos += lineSpacing;
+    doc.text(`Net Outstanding from Today's Sales: ${formatCurrency(reportSummary.creditSales.remainingCreditBalance)}`, 18, yPos);
+    yPos += sectionSpacing;
+
 
     doc.setFontSize(14);
-    doc.text("Financial Overview", 14, yPos);
+    doc.text("Overall Financial Overview", 14, yPos);
     yPos += lineSpacing * 1.5;
     doc.setFontSize(10);
     doc.text(`Total Transactions: ${reportSummary.totalTransactions}`, 18, yPos);
@@ -215,7 +237,7 @@ export default function DayEndReportPage() {
     yPos += lineSpacing;
     doc.text(`Total Change Given (from Cash): ${formatCurrency(reportSummary.totalChangeGiven)}`, 18, yPos);
     yPos += lineSpacing;
-    doc.text(`Total Outstanding Credit: ${formatCurrency(reportSummary.totalOutstandingAmount)}`, 18, yPos);
+    doc.text(`Total Outstanding Credit from Today: ${formatCurrency(reportSummary.overallTotalCreditOutstanding)}`, 18, yPos);
     
     doc.save(`Day_End_Report_${format(selectedDate, "yyyy-MM-dd")}.pdf`);
   };
@@ -316,10 +338,13 @@ export default function DayEndReportPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2"><CreditCard className="h-5 w-5"/>Credit / Outstanding</CardTitle>
-                <CardDescription>Total new credit issued today</CardDescription>
+                <CardDescription>Summary of new credit for today</CardDescription>
               </CardHeader>
               <CardContent className="space-y-1 text-sm">
-                <p>Total Outstanding: <span className="font-semibold">{formatCurrency(reportSummary.totalOutstandingAmount)}</span></p>
+                 <p>New Credit Issued: <span className="font-semibold">{formatCurrency(reportSummary.creditSales.amount)}</span></p>
+                <p>Paid Today: <span className="font-semibold text-green-600">{formatCurrency(reportSummary.creditSales.amountPaidOnCredit)}</span></p>
+                <Separator className="my-1"/>
+                <p className="font-bold">Net Outstanding: <span className="text-destructive">{formatCurrency(reportSummary.creditSales.remainingCreditBalance)}</span></p>
               </CardContent>
             </Card>
           </div>
@@ -333,7 +358,7 @@ export default function DayEndReportPage() {
               <hr className="my-2"/>
               <p>Total Amount Collected (All Methods): <strong className="text-green-600">{formatCurrency(reportSummary.overallTotalCashReceived)}</strong></p>
               <p>Total Change Given (from Cash): <strong>{formatCurrency(reportSummary.totalChangeGiven)}</strong></p>
-              <p>Total Outstanding Credit: <strong className="text-orange-600">{formatCurrency(reportSummary.totalOutstandingAmount)}</strong></p>
+              <p>Total Outstanding Credit from Today: <strong className="text-orange-600">{formatCurrency(reportSummary.overallTotalCreditOutstanding)}</strong></p>
             </CardContent>
           </Card>
 
