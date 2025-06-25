@@ -415,6 +415,7 @@ export function ReturnManagement() {
             customerName: selectedSale.customerName,
             settleOutstandingAmount: outstandingToSettle > 0 ? outstandingToSettle : undefined,
             refundAmount: refundToCustomer > 0 ? refundToCustomer : undefined,
+            vehicleId: viewMode === 'vehicle' ? selectedVehicleIdForExchange : undefined,
         };
         
         if (finalAmountDue > 0) {

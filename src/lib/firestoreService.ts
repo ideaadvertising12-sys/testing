@@ -353,7 +353,8 @@ interface ProcessReturnArgs {
     changeGiven?: number;
     chequeDetails?: ChequeInfo;
     bankTransferDetails?: BankTransferInfo;
-  }
+  };
+  vehicleId?: string;
 }
 
 export const processReturnTransaction = async ({
@@ -365,7 +366,8 @@ export const processReturnTransaction = async ({
   customerName,
   settleOutstandingAmount,
   refundAmount,
-  payment
+  payment,
+  vehicleId,
 }: ProcessReturnArgs): Promise<{ returnId: string, returnData: ReturnTransaction }> => {
   checkFirebase();
   const returnId = await generateCustomReturnId();
@@ -427,12 +429,20 @@ export const processReturnTransaction = async ({
       });
     }
 
-    // 3. CALCULATE STOCK & VALIDATE
+    // 3. CALCULATE STOCK CHANGES & VALIDATE
+    productDataMap.forEach((info) => {
+        info.newStock = info.doc.stock;
+    });
+
     for (const item of exchangedItems) {
       const productInfo = productDataMap.get(item.id);
       if (!productInfo) throw new Error(`Product ID ${item.id} for exchange not found.`);
-      if (productInfo.newStock < item.quantity) throw new Error(`Insufficient stock for ${productInfo.doc.name}.`);
-      productInfo.newStock -= item.quantity;
+      if (!vehicleId) { // Only check main inventory if not a vehicle exchange
+        if (productInfo.newStock < item.quantity) {
+          throw new Error(`Insufficient stock for ${productInfo.doc.name}. Available: ${productInfo.newStock}, Requested: ${item.quantity}`);
+        }
+        productInfo.newStock -= item.quantity;
+      }
     }
 
     const newSaleItems = [...currentSaleData.items];
@@ -451,10 +461,36 @@ export const processReturnTransaction = async ({
     }
 
     // 4. PERFORM WRITES
+    // Update main inventory stock levels for returns and non-vehicle exchanges
     productDataMap.forEach((info, id) => {
-      const prodRef = productRefs.get(id);
-      if (prodRef) transaction.update(prodRef, { stock: info.newStock, updatedAt: Timestamp.now() });
+      if (info.doc.stock !== info.newStock) {
+        const prodRef = productRefs.get(id);
+        if (prodRef) transaction.update(prodRef, { stock: info.newStock, updatedAt: Timestamp.now() });
+      }
     });
+
+    // If vehicle exchange, create stock transactions for the vehicle
+    if (vehicleId) {
+      for (const item of exchangedItems) {
+        const productInfo = productDataMap.get(item.id);
+        if (!productInfo) throw new Error(`Product ID ${item.id} for exchange not found.`);
+        const stockTx: Omit<StockTransaction, 'id'> = {
+          productId: item.id,
+          productName: item.name,
+          productSku: item.sku,
+          type: 'UNLOAD_FROM_VEHICLE',
+          quantity: item.quantity,
+          previousStock: productInfo.doc.stock, // Main stock is unchanged
+          newStock: productInfo.doc.stock,
+          transactionDate: new Date(),
+          notes: `Exchange in Return: ${returnId}`,
+          vehicleId: vehicleId,
+          userId: staffId,
+        };
+        const txDocRef = doc(collection(db, "stockTransactions"));
+        transaction.set(txDocRef, stockTransactionConverter.toFirestore(stockTx));
+      }
+    }
 
     const firestoreSaleItems = newSaleItems.map((item: CartItem): FirestoreCartItem => ({
       productRef: doc(db, 'products', item.id).path, quantity: item.quantity, appliedPrice: item.appliedPrice, saleType: item.saleType,

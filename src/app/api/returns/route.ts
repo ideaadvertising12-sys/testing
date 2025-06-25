@@ -40,6 +40,7 @@ interface ReturnRequestBody {
     chequeDetails?: ChequeInfo;
     bankTransferDetails?: BankTransferInfo;
   }
+  vehicleId?: string;
 }
 
 export async function POST(request: NextRequest) {
@@ -53,7 +54,8 @@ export async function POST(request: NextRequest) {
         customerName,
         settleOutstandingAmount,
         refundAmount,
-        payment
+        payment,
+        vehicleId,
     }: ReturnRequestBody = await request.json();
 
     if (!saleId || !staffId) {
@@ -73,6 +75,7 @@ export async function POST(request: NextRequest) {
         settleOutstandingAmount,
         refundAmount,
         payment,
+        vehicleId,
     });
 
 
