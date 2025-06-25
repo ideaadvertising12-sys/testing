@@ -188,7 +188,7 @@ export interface FirestoreCartItem {
   // Denormalized fields stored at the time of sale for historical accuracy
   productName: string; 
   productCategory: Product["category"];
-  productPrice: number; // Original retail price of the product at the time of sale
+  productPrice: number; // Original retail price of the product at time of sale
   productSku?: string; // Original SKU at time of sale
   
   isOfferItem?: boolean;
@@ -430,7 +430,7 @@ export const saleConverter = {
 
     return {
       id: snapshot.id,
-      items: data.items.map((item: FirestoreCartItem): CartItem => {
+      items: Array.isArray(data.items) ? data.items.map((item: FirestoreCartItem): CartItem => {
         let id = 'unknown_id';
         if (typeof item.productRef === 'string') {
           id = item.productRef.split('/')[1];
@@ -451,7 +451,7 @@ export const saleConverter = {
           returnedQuantity: item.returnedQuantity,
           imageUrl: undefined,
         };
-      }),
+      }) : [],
       subTotal: data.subTotal,
       discountPercentage: data.discountPercentage,
       discountAmount: data.discountAmount,
@@ -462,9 +462,9 @@ export const saleConverter = {
       chequeDetails: chequeDetails,
       paidAmountBankTransfer: data.paidAmountBankTransfer,
       bankTransferDetails: bankTransferDetails,
-      additionalPayments: data.additionalPayments ? data.additionalPayments.map((p: FirestorePayment) => ({
+      additionalPayments: Array.isArray(data.additionalPayments) ? data.additionalPayments.map((p: FirestorePayment) => ({
         ...p,
-        date: p.date.toDate()
+        date: p.date && p.date.toDate ? p.date.toDate() : new Date(0)
       })) : undefined,
       totalAmountPaid: data.totalAmountPaid,
       outstandingBalance: data.outstandingBalance,
@@ -472,7 +472,7 @@ export const saleConverter = {
       changeGiven: data.changeGiven,
       paymentSummary: data.paymentSummary || "N/A",
 
-      saleDate: data.saleDate.toDate(),
+      saleDate: data.saleDate && data.saleDate.toDate ? data.saleDate.toDate() : new Date(0),
       staffId: data.staffId,
       staffName: data.staffName,
       customerId: data.customerId,
