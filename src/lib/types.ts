@@ -695,7 +695,7 @@ export interface DayEndReportSummary {
   totalChequeIn: number;
   totalBankTransferIn: number;
   totalChangeGiven: number;
-  totalRefundsPaid: number;
+  totalRefundsPaidToday: number;
   netCashInHand: number;
 
   // Credit figures for today's sales

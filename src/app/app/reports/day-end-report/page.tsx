@@ -58,7 +58,6 @@ export default function DayEndReportPage() {
 
   useEffect(() => {
     if (selectedDate && !isLoadingSales && allSales && !isLoadingReturns && returns) {
-      // --- Filter Data for Selected Day ---
       const salesToday = allSales.filter(s => isSameDay(s.saleDate, selectedDate));
       const returnsToday = returns.filter(r => isSameDay(r.returnDate, selectedDate));
       const salesBeforeToday = allSales.filter(s => !isSameDay(s.saleDate, selectedDate));
@@ -116,17 +115,11 @@ export default function DayEndReportPage() {
           });
       });
 
-      // --- Credit Issued Today ---
-      const creditSalesToday = salesToday.filter(s => s.initialOutstandingBalance && s.initialOutstandingBalance > 0);
-      const newCreditIssued = creditSalesToday.reduce((sum, s) => sum + (s.initialOutstandingBalance || 0), 0);
-      
-      const paidAgainstNewCredit = creditSalesToday.reduce((sum, s) => {
-          const additionalPayments = (s.additionalPayments || [])
-              .filter(p => isSameDay(p.date, selectedDate))
-              .reduce((paymentSum, p) => paymentSum + p.amount, 0);
-          return sum + additionalPayments;
-      }, 0);
-      const netOutstandingFromToday = newCreditIssued - paidAgainstNewCredit;
+      // --- New, more robust credit calculation ---
+      const totalOutstandingFromToday = salesToday.reduce((sum, s) => sum + (s.outstandingBalance || 0), 0);
+      const totalInitialCreditIssuedToday = salesToday.reduce((sum, s) => sum + (s.initialOutstandingBalance || 0), 0);
+      const totalPaidAgainstCreditToday = totalInitialCreditIssuedToday - totalOutstandingFromToday;
+      const creditSalesCount = salesToday.filter(s => s.initialOutstandingBalance && s.initialOutstandingBalance > 0).length;
 
       // --- Final Summary Object ---
       setReportSummary({
@@ -140,14 +133,14 @@ export default function DayEndReportPage() {
         totalChequeIn,
         totalBankTransferIn,
         totalChangeGiven,
-        totalRefundsPaid: totalRefundsToday,
-        netCashInHand: totalCashIn - totalChangeGiven - totalRefundsToday,
-        newCreditIssued,
-        paidAgainstNewCredit,
-        netOutstandingFromToday,
+        totalRefundsPaidToday: totalRefundsToday,
+        netCashInHand: totalCashIn - totalChangeGiven - totalRefundsToday, // Assumes refunds paid in cash
+        newCreditIssued: totalInitialCreditIssuedToday,
+        paidAgainstNewCredit: totalPaidAgainstCreditToday,
+        netOutstandingFromToday: totalOutstandingFromToday,
         chequeNumbers: [...new Set(collectedCheques)],
         bankTransferRefs: [...new Set(collectedTransfers)],
-        creditSalesCount: creditSalesToday.length,
+        creditSalesCount: creditSalesCount,
       });
 
     } else {
@@ -178,7 +171,7 @@ export default function DayEndReportPage() {
         ['Total Cheque In', formatCurrency(reportSummary.totalChequeIn)],
         ['Total Bank Transfer In', formatCurrency(reportSummary.totalBankTransferIn)],
         ['Less: Change Given', formatCurrency(reportSummary.totalChangeGiven)],
-        ['Less: Total Refunds Paid', formatCurrency(reportSummary.totalRefundsPaid)],
+        ['Less: Total Refunds Paid', formatCurrency(reportSummary.totalRefundsPaidToday)],
         [{ content: 'Net Cash In Hand', styles: { fontStyle: 'bold' } }, { content: formatCurrency(reportSummary.netCashInHand), styles: { fontStyle: 'bold' } }],
         [' ', ' '],
         ['New Credit Issued Today', formatCurrency(reportSummary.newCreditIssued)],
@@ -294,7 +287,7 @@ export default function DayEndReportPage() {
               <CardContent className="space-y-1 text-sm">
                 <p className="flex justify-between"><span>Total Cash In:</span> <span className="font-semibold text-green-600 flex items-center gap-1"><ArrowUp className="h-3 w-3"/>{formatCurrency(reportSummary.totalCashIn)}</span></p>
                 <p className="flex justify-between"><span>Change Given:</span> <span className="font-semibold text-destructive flex items-center gap-1"><ArrowDown className="h-3 w-3"/>{formatCurrency(reportSummary.totalChangeGiven)}</span></p>
-                <p className="flex justify-between"><span>Refunds Paid:</span> <span className="font-semibold text-destructive flex items-center gap-1"><ArrowDown className="h-3 w-3"/>{formatCurrency(reportSummary.totalRefundsPaid)}</span></p>
+                <p className="flex justify-between"><span>Refunds Paid:</span> <span className="font-semibold text-destructive flex items-center gap-1"><ArrowDown className="h-3 w-3"/>{formatCurrency(reportSummary.totalRefundsPaidToday)}</span></p>
                 <Separator className="my-2"/>
                 <p className="flex justify-between font-bold text-base"><span>Net Cash:</span> <span>{formatCurrency(reportSummary.netCashInHand)}</span></p>
               </CardContent>
@@ -324,7 +317,7 @@ export default function DayEndReportPage() {
               <CardContent className="space-y-1 text-sm">
                 <p>Credit Sales: <span className="font-semibold">{reportSummary.creditSalesCount} transactions</span></p>
                 <p className="flex justify-between"><span>New Credit Issued:</span> <span className="font-semibold">{formatCurrency(reportSummary.newCreditIssued)}</span></p>
-                <p className="flex justify-between"><span>Paid Today:</span> <span className="font-semibold text-green-600">{formatCurrency(reportSummary.paidAgainstNewCredit)}</span></p>
+                <p className="flex justify-between"><span>Paid Against Credit:</span> <span className="font-semibold text-green-600">{formatCurrency(reportSummary.paidAgainstNewCredit)}</span></p>
                 <Separator className="my-2"/>
                 <p className="flex justify-between font-bold text-base"><span>Net Outstanding:</span> <span className="text-destructive">{formatCurrency(reportSummary.netOutstandingFromToday)}</span></p>
               </CardContent>
@@ -340,7 +333,7 @@ export default function DayEndReportPage() {
                     <p className="flex justify-between"><span>Gross Sales Value:</span> <strong className="text-right">{formatCurrency(reportSummary.grossSalesValue)}</strong></p>
                     <p className="flex justify-between text-blue-600"><span>Total Collections:</span> <strong className="text-right">{formatCurrency(reportSummary.totalCashIn + reportSummary.totalChequeIn + reportSummary.totalBankTransferIn)}</strong></p>
                     <p className="flex justify-between"><span>Refunds on Today's Sales:</span> <strong className="text-right text-orange-600">{formatCurrency(reportSummary.refundsForTodaySales)}</strong></p>
-                    <p className="flex justify-between text-destructive"><span>Total Refunds Paid Out:</span> <strong className="text-right">{formatCurrency(reportSummary.totalRefundsPaid)}</strong></p>
+                    <p className="flex justify-between text-destructive"><span>Total Refunds Paid Out:</span> <strong className="text-right">{formatCurrency(reportSummary.totalRefundsPaidToday)}</strong></p>
                     <p className="flex justify-between font-bold text-primary text-lg border-t pt-2 mt-2"><span>Net Sales Value:</span> <strong className="text-right">{formatCurrency(reportSummary.netSalesValue)}</strong></p>
                     <p className="flex justify-between font-bold text-primary text-lg border-t pt-2 mt-2"><span>Net Cash In Hand:</span> <strong className="text-right">{formatCurrency(reportSummary.netCashInHand)}</strong></p>
                 </div>
