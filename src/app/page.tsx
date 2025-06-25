@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { GlobalPreloaderScreen } from "@/components/GlobalPreloaderScreen";
 import { cn } from "@/lib/utils";
 import { Loader2 } from "lucide-react";
+import Image from "next/image";
 
 export default function LoginPage() {
   const [username, setUsername] = useState("");
@@ -99,18 +100,27 @@ export default function LoginPage() {
 
   // Not logged in, show login page
   return (
-    <>
+    <div className="relative min-h-screen w-full bg-background">
+      <Image
+        src="https://images.unsplash.com/photo-1533628635777-112b2229cc2?q=80&w=2070&auto=format&fit=crop"
+        alt="Abstract background"
+        fill
+        className="object-cover"
+        data-ai-hint="abstract background"
+      />
+      <div className="absolute inset-0 bg-background/60 dark:bg-background/80" />
+
       <div 
         ref={loginPageContentRef}
-        className="flex min-h-screen flex-col items-center justify-center bg-background p-4 pb-20 overflow-y-auto"
+        className="relative z-10 flex min-h-screen flex-col items-center justify-center p-4 pb-20 overflow-y-auto"
       >
-        <Card className="w-full max-w-sm shadow-2xl">
+        <Card className="w-full max-w-sm shadow-2xl bg-card/80 dark:bg-card/60 backdrop-blur-lg border-white/10">
           <CardHeader className="space-y-1 text-center">
             <div className="mx-auto mb-4">
               <AppLogo />
             </div>
             <CardTitle className="text-3xl font-headline">Welcome to N Group Products</CardTitle>
-            <CardDescription>Enter your credentials to access your account</CardDescription>
+            <CardDescription className="text-card-foreground/80">Enter your credentials to access your account</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit}>
@@ -149,7 +159,7 @@ export default function LoginPage() {
       </div>
       <footer
         className={cn(
-          "fixed bottom-0 left-0 right-0 text-center py-4 px-6 border-t bg-background text-sm text-muted-foreground z-40",
+          "fixed bottom-0 left-0 right-0 text-center py-4 px-6 bg-transparent text-white/90 dark:text-muted-foreground z-20",
           "transition-all duration-300 ease-in-out",
           (!mounted || !showFooter) ? "opacity-0 pointer-events-none" : "opacity-100"
         )}
@@ -159,6 +169,6 @@ export default function LoginPage() {
       >
         Design, Development & Hosting by Limidora
       </footer>
-    </>
+    </div>
   );
 }
