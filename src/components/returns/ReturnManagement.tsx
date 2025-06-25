@@ -9,8 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Search, Package, Hash, Loader2, Users, ChevronsUpDown, Check, ArrowRight, Undo2, XCircle, PlusCircle, MinusCircle, Trash2, CalendarIcon, Wallet, Gift, Tag } from "lucide-react";
-import type { Customer, Sale, CartItem, Product, ReturnTransaction, ChequeInfo, BankTransferInfo } from "@/lib/types";
+import { Search, Package, Hash, Loader2, Users, ChevronsUpDown, Check, ArrowRight, Undo2, XCircle, PlusCircle, MinusCircle, Trash2, CalendarIcon, Wallet, Gift, Tag, Truck, Warehouse } from "lucide-react";
+import type { Customer, Sale, CartItem, Product, ReturnTransaction, ChequeInfo, BankTransferInfo, StockTransaction } from "@/lib/types";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useSalesData } from "@/hooks/useSalesData";
 import { useProducts } from "@/hooks/useProducts";
@@ -25,6 +25,7 @@ import { ReturnInvoiceDialog } from "./ReturnInvoiceDialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { Calendar } from "@/components/ui/calendar";
 import { Switch } from "@/components/ui/switch";
+import { useVehicles } from "@/hooks/useVehicles";
 
 interface ReturnItem extends CartItem {
   returnQuantity: number;
@@ -38,8 +39,11 @@ export function ReturnManagement() {
   const { customers, isLoading: isLoadingCustomers } = useCustomers();
   const { sales, isLoading: isLoadingSales, refetchSales } = useSalesData(false);
   const { products: allProducts, isLoading: isLoadingProducts, refetch: refetchProducts } = useProducts();
+  const { vehicles, isLoading: isLoadingVehicles } = useVehicles();
   const { currentUser } = useAuth();
   const { toast } = useToast();
+
+  const isCashier = currentUser?.role === 'cashier';
 
   // Search State
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
@@ -58,6 +62,10 @@ export function ReturnManagement() {
   const [exchangeItems, setExchangeItems] = useState<CartItem[]>([]);
   const [openProductPopover, setOpenProductPopover] = useState(false);
   const [currentExchangeSaleType, setCurrentExchangeSaleType] = useState<'retail' | 'wholesale'>('retail');
+  const [viewMode, setViewMode] = useState<'main' | 'vehicle'>(isCashier ? 'vehicle' : 'main');
+  const [vehicleStock, setVehicleStock] = useState<Product[] | null>(null);
+  const [isVehicleStockLoading, setIsVehicleStockLoading] = useState(false);
+  const [selectedVehicleIdForExchange, setSelectedVehicleIdForExchange] = useState<string | null>(null);
 
   // Payment State (for when customer owes money)
   const [cashTendered, setCashTendered] = useState<string>("");
@@ -73,6 +81,12 @@ export function ReturnManagement() {
   // Receipt State
   const [returnReceiptData, setReturnReceiptData] = useState<ReturnTransaction | null>(null);
   const [isReceiptOpen, setIsReceiptOpen] = useState(false);
+
+  useEffect(() => {
+    if (isCashier) {
+        setViewMode('vehicle');
+    }
+  }, [isCashier]);
 
   const customerOptions = useMemo(() => {
     if (!customers) return [];
@@ -167,7 +181,85 @@ export function ReturnManagement() {
     setBankTransferReference("");
   };
 
+  const handleFetchVehicleStock = async (vehicleId: string) => {
+    if (!vehicleId) {
+      setVehicleStock(null);
+      setSelectedVehicleIdForExchange(null);
+      return;
+    }
+
+    setIsVehicleStockLoading(true);
+    setVehicleStock(null);
+    setSelectedVehicleIdForExchange(vehicleId);
+
+    const targetVehicle = vehicles.find(v => v.id === vehicleId);
+
+    if (!targetVehicle) {
+      toast({ variant: "destructive", title: "Error", description: `Vehicle not found.` });
+      setIsVehicleStockLoading(false);
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/stock-transactions?vehicleId=${targetVehicle.id}`);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const message = errorData.details || errorData.error || 'Failed to fetch vehicle stock data.';
+        throw new Error(message);
+      }
+      const transactions: StockTransaction[] = await response.json();
+
+      if (transactions.length === 0) {
+        setVehicleStock([]);
+        setIsVehicleStockLoading(false);
+        return;
+      }
+      
+      const stockMap = new Map<string, number>();
+      transactions.forEach(tx => {
+        const currentQty = stockMap.get(tx.productId) || 0;
+        if (tx.type === 'LOAD_TO_VEHICLE') {
+          stockMap.set(tx.productId, currentQty + tx.quantity);
+        } else if (tx.type === 'UNLOAD_FROM_VEHICLE') {
+          stockMap.set(tx.productId, currentQty - tx.quantity);
+        }
+      });
+
+      const vehicleProducts: Product[] = [];
+      for (const [productId, vehicleQty] of stockMap.entries()) {
+        const baseProduct = allProducts.find(p => p.id === productId);
+        if (baseProduct && vehicleQty > 0) {
+          vehicleProducts.push({
+            ...baseProduct,
+            stock: vehicleQty,
+          });
+        }
+      }
+      setVehicleStock(vehicleProducts);
+
+    } catch (error: any) {
+      console.error(error);
+      toast({ variant: "destructive", title: "Error", description: error.message || "Could not load vehicle stock." });
+      setVehicleStock([]);
+    } finally {
+      setIsVehicleStockLoading(false);
+    }
+  };
+
+  const productsForDisplay = viewMode === 'vehicle' ? vehicleStock : allProducts.filter(p => p.stock > 0);
+
   const handleAddToExchange = (productToAdd: Product) => {
+    const quantityInCart = exchangeItems.find(item => item.id === productToAdd.id && item.saleType === currentExchangeSaleType)?.quantity ?? 0;
+
+    if (quantityInCart >= productToAdd.stock) {
+        toast({
+            variant: "destructive",
+            title: "Out of Stock",
+            description: `No more ${productToAdd.name} available in the selected stock.`,
+        });
+        return;
+    }
+
     const existingItemIndex = exchangeItems.findIndex(
         item => item.id === productToAdd.id && item.saleType === currentExchangeSaleType
     );
@@ -200,6 +292,27 @@ export function ReturnManagement() {
           handleRemoveFromExchange(productId, saleType);
           return;
       }
+      
+      const sourceProducts = viewMode === 'vehicle' ? vehicleStock : allProducts;
+      if (!sourceProducts) return;
+
+      const productInStock = sourceProducts.find(p => p.id === productId);
+      if (!productInStock) return;
+
+      if (newQuantity > productInStock.stock) {
+          toast({
+              variant: "destructive",
+              title: "Stock Limit Exceeded",
+              description: `Cannot add more than ${productInStock.stock} units of ${productInStock.name}.`,
+          });
+          setExchangeItems(prev => prev.map(item => 
+            (item.id === productId && item.saleType === saleType) 
+            ? {...item, quantity: productInStock.stock} 
+            : item
+          ));
+          return;
+      }
+
       setExchangeItems(prev => prev.map(item => 
         (item.id === productId && item.saleType === saleType) 
         ? {...item, quantity: newQuantity} 
@@ -357,7 +470,12 @@ export function ReturnManagement() {
     ? `${selectedCustomer.name} (${selectedCustomer.shopName || selectedCustomer.phone})`
     : "Select a customer...";
 
-  const availableProductsForExchange = allProducts.filter(p => p.stock > 0);
+  const availableProductsForExchange = useMemo(() => {
+    if (viewMode === 'main') {
+        return allProducts.filter(p => p.stock > 0);
+    }
+    return vehicleStock || [];
+  }, [viewMode, allProducts, vehicleStock]);
 
 
   const renderInitialSearchView = () => (
@@ -490,6 +608,46 @@ export function ReturnManagement() {
             <CardContent>
               <ScrollArea className="h-[calc(100vh-20rem)] -mr-4 pr-4">
                 <div className="space-y-4">
+                    <div className="flex flex-col sm:flex-row gap-4">
+                      <div className="flex items-center gap-2">
+                        <Label className="whitespace-nowrap">Exchange From</Label>
+                        {!isCashier && (
+                          <div className="flex items-center space-x-2 bg-muted p-1 rounded-md shrink-0">
+                            <Switch
+                                id="view-mode-toggle"
+                                checked={viewMode === 'vehicle'}
+                                onCheckedChange={(checked) => {
+                                setViewMode(checked ? 'vehicle' : 'main');
+                                setVehicleStock(null);
+                                setSelectedVehicleIdForExchange(null);
+                                }}
+                                aria-label="Toggle View Mode"
+                            />
+                            <Label htmlFor="view-mode-toggle" className="flex items-center gap-1 text-sm font-medium px-2 cursor-pointer">
+                                {viewMode === 'vehicle' ? <Truck className="h-4 w-4" /> : <Warehouse className="h-4 w-4" />}
+                                {viewMode === 'vehicle' ? 'Vehicle' : 'Main'}
+                            </Label>
+                          </div>
+                        )}
+                      </div>
+                      {viewMode === 'vehicle' && (
+                          <Select 
+                          value={selectedVehicleIdForExchange ?? ''} 
+                          onValueChange={handleFetchVehicleStock} 
+                          disabled={isVehicleStockLoading || isLoadingVehicles}
+                          >
+                          <SelectTrigger className="h-10 text-sm flex-1">
+                              <SelectValue placeholder={isLoadingVehicles ? "Loading vehicles..." : "Select a vehicle"} />
+                          </SelectTrigger>
+                          <SelectContent>
+                              {vehicles.map(v => (
+                              <SelectItem key={v.id} value={v.id}>{v.vehicleNumber}</SelectItem>
+                              ))}
+                          </SelectContent>
+                          </Select>
+                      )}
+                    </div>
+
                     <div className="flex flex-col sm:flex-row gap-4 items-center">
                       <Label className="whitespace-nowrap">Exchange Items</Label>
                        <div className="flex items-center space-x-2 bg-muted p-1 rounded-md shrink-0">
@@ -507,7 +665,7 @@ export function ReturnManagement() {
                         </div>
                       <Popover open={openProductPopover} onOpenChange={setOpenProductPopover}>
                           <PopoverTrigger asChild>
-                              <Button variant="outline" className="w-full justify-start mt-1">
+                              <Button variant="outline" className="w-full justify-start mt-1" disabled={viewMode === 'vehicle' && !selectedVehicleIdForExchange}>
                                 <PlusCircle className="mr-2 h-4 w-4" /> Add product to exchange...
                               </Button>
                           </PopoverTrigger>
@@ -515,17 +673,21 @@ export function ReturnManagement() {
                               <Command>
                                 <CommandInput placeholder="Search products..." />
                                 <CommandList>
-                                  <CommandEmpty>No products found.</CommandEmpty>
-                                  <CommandGroup>
-                                      {availableProductsForExchange.map(product => (
-                                          <CommandItem key={product.id} onSelect={() => handleAddToExchange(product)}>
-                                              <div className="flex justify-between w-full">
-                                                <span>{product.name}</span>
-                                                <span className="text-xs text-muted-foreground">Stock: {product.stock}</span>
-                                              </div>
-                                          </CommandItem>
-                                      ))}
-                                  </CommandGroup>
+                                  {isVehicleStockLoading ? <div className="text-center p-4 text-sm">Loading vehicle stock...</div> : (
+                                    <>
+                                      <CommandEmpty>No products found.</CommandEmpty>
+                                      <CommandGroup>
+                                          {availableProductsForExchange.map(product => (
+                                              <CommandItem key={product.id} onSelect={() => handleAddToExchange(product)}>
+                                                  <div className="flex justify-between w-full">
+                                                    <span>{product.name}</span>
+                                                    <span className="text-xs text-muted-foreground">Stock: {product.stock}</span>
+                                                  </div>
+                                              </CommandItem>
+                                          ))}
+                                      </CommandGroup>
+                                    </>
+                                  )}
                                 </CommandList>
                               </Command>
                           </PopoverContent>
