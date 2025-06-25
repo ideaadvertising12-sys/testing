@@ -67,7 +67,7 @@ export interface FirestoreBankTransferInfo extends Omit<BankTransferInfo, 'amoun
 
 export interface Payment {
   amount: number;
-  method: 'Cash' | 'Cheque' | 'BankTransfer';
+  method: 'Cash' | 'Cheque' | 'BankTransfer' | 'ReturnCredit';
   date: Date;
   notes?: string;
   details?: ChequeInfo | BankTransferInfo;
@@ -157,6 +157,9 @@ export interface ReturnTransaction {
   chequeDetails?: ChequeInfo;
   bankTransferDetails?: BankTransferInfo;
   changeGiven?: number;
+  // New fields for credit settlement
+  settleOutstandingAmount?: number;
+  refundAmount?: number;
 }
 
 // Firestore-specific types
@@ -237,6 +240,8 @@ export interface FirestoreReturnTransaction extends Omit<ReturnTransaction, 'id'
   chequeDetails?: FirestoreChequeInfo;
   bankTransferDetails?: FirestoreBankTransferInfo;
   changeGiven?: number;
+  settleOutstandingAmount?: number;
+  refundAmount?: number;
 }
 
 
@@ -576,6 +581,8 @@ export const returnTransactionConverter = {
       chequeDetails: chequeDetails,
       bankTransferDetails: data.bankTransferDetails,
       changeGiven: data.changeGiven,
+      settleOutstandingAmount: data.settleOutstandingAmount,
+      refundAmount: data.refundAmount
     };
   }
 };

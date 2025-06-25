@@ -14,6 +14,7 @@ import {
   Timestamp,
   runTransaction,
   setDoc,
+  arrayUnion,
 } from "firebase/firestore";
 import { format } from 'date-fns';
 import { 
@@ -36,7 +37,8 @@ import {
   stockTransactionConverter,
   type ReturnTransaction,
   returnTransactionConverter,
-  type FirestoreReturnTransaction
+  type FirestoreReturnTransaction,
+  type Payment,
 } from "./types";
 
 // Product Services
@@ -343,6 +345,8 @@ interface ProcessReturnArgs {
   staffId: string;
   customerId?: string;
   customerName?: string;
+  settleOutstandingAmount?: number;
+  refundAmount?: number;
   payment?: {
     amountPaid: number;
     paymentSummary: string;
@@ -359,6 +363,8 @@ export const processReturnTransaction = async ({
   staffId,
   customerId,
   customerName,
+  settleOutstandingAmount,
+  refundAmount,
   payment
 }: ProcessReturnArgs): Promise<{ returnId: string, returnData: ReturnTransaction }> => {
   checkFirebase();
@@ -397,91 +403,78 @@ export const processReturnTransaction = async ({
       }
     });
     
-    // 2. CALCULATE & VALIDATE
-    // Calculate stock changes for EXCHANGED (new) items
+    const currentSaleData = saleDoc.data();
+
+    // 2. SETTLE OUTSTANDING BALANCE IF APPLICABLE
+    if (settleOutstandingAmount && settleOutstandingAmount > 0) {
+      if (currentSaleData.outstandingBalance < settleOutstandingAmount) {
+        throw new Error(`Cannot settle ${settleOutstandingAmount}. Outstanding balance is only ${currentSaleData.outstandingBalance}.`);
+      }
+      const creditPayment: Payment = {
+        amount: settleOutstandingAmount,
+        method: 'ReturnCredit',
+        date: new Date(),
+        staffId: staffId,
+        notes: `Credit from Return ID: ${returnId}`
+      };
+      
+      const firestorePayment = { ...creditPayment, date: Timestamp.fromDate(creditPayment.date) };
+
+      transaction.update(saleRef, {
+        outstandingBalance: currentSaleData.outstandingBalance - settleOutstandingAmount,
+        totalAmountPaid: currentSaleData.totalAmountPaid + settleOutstandingAmount,
+        additionalPayments: arrayUnion(firestorePayment)
+      });
+    }
+
+    // 3. CALCULATE STOCK & VALIDATE
     for (const item of exchangedItems) {
       const productInfo = productDataMap.get(item.id);
-      if (!productInfo) {
-        throw new Error(`Product with ID ${item.id} for exchange not found.`);
-      }
-      if (productInfo.newStock < item.quantity) {
-        throw new Error(`Insufficient stock for ${productInfo.doc.name}. Available: ${productInfo.newStock}, Requested: ${item.quantity}`);
-      }
+      if (!productInfo) throw new Error(`Product ID ${item.id} for exchange not found.`);
+      if (productInfo.newStock < item.quantity) throw new Error(`Insufficient stock for ${productInfo.doc.name}.`);
       productInfo.newStock -= item.quantity;
     }
 
-    // Calculate stock changes and update sale for RETURNED items
-    const currentSaleData = saleDoc.data();
     const newSaleItems = [...currentSaleData.items];
     for (const item of returnedItems) {
       if (item.isResellable) {
         const productInfo = productDataMap.get(item.id);
-        if (!productInfo) { throw new Error(`Product with ID ${item.id} for return not found.`); }
+        if (!productInfo) throw new Error(`Product ID ${item.id} for return not found.`);
         productInfo.newStock += item.quantity;
       }
-      const saleItemIndex = newSaleItems.findIndex(saleItem => saleItem.id === item.id && saleItem.saleType === item.saleType);
-      if (saleItemIndex === -1) { throw new Error(`Item with product ID ${item.id} and sale type ${item.saleType} not found in the original sale.`); }
+      const saleItemIndex = newSaleItems.findIndex(si => si.id === item.id && si.saleType === item.saleType);
+      if (saleItemIndex === -1) throw new Error(`Item ${item.name} not found in original sale.`);
       const originalSaleItem = newSaleItems[saleItemIndex];
       const alreadyReturned = originalSaleItem.returnedQuantity || 0;
-      if ((alreadyReturned + item.quantity) > originalSaleItem.quantity) {
-        throw new Error(`Cannot return ${item.quantity} of ${originalSaleItem.name}. Only ${originalSaleItem.quantity - alreadyReturned} are available.`);
-      }
+      if ((alreadyReturned + item.quantity) > originalSaleItem.quantity) throw new Error(`Cannot return ${item.quantity} of ${originalSaleItem.name}.`);
       newSaleItems[saleItemIndex] = { ...originalSaleItem, returnedQuantity: alreadyReturned + item.quantity };
     }
 
-    // 3. PERFORM ALL WRITES
-    // Update product stock levels
+    // 4. PERFORM WRITES
     productDataMap.forEach((info, id) => {
       const prodRef = productRefs.get(id);
-      if (prodRef) {
-        transaction.update(prodRef, { stock: info.newStock, updatedAt: Timestamp.now() });
-      }
+      if (prodRef) transaction.update(prodRef, { stock: info.newStock, updatedAt: Timestamp.now() });
     });
 
-    // Update returned quantities in the original sale document
     const firestoreSaleItems = newSaleItems.map((item: CartItem): FirestoreCartItem => ({
-      productRef: doc(db, 'products', item.id).path,
-      quantity: item.quantity,
-      appliedPrice: item.appliedPrice,
-      saleType: item.saleType,
-      productName: item.name, 
-      productCategory: item.category,
-      productPrice: item.price, 
-      isOfferItem: item.isOfferItem || false,
-      returnedQuantity: item.returnedQuantity || 0,
-      ...(item.sku !== undefined && { productSku: item.sku }),
+      productRef: doc(db, 'products', item.id).path, quantity: item.quantity, appliedPrice: item.appliedPrice, saleType: item.saleType,
+      productName: item.name, productCategory: item.category, productPrice: item.price, isOfferItem: item.isOfferItem || false,
+      returnedQuantity: item.returnedQuantity || 0, ...(item.sku !== undefined && { productSku: item.sku }),
     }));
     transaction.update(saleRef, { items: firestoreSaleItems, updatedAt: Timestamp.now() });
 
-    // Create the new return transaction document
     const returnDocRef = doc(db, 'returns', returnId);
     const returnDataForFirestore: FirestoreReturnTransaction = {
-      originalSaleId: saleId,
-      returnDate: Timestamp.now(),
-      createdAt: Timestamp.now(),
-      staffId,
-      customerId,
-      customerName,
+      originalSaleId: saleId, returnDate: Timestamp.now(), createdAt: Timestamp.now(), staffId, customerId, customerName,
       returnedItems: returnedItems.map(item => ({
-        productRef: doc(db, 'products', item.id),
-        quantity: item.quantity,
-        appliedPrice: item.appliedPrice,
-        saleType: item.saleType,
-        productName: item.name,
-        productCategory: item.category,
-        productPrice: item.price,
-        productSku: item.sku
+        productRef: doc(db, 'products', item.id), quantity: item.quantity, appliedPrice: item.appliedPrice, saleType: item.saleType,
+        productName: item.name, productCategory: item.category, productPrice: item.price, productSku: item.sku
       })),
       exchangedItems: exchangedItems.map(item => ({
-        productRef: doc(db, 'products', item.id),
-        quantity: item.quantity,
-        appliedPrice: item.appliedPrice,
-        saleType: item.saleType,
-        productName: item.name,
-        productCategory: item.category,
-        productPrice: item.price,
-        productSku: item.sku
+        productRef: doc(db, 'products', item.id), quantity: item.quantity, appliedPrice: item.appliedPrice, saleType: item.saleType,
+        productName: item.name, productCategory: item.category, productPrice: item.price, productSku: item.sku
       })),
+      settleOutstandingAmount, refundAmount,
     };
     
     if (payment) {
@@ -498,8 +491,6 @@ export const processReturnTransaction = async ({
     }
     
     transaction.set(returnDocRef, returnTransactionConverter.toFirestore(returnDataForFirestore));
-    
-    // Set the data to be returned outside the transaction
     finalReturnData = returnTransactionConverter.fromFirestore({ id: returnId, data: () => returnDataForFirestore });
   });
 

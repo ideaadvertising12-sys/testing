@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Search, Package, Hash, Loader2, Users, ChevronsUpDown, Check, ArrowRight, Undo2, XCircle, PlusCircle, MinusCircle, Trash2, CalendarIcon } from "lucide-react";
+import { Search, Package, Hash, Loader2, Users, ChevronsUpDown, Check, ArrowRight, Undo2, XCircle, PlusCircle, MinusCircle, Trash2, CalendarIcon, Wallet } from "lucide-react";
 import type { Customer, Sale, CartItem, Product, ReturnTransaction, ChequeInfo, BankTransferInfo } from "@/lib/types";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useSalesData } from "@/hooks/useSalesData";
@@ -51,6 +51,7 @@ export function ReturnManagement() {
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
   const [itemsToReturn, setItemsToReturn] = useState<ReturnItem[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [applyCredit, setApplyCredit] = useState(true);
   
   // Exchange State
   const [exchangeItems, setExchangeItems] = useState<CartItem[]>([]);
@@ -62,6 +63,7 @@ export function ReturnManagement() {
   const [chequeNumber, setChequeNumber] = useState<string>("");
   const [chequeBank, setChequeBank] = useState<string>("");
   const [chequeDate, setChequeDate] = useState<Date | undefined>(new Date());
+  
   const [bankTransferAmountPaid, setBankTransferAmountPaid] = useState<string>("");
   const [bankTransferBankName, setBankTransferBankName] = useState<string>("");
   const [bankTransferReference, setBankTransferReference] = useState<string>("");
@@ -144,12 +146,6 @@ export function ReturnManagement() {
     );
   }, []);
 
-  const returnTotalValue = useMemo(() => {
-    return itemsToReturn.reduce((total, item) => {
-        return total + (item.appliedPrice * item.returnQuantity);
-    }, 0);
-  }, [itemsToReturn]);
-
   const resetSearch = () => {
     setSelectedCustomer(null);
     setCustomerSales([]);
@@ -157,9 +153,16 @@ export function ReturnManagement() {
     setSelectedSale(null);
     setItemsToReturn([]);
     setExchangeItems([]);
+    setApplyCredit(true);
+    // Reset payment fields
     setCashTendered("");
     setChequeAmountPaid("");
-    // etc.
+    setChequeNumber("");
+    setChequeBank("");
+    setChequeDate(new Date());
+    setBankTransferAmountPaid("");
+    setBankTransferBankName("");
+    setBankTransferReference("");
   };
 
   const handleAddToExchange = (product: Product) => {
@@ -191,25 +194,43 @@ export function ReturnManagement() {
       setExchangeItems(prev => prev.filter(item => item.id !== productId));
   }
 
-  const exchangeTotalValue = useMemo(() => {
-      return exchangeItems.reduce((total, item) => total + item.appliedPrice * item.quantity, 0);
-  }, [exchangeItems]);
+  const {
+    returnTotalValue,
+    outstandingToSettle,
+    netCreditAfterSettle,
+    finalAmountDue,
+    refundToCustomer
+  } = useMemo(() => {
+    const outstandingBalance = selectedSale?.outstandingBalance || 0;
+    const returnValue = itemsToReturn.reduce((total, item) => total + (item.appliedPrice * item.returnQuantity), 0);
+    const exchangeValue = exchangeItems.reduce((total, item) => total + item.appliedPrice * item.quantity, 0);
 
-  const difference = exchangeTotalValue - returnTotalValue;
-  
+    const toSettle = applyCredit && outstandingBalance > 0 ? Math.min(returnValue, outstandingBalance) : 0;
+    const creditAfter = returnValue - toSettle;
+    const finalDiff = exchangeValue - creditAfter;
+
+    return {
+      returnTotalValue: returnValue,
+      outstandingToSettle: toSettle,
+      netCreditAfterSettle: creditAfter,
+      finalAmountDue: finalDiff > 0 ? finalDiff : 0,
+      refundToCustomer: finalDiff < 0 ? Math.abs(finalDiff) : 0,
+    };
+  }, [itemsToReturn, exchangeItems, selectedSale, applyCredit]);
+
   const parsedCashTendered = parseFloat(cashTendered) || 0;
   const parsedChequeAmountPaid = parseFloat(chequeAmountPaid) || 0;
   const parsedBankTransferAmountPaid = parseFloat(bankTransferAmountPaid) || 0;
   const totalTenderedByMethods = parsedCashTendered + parsedChequeAmountPaid + parsedBankTransferAmountPaid;
   
   const changeGiven = useMemo(() => {
-    if (difference <= 0) return 0;
-    if (parsedCashTendered > 0 && totalTenderedByMethods > difference) {
-      const cashExcess = parsedCashTendered - (difference - (parsedChequeAmountPaid + parsedBankTransferAmountPaid));
+    if (finalAmountDue <= 0) return 0;
+    if (parsedCashTendered > 0 && totalTenderedByMethods > finalAmountDue) {
+      const cashExcess = parsedCashTendered - (finalAmountDue - (parsedChequeAmountPaid + parsedBankTransferAmountPaid));
       return Math.max(0, cashExcess);
     }
     return 0;
-  }, [parsedCashTendered, parsedChequeAmountPaid, parsedBankTransferAmountPaid, totalTenderedByMethods, difference]);
+  }, [parsedCashTendered, parsedChequeAmountPaid, parsedBankTransferAmountPaid, totalTenderedByMethods, finalAmountDue]);
 
   const totalPaymentApplied = totalTenderedByMethods - changeGiven;
 
@@ -220,7 +241,6 @@ export function ReturnManagement() {
     if (parsedBankTransferAmountPaid > 0) methodsUsed.push(`Bank Transfer (${parsedBankTransferAmountPaid.toFixed(2)})`);
     return methodsUsed.join(' + ');
   }, [parsedCashTendered, parsedChequeAmountPaid, parsedBankTransferAmountPaid, chequeNumber, changeGiven]);
-
   
   const handleProcessExchange = async () => {
     if (!selectedSale || !currentUser) return;
@@ -230,8 +250,8 @@ export function ReturnManagement() {
         toast({ variant: "destructive", title: "Nothing to Process", description: "Please specify items to return or exchange." });
         return;
     }
-    if (difference > 0 && totalPaymentApplied < difference) {
-        toast({ variant: "destructive", title: "Insufficient Payment", description: `Amount to pay is ${formatCurrency(difference)}, but only ${formatCurrency(totalPaymentApplied)} was provided.` });
+    if (finalAmountDue > 0 && totalPaymentApplied < finalAmountDue) {
+        toast({ variant: "destructive", title: "Insufficient Payment", description: `Amount to pay is ${formatCurrency(finalAmountDue)}, but only ${formatCurrency(totalPaymentApplied)} was provided.` });
         return;
     }
 
@@ -263,9 +283,11 @@ export function ReturnManagement() {
             staffId: currentUser.username,
             customerId: selectedSale.customerId,
             customerName: selectedSale.customerName,
+            settleOutstandingAmount: outstandingToSettle > 0 ? outstandingToSettle : undefined,
+            refundAmount: refundToCustomer > 0 ? refundToCustomer : undefined,
         };
         
-        if (difference > 0) {
+        if (finalAmountDue > 0) {
             payload.payment = {
                 amountPaid: totalPaymentApplied,
                 paymentSummary: getPaymentSummary(),
@@ -292,7 +314,7 @@ export function ReturnManagement() {
         }
 
         toast({
-            title: "Exchange Successful",
+            title: "Transaction Successful",
             description: `Return ID: ${result.returnId}`,
         });
 
@@ -305,7 +327,7 @@ export function ReturnManagement() {
     } catch (error: any) {
         toast({
             variant: "destructive",
-            title: "Exchange Failed",
+            title: "Transaction Failed",
             description: error.message,
         });
     } finally {
@@ -446,81 +468,95 @@ export function ReturnManagement() {
         </Card>
         <Card className="lg:col-span-2">
             <CardHeader>
-                 <CardTitle>Select Exchange Items</CardTitle>
-                 <CardDescription>Choose the new products the customer will receive.</CardDescription>
+                 <CardTitle>Transaction Summary</CardTitle>
+                 <CardDescription>Select exchange items and settle the final balance.</CardDescription>
             </CardHeader>
             <CardContent>
               <ScrollArea className="h-[calc(100vh-20rem)] -mr-4 pr-4">
-                <Popover open={openProductPopover} onOpenChange={setOpenProductPopover}>
-                    <PopoverTrigger asChild>
-                        <Button variant="outline" className="w-full justify-start mb-4">
-                           <PlusCircle className="mr-2 h-4 w-4" /> Add product to exchange...
-                        </Button>
-                    </PopoverTrigger>
-                     <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                        <Command>
-                           <CommandInput placeholder="Search products..." />
-                           <CommandList>
-                            <CommandEmpty>No products found.</CommandEmpty>
-                            <CommandGroup>
-                                {availableProductsForExchange.map(product => (
-                                    <CommandItem key={product.id} onSelect={() => handleAddToExchange(product)}>
-                                        {product.name}
-                                    </CommandItem>
-                                ))}
-                            </CommandGroup>
-                           </CommandList>
-                        </Command>
-                     </PopoverContent>
-                </Popover>
+                <div className="space-y-4">
+                    <div>
+                      <Label>Exchange Items</Label>
+                      <Popover open={openProductPopover} onOpenChange={setOpenProductPopover}>
+                          <PopoverTrigger asChild>
+                              <Button variant="outline" className="w-full justify-start mt-1">
+                                <PlusCircle className="mr-2 h-4 w-4" /> Add product to exchange...
+                              </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                              <Command>
+                                <CommandInput placeholder="Search products..." />
+                                <CommandList>
+                                  <CommandEmpty>No products found.</CommandEmpty>
+                                  <CommandGroup>
+                                      {availableProductsForExchange.map(product => (
+                                          <CommandItem key={product.id} onSelect={() => handleAddToExchange(product)}>
+                                              {product.name}
+                                          </CommandItem>
+                                      ))}
+                                  </CommandGroup>
+                                </CommandList>
+                              </Command>
+                          </PopoverContent>
+                      </Popover>
+                    </div>
 
-                {exchangeItems.length > 0 && (
-                  <div className="p-2 space-y-2 rounded-md border mb-4">
-                      {exchangeItems.map(item => (
-                          <div key={item.id} className="flex items-center gap-2 p-2 rounded-md bg-muted/50">
-                              <div className="flex-1">
-                                  <p className="text-sm font-medium">{item.name}</p>
-                                  <p className="text-xs text-muted-foreground">{formatCurrency(item.appliedPrice)}</p>
+                    {exchangeItems.length > 0 && (
+                      <div className="p-2 space-y-2 rounded-md border">
+                          {exchangeItems.map(item => (
+                              <div key={item.id} className="flex items-center gap-2 p-2 rounded-md bg-muted/50">
+                                  <div className="flex-1">
+                                      <p className="text-sm font-medium">{item.name}</p>
+                                      <p className="text-xs text-muted-foreground">{formatCurrency(item.appliedPrice)}</p>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleUpdateExchangeQuantity(item.id, item.quantity - 1)}>
+                                          <MinusCircle className="h-4 w-4"/>
+                                      </Button>
+                                      <span>{item.quantity}</span>
+                                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleUpdateExchangeQuantity(item.id, item.quantity + 1)}>
+                                          <PlusCircle className="h-4 w-4"/>
+                                      </Button>
+                                      <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => handleRemoveFromExchange(item.id)}>
+                                          <Trash2 className="h-4 w-4"/>
+                                      </Button>
+                                  </div>
+                                  <p className="w-20 text-right font-medium text-sm">{formatCurrency(item.quantity * item.appliedPrice)}</p>
                               </div>
-                              <div className="flex items-center gap-2">
-                                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleUpdateExchangeQuantity(item.id, item.quantity - 1)}>
-                                      <MinusCircle className="h-4 w-4"/>
-                                  </Button>
-                                  <span>{item.quantity}</span>
-                                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleUpdateExchangeQuantity(item.id, item.quantity + 1)}>
-                                      <PlusCircle className="h-4 w-4"/>
-                                  </Button>
-                                  <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => handleRemoveFromExchange(item.id)}>
-                                      <Trash2 className="h-4 w-4"/>
-                                  </Button>
-                              </div>
-                              <p className="w-20 text-right font-medium text-sm">{formatCurrency(item.quantity * item.appliedPrice)}</p>
-                          </div>
-                      ))}
-                  </div>
-                )}
+                          ))}
+                      </div>
+                    )}
+                </div>
                 
                 <Separator className="my-4"/>
 
-                <div className="space-y-2">
-                    <div className="flex justify-between items-center text-sm">
-                        <span className="text-muted-foreground">Return Value:</span>
-                        <span className="font-medium">{formatCurrency(returnTotalValue)}</span>
-                    </div>
-                    <div className="flex justify-between items-center text-sm">
-                        <span className="text-muted-foreground">New Items Total:</span>
-                        <span className="font-medium">{formatCurrency(exchangeTotalValue)}</span>
-                    </div>
-                    <Separator/>
-                    <div className={cn("flex justify-between items-center font-bold text-lg", difference > 0 ? "text-destructive" : "text-green-600")}>
-                        <span>{difference > 0 ? 'Amount to Pay:' : difference < 0 ? 'Credit Due:' : 'Net Difference:'}</span>
-                        <span>{formatCurrency(Math.abs(difference))}</span>
+                <div className="space-y-3">
+                    <h3 className="text-base font-semibold">Financial Summary</h3>
+                    <div className="flex justify-between items-center text-sm"><span className="text-muted-foreground">Total Return Value:</span><span className="font-medium">{formatCurrency(returnTotalValue)}</span></div>
+
+                    {selectedSale && selectedSale.outstandingBalance > 0 && (
+                      <div className="flex items-center space-x-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
+                        <Checkbox id="apply-credit" checked={applyCredit} onCheckedChange={(checked) => setApplyCredit(!!checked)} />
+                        <Label htmlFor="apply-credit" className="text-sm font-normal text-blue-800">
+                          Apply credit towards outstanding bill of {formatCurrency(selectedSale.outstandingBalance)}?
+                        </Label>
+                      </div>
+                    )}
+                    
+                    {outstandingToSettle > 0 && <div className="flex justify-between items-center text-sm text-blue-600"><span className="text-muted-foreground pl-4">Outstanding Settled:</span><span className="font-medium">- {formatCurrency(outstandingToSettle)}</span></div>}
+                    <Separator className="!my-1"/>
+                    <div className="flex justify-between items-center text-sm"><span className="text-muted-foreground">Net Credit:</span><span className="font-medium">{formatCurrency(netCreditAfterSettle)}</span></div>
+                    <div className="flex justify-between items-center text-sm"><span className="text-muted-foreground">New Items Total:</span><span className="font-medium">- {formatCurrency(exchangeItems.reduce((sum, item) => sum + item.quantity * item.appliedPrice, 0))}</span></div>
+                    <Separator className="!my-1"/>
+                    
+                    <div className={cn("flex justify-between items-center font-bold text-lg", finalAmountDue > 0 ? "text-destructive" : "text-green-600")}>
+                        <span>{finalAmountDue > 0 ? 'Amount to Pay:' : 'Refund to Customer:'}</span>
+                        <span>{formatCurrency(finalAmountDue > 0 ? finalAmountDue : refundToCustomer)}</span>
                     </div>
                 </div>
 
-                {difference > 0 && (
+                {finalAmountDue > 0 && (
                   <div className="mt-4 pt-4 border-t space-y-4">
-                    <h3 className="text-sm font-semibold">Settle Payment</h3>
+                    <h3 className="text-sm font-semibold flex items-center gap-2"><Wallet className="h-4 w-4"/>Settle Payment</h3>
                      <div>
                         <Label htmlFor="cashTendered" className="text-xs">Cash Paid (Rs.)</Label>
                         <Input id="cashTendered" type="number" value={cashTendered} onChange={(e) => setCashTendered(e.target.value)} placeholder="0.00" className="h-9 mt-1" min="0" step="0.01"/>
@@ -543,7 +579,7 @@ export function ReturnManagement() {
                         disabled={isProcessing || (itemsToReturn.every(i => i.returnQuantity === 0) && exchangeItems.length === 0)}
                     >
                         {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ArrowRight className="mr-2 h-4 w-4" />}
-                        {isProcessing ? 'Processing...' : 'Process Exchange'}
+                        {isProcessing ? 'Processing...' : 'Complete Transaction'}
                     </Button>
                 </div>
               </ScrollArea>
