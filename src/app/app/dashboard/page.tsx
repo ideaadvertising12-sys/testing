@@ -345,7 +345,7 @@ export default function DashboardPage() {
             formatCurrency(netTotalRevenue),
             Banknote,
             "text-green-600",
-            `Gross: ${formatCurrency(grossTotalRevenue || 0)} | Refunds: ${formatCurrency(totalRefundsAllTime)}`,
+            "Net revenue after refunds",
             monthlyComparison[new Date().getMonth()]
           )
         )}
