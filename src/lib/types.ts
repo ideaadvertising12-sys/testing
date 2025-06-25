@@ -682,24 +682,33 @@ export interface ActivityItem {
 
 export interface DayEndReportSummary {
   reportDate: Date;
-  cashSales: { count: number; amount: number; cashReceived: number; balanceReturned: number };
-  chequeSales: { count: number; amount: number; chequeNumbers: string[] };
-  creditSales: { count: number; amount: number; amountPaidOnCredit: number; remainingCreditBalance: number };
-  
-  totalSalesAmount: number; 
-  totalAmountCollectedByCash: number;
-  totalAmountCollectedByCheque: number;
-  totalAmountCollectedByBankTransfer: number;
-  totalChangeGiven: number;
-  totalOutstandingAmount: number; 
-  
-  overallTotalSales: number; 
-  overallTotalCashReceived: number; 
-  overallTotalBalanceReturned: number; 
-  overallTotalCreditOutstanding: number; 
-
   totalTransactions: number;
+  
+  // Sales figures
+  grossSalesValue: number;
+  refundsForTodaySales: number;
+  refundsForPastSales: number;
+  netSalesValue: number;
+
+  // Collection figures
+  totalCashIn: number;
+  totalChequeIn: number;
+  totalBankTransferIn: number;
+  totalChangeGiven: number;
+  totalRefundsPaid: number;
+  netCashInHand: number;
+
+  // Credit figures for today's sales
+  newCreditIssued: number;
+  paidAgainstNewCredit: number;
+  netOutstandingFromToday: number;
+  
+  // Details for display
+  chequeNumbers: string[];
+  bankTransferRefs: string[];
+  creditSalesCount: number;
 }
+
 
 export interface ManagedUser extends Omit<User, 'id'> {
   id: string;
