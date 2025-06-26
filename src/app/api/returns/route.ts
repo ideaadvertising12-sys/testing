@@ -49,8 +49,6 @@ export async function POST(request: NextRequest) {
     const body: ReturnRequestBody = await request.json();
     const { 
         saleId, 
-        returnedItems = [],
-        exchangedItems = [],
         staffId,
         customerId,
         customerName,
@@ -60,6 +58,10 @@ export async function POST(request: NextRequest) {
         payment,
         vehicleId,
     } = body;
+
+    // Explicitly handle returnedItems and exchangedItems to ensure they are arrays
+    const returnedItems = Array.isArray(body.returnedItems) ? body.returnedItems : [];
+    const exchangedItems = Array.isArray(body.exchangedItems) ? body.exchangedItems : [];
 
     if (!saleId || !staffId) {
       return NextResponse.json({ error: 'Invalid request body. Missing required fields.' }, { status: 400 });
