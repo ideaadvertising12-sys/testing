@@ -140,13 +140,13 @@ export default function SalesPage() {
   }, [selectedCustomer, allSales]);
 
   const customerCreditBalance = useMemo(() => {
-    if (!selectedCustomer || !sales || !returns) return 0;
+    if (!selectedCustomer || !allSales || !returns) return 0;
 
     const totalRefunds = returns
       .filter(r => r.customerId === selectedCustomer.id && r.refundAmount)
       .reduce((sum, r) => sum + r.refundAmount!, 0);
 
-    const totalCreditUsed = sales
+    const totalCreditUsed = allSales
       .filter(s => s.customerId === selectedCustomer.id && s.creditUsed)
       .reduce((sum, s) => sum + s.creditUsed!, 0);
       
@@ -810,5 +810,3 @@ export default function SalesPage() {
     </div>
   );
 }
-
-    
