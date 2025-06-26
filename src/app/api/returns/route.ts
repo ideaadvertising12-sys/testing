@@ -5,7 +5,7 @@ import type { ChequeInfo, BankTransferInfo } from '@/lib/types';
 
 interface ReturnRequestBody {
   saleId: string;
-  returnedItems: {
+  returnedItems?: {
     id: string; // This is productId
     saleType: 'retail' | 'wholesale';
     quantity: number; // Quantity being returned in this transaction
@@ -17,7 +17,7 @@ interface ReturnRequestBody {
     appliedPrice: number;
     sku?: string;
   }[];
-  exchangedItems: {
+  exchangedItems?: {
     id: string;
     quantity: number;
      // Include all necessary fields for CartItem reconstruction for saving
@@ -46,10 +46,11 @@ interface ReturnRequestBody {
 
 export async function POST(request: NextRequest) {
   try {
+    const body: ReturnRequestBody = await request.json();
     const { 
         saleId, 
-        returnedItems, 
-        exchangedItems,
+        returnedItems = [],
+        exchangedItems = [],
         staffId,
         customerId,
         customerName,
@@ -58,13 +59,13 @@ export async function POST(request: NextRequest) {
         cashPaidOut,
         payment,
         vehicleId,
-    }: ReturnRequestBody = await request.json();
+    } = body;
 
     if (!saleId || !staffId) {
       return NextResponse.json({ error: 'Invalid request body. Missing required fields.' }, { status: 400 });
     }
-     if (returnedItems.length === 0 && exchangedItems.length === 0) {
-      return NextResponse.json({ error: 'Cannot process an empty transaction.' }, { status: 400 });
+     if (returnedItems.length === 0 && exchangedItems.length === 0 && !refundAmount && !cashPaidOut && !settleOutstandingAmount) {
+      return NextResponse.json({ error: 'Cannot process an empty transaction with no financial impact.' }, { status: 400 });
     }
 
     const { returnId, returnData } = await processReturnTransaction({
