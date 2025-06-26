@@ -447,18 +447,46 @@ export const processReturnTransaction = async ({
 
     const newSaleItems = [...currentSaleData.items];
     for (const item of returnedItems) {
+      // If the item is resellable, handle stock update
       if (item.isResellable) {
         const productInfo = productDataMap.get(item.id);
         if (!productInfo) throw new Error(`Product ID ${item.id} for return not found.`);
-        productInfo.newStock += item.quantity;
+
+        // If a vehicle is involved, return stock to the vehicle
+        if (vehicleId) {
+          const stockTx: Omit<StockTransaction, 'id'> = {
+            productId: item.id,
+            productName: item.name,
+            productSku: item.sku,
+            type: 'LOAD_TO_VEHICLE', // Item is being loaded back onto the vehicle
+            quantity: item.quantity,
+            previousStock: productInfo.doc.stock, // Main inventory stock is unaffected
+            newStock: productInfo.doc.stock,      // Main inventory stock is unaffected
+            transactionDate: new Date(),
+            notes: `Resellable return to vehicle. Return ID: ${returnId}`,
+            vehicleId: vehicleId,
+            userId: staffId,
+          };
+          const txDocRef = doc(collection(db, "stockTransactions"));
+          transaction.set(txDocRef, stockTransactionConverter.toFirestore(stockTx));
+        } else {
+          // Otherwise, return stock to the main inventory
+          productInfo.newStock += item.quantity;
+        }
       }
+
+      // Track the returned quantity on the original sale document
       const saleItemIndex = newSaleItems.findIndex(si => si.id === item.id && si.saleType === item.saleType);
       if (saleItemIndex === -1) throw new Error(`Item ${item.name} not found in original sale.`);
+      
       const originalSaleItem = newSaleItems[saleItemIndex];
       const alreadyReturned = originalSaleItem.returnedQuantity || 0;
-      if ((alreadyReturned + item.quantity) > originalSaleItem.quantity) throw new Error(`Cannot return ${item.quantity} of ${originalSaleItem.name}.`);
+      if ((alreadyReturned + item.quantity) > originalSaleItem.quantity) {
+        throw new Error(`Cannot return ${item.quantity} of ${originalSaleItem.name}. Already returned: ${alreadyReturned}, Max: ${originalSaleItem.quantity}`);
+      }
       newSaleItems[saleItemIndex] = { ...originalSaleItem, returnedQuantity: alreadyReturned + item.quantity };
     }
+
 
     // 4. PERFORM WRITES
     // Update main inventory stock levels for returns and non-vehicle exchanges
@@ -491,7 +519,7 @@ export const processReturnTransaction = async ({
         transaction.set(txDocRef, stockTransactionConverter.toFirestore(stockTx));
       }
     }
-
+    
     const firestoreSaleItems = newSaleItems.map((item: CartItem): FirestoreCartItem => ({
       productRef: doc(db, 'products', item.id).path, quantity: item.quantity, appliedPrice: item.appliedPrice, saleType: item.saleType,
       productName: item.name, productCategory: item.category, productPrice: item.price, isOfferItem: item.isOfferItem || false,
@@ -567,3 +595,4 @@ export const updateProductStockTransactional = async (productId: string, quantit
     throw e; 
   }
 };
+
