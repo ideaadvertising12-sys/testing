@@ -30,6 +30,7 @@ interface CartViewProps {
   cartItems: CartItem[];
   selectedCustomer: Customer | null;
   customerOutstandingBalance?: number;
+  customerCreditBalance?: number;
   onUpdateQuantity: (productId: string, quantity: number, saleType: 'retail' | 'wholesale') => void;
   onRemoveItem: (productId: string, saleType: 'retail' | 'wholesale', isOfferItem: boolean) => void;
   onSelectCustomer: (customer: Customer | null) => void;
@@ -46,6 +47,7 @@ export function CartView({
   cartItems,
   selectedCustomer,
   customerOutstandingBalance,
+  customerCreditBalance,
   onUpdateQuantity,
   onRemoveItem,
   onSelectCustomer,
@@ -152,6 +154,15 @@ export function CartView({
                 <div className="text-sm">
                     <span className="font-semibold">Outstanding Balance:</span>
                     <span className="ml-1 font-bold">{formatCurrency(customerOutstandingBalance!)}</span>
+                </div>
+            </div>
+        )}
+         {selectedCustomer && (customerCreditBalance ?? 0) > 0 && (
+            <div className="mt-2 flex items-center gap-2 rounded-lg border border-green-500/50 bg-green-50 p-2 text-green-800 dark:bg-green-900/20 dark:text-green-300">
+                <Gift className="h-5 w-5 flex-shrink-0" />
+                <div className="text-sm">
+                    <span className="font-semibold">Available Credit:</span>
+                    <span className="ml-1 font-bold">{formatCurrency(customerCreditBalance!)}</span>
                 </div>
             </div>
         )}

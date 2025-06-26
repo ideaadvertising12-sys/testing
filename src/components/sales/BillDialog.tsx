@@ -42,6 +42,7 @@ interface BillDialogProps {
   currentSubtotal?: number;
   currentDiscountAmount?: number;
   currentTotalAmount?: number; 
+  customerCreditBalance?: number;
   onConfirmSale?: (saleData: Omit<Sale, 'id' | 'saleDate' | 'staffId' | 'items'>) => Promise<Sale | null>;
   offerApplied?: boolean; 
   existingSaleData?: Sale;
@@ -55,6 +56,7 @@ export function BillDialog({
   currentSubtotal: newSubtotal,
   currentDiscountAmount: newDiscountAmount,
   currentTotalAmount: newTotalAmountDue, 
+  customerCreditBalance,
   onConfirmSale,
   offerApplied: newOfferApplied, 
   existingSaleData
@@ -72,6 +74,7 @@ export function BillDialog({
   const [bankTransferAmountPaid, setBankTransferAmountPaid] = useState<string>("");
   const [bankTransferBankName, setBankTransferBankName] = useState<string>("");
   const [bankTransferReference, setBankTransferReference] = useState<string>("");
+  const [creditToApply, setCreditToApply] = useState("0");
   const { toast } = useToast();
 
   useEffect(() => {
@@ -129,6 +132,7 @@ export function BillDialog({
     if (isOpen) {
       setIsProcessing(false);
       setFinalSaleData(null); 
+      setCreditToApply("0");
       if (existingSaleData) {
         // In reprint mode, we don't need to populate payment fields, only display existing data
         setCashTendered("");
@@ -156,18 +160,23 @@ export function BillDialog({
   const parsedCashTendered = parseFloat(cashTendered) || 0;
   const parsedChequeAmountPaid = parseFloat(chequeAmountPaid) || 0;
   const parsedBankTransferAmountPaid = parseFloat(bankTransferAmountPaid) || 0;
+  const parsedCreditApplied = useMemo(() => {
+    const value = parseFloat(creditToApply) || 0;
+    const maxCredit = Math.min(customerCreditBalance || 0, totalAmountDueForDisplay);
+    return Math.max(0, Math.min(value, maxCredit));
+  }, [creditToApply, customerCreditBalance, totalAmountDueForDisplay]);
 
   const totalTenderedByMethods = parsedCashTendered + parsedChequeAmountPaid + parsedBankTransferAmountPaid;
   
   const changeGiven = useMemo(() => {
-    if (parsedCashTendered > 0 && totalTenderedByMethods > totalAmountDueForDisplay) {
-      const cashExcess = parsedCashTendered - (totalAmountDueForDisplay - (parsedChequeAmountPaid + parsedBankTransferAmountPaid));
+    if (parsedCashTendered > 0 && totalTenderedByMethods > (totalAmountDueForDisplay - parsedCreditApplied)) {
+      const cashExcess = parsedCashTendered - ((totalAmountDueForDisplay - parsedCreditApplied) - (parsedChequeAmountPaid + parsedBankTransferAmountPaid));
       return Math.max(0, cashExcess);
     }
     return 0;
-  }, [parsedCashTendered, parsedChequeAmountPaid, parsedBankTransferAmountPaid, totalTenderedByMethods, totalAmountDueForDisplay]);
+  }, [parsedCashTendered, parsedChequeAmountPaid, parsedBankTransferAmountPaid, totalTenderedByMethods, totalAmountDueForDisplay, parsedCreditApplied]);
 
-  const totalPaymentApplied = totalTenderedByMethods - changeGiven;
+  const totalPaymentApplied = totalTenderedByMethods + parsedCreditApplied - changeGiven;
 
   const outstandingBalance = useMemo(() => {
     return Math.max(0, totalAmountDueForDisplay - totalPaymentApplied);
@@ -175,11 +184,12 @@ export function BillDialog({
 
   const getPaymentSummary = useCallback(() => {
     const methodsUsed: string[] = [];
-    let summary = "";
-    if (parsedCashTendered > 0) methodsUsed.push(`Cash (${(parsedCashTendered - changeGiven).toFixed(2)})`);
-    if (parsedChequeAmountPaid > 0) methodsUsed.push(`Cheque (${parsedChequeAmountPaid.toFixed(2)})${chequeNumber.trim() ? ` - #${chequeNumber.trim()}` : ''}`);
-    if (parsedBankTransferAmountPaid > 0) methodsUsed.push(`Bank Transfer (${parsedBankTransferAmountPaid.toFixed(2)})${bankTransferReference.trim() ? ` - Ref: ${bankTransferReference.trim()}` : ''}`);
+    if (parsedCreditApplied > 0) methodsUsed.push(`Credit (${formatCurrency(parsedCreditApplied)})`);
+    if (parsedCashTendered > 0) methodsUsed.push(`Cash (${formatCurrency(parsedCashTendered - changeGiven)})`);
+    if (parsedChequeAmountPaid > 0) methodsUsed.push(`Cheque (${formatCurrency(parsedChequeAmountPaid)})${chequeNumber.trim() ? ` - #${chequeNumber.trim()}` : ''}`);
+    if (parsedBankTransferAmountPaid > 0) methodsUsed.push(`Bank Transfer (${formatCurrency(parsedBankTransferAmountPaid)})${bankTransferReference.trim() ? ` - Ref: ${bankTransferReference.trim()}` : ''}`);
 
+    let summary = "";
     if (methodsUsed.length > 1) {
       summary = `Split (${methodsUsed.join(' + ')})`;
     } else if (methodsUsed.length === 1) {
@@ -193,13 +203,13 @@ export function BillDialog({
     }
     
     if (outstandingBalance > 0 && totalPaymentApplied > 0) {
-      summary = `Partial (${summary}) - Outstanding: ${outstandingBalance.toFixed(2)}`;
+      summary = `Partial (${summary}) - Outstanding: ${formatCurrency(outstandingBalance)}`;
     } else if (outstandingBalance > 0 && totalPaymentApplied === 0) {
-      summary = `Full Credit - Outstanding: ${outstandingBalance.toFixed(2)}`;
+      summary = `Full Credit - Outstanding: ${formatCurrency(outstandingBalance)}`;
     }
 
     return summary;
-  }, [parsedCashTendered, parsedChequeAmountPaid, parsedBankTransferAmountPaid, chequeNumber, bankTransferReference, changeGiven, outstandingBalance, totalAmountDueForDisplay, totalPaymentApplied]);
+  }, [parsedCashTendered, parsedChequeAmountPaid, parsedBankTransferAmountPaid, parsedCreditApplied, chequeNumber, bankTransferReference, changeGiven, outstandingBalance, totalAmountDueForDisplay, totalPaymentApplied]);
 
   const handlePrimaryAction = async () => {
     if (isReprintMode) {
@@ -261,6 +271,7 @@ export function BillDialog({
             referenceNumber: bankTransferReference.trim() || undefined,
             amount: parsedBankTransferAmountPaid
         } : undefined,
+        creditUsed: parsedCreditApplied > 0 ? parsedCreditApplied : undefined,
         
         totalAmountPaid: totalPaymentApplied,
         outstandingBalance: outstandingBalance,
@@ -412,6 +423,19 @@ export function BillDialog({
                             </div>
                         </div>
                     )}
+
+                    {(customerCreditBalance ?? 0) > 0 && (
+                       <div className="border p-3 rounded-md space-y-3 bg-green-50 dark:bg-green-900/20">
+                          <Label htmlFor="creditToApply" className="text-sm font-medium text-green-800 dark:text-green-300">
+                              Available Credit: {formatCurrency(customerCreditBalance)}
+                          </Label>
+                          <div className="flex items-center gap-2">
+                              <Input id="creditToApply" type="number" value={creditToApply} onChange={e => setCreditToApply(e.target.value)} placeholder="0.00" className="h-10 bg-background" min="0" max={Math.min(customerCreditBalance || 0, totalAmountDueForDisplay)} step="0.01" disabled={isProcessing}/>
+                              <Button type="button" variant="secondary" onClick={() => setCreditToApply(Math.min(customerCreditBalance || 0, totalAmountDueForDisplay).toString())}>Apply Max</Button>
+                          </div>
+                      </div>
+                    )}
+                    
                     <div>
                         <Label htmlFor="cashTendered" className="text-xs">Cash Paid (Rs.)</Label>
                         <Input id="cashTendered" type="number" value={cashTendered} onChange={(e) => setCashTendered(e.target.value)} placeholder="0.00" className="h-10 mt-1" min="0" step="0.01" disabled={isProcessing}/>
@@ -469,6 +493,7 @@ export function BillDialog({
                       {(saleForPrinting?.paidAmountCash ?? 0) > 0 && <p>Initial Cash: {formatCurrency(saleForPrinting!.paidAmountCash!)}</p>}
                       {(saleForPrinting?.paidAmountCheque ?? 0) > 0 && <p>Initial Cheque: {formatCurrency(saleForPrinting!.paidAmountCheque!)} (#{saleForPrinting!.chequeDetails?.number})</p>}
                       {(saleForPrinting?.paidAmountBankTransfer ?? 0) > 0 && <p>Initial Bank Transfer: {formatCurrency(saleForPrinting!.paidAmountBankTransfer!)}</p>}
+                      {(saleForPrinting?.creditUsed ?? 0) > 0 && <p className="text-green-600">Credit Used: {formatCurrency(saleForPrinting!.creditUsed!)}</p>}
                       {(saleForPrinting?.changeGiven ?? 0) > 0 && <p className="text-green-600">Initial Change: {formatCurrency(saleForPrinting!.changeGiven!)}</p>}
                   </div>
                   {saleForPrinting?.additionalPayments?.map((p, i) => (

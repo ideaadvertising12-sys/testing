@@ -41,6 +41,9 @@ export async function POST(request: NextRequest) {
     if (saleDataFromClient.paidAmountBankTransfer !== undefined && typeof saleDataFromClient.paidAmountBankTransfer !== 'number') {
         return NextResponse.json({ error: 'Invalid bank transfer payment amount.' }, { status: 400 });
     }
+     if (saleDataFromClient.creditUsed !== undefined && typeof saleDataFromClient.creditUsed !== 'number') {
+        return NextResponse.json({ error: 'Invalid credit used amount.' }, { status: 400 });
+    }
 
     if (saleDataFromClient.paidAmountCheque > 0 && (!saleDataFromClient.chequeDetails || !saleDataFromClient.chequeDetails.number)) {
         return NextResponse.json({ error: 'Cheque number is required for cheque payments.' }, { status: 400 });
@@ -90,6 +93,7 @@ export async function POST(request: NextRequest) {
       chequeDetails: chequeDetailsForDb,
       paidAmountBankTransfer: saleDataFromClient.paidAmountBankTransfer,
       bankTransferDetails: bankTransferDetailsForDb,
+      creditUsed: saleDataFromClient.creditUsed,
       totalAmountPaid: saleDataFromClient.totalAmountPaid,
       outstandingBalance: saleDataFromClient.outstandingBalance,
       initialOutstandingBalance: saleDataFromClient.outstandingBalance,

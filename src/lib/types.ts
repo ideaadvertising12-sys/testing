@@ -1,4 +1,3 @@
-
 // location src/lib/types.ts
 import { Timestamp, DocumentReference } from 'firebase/firestore';
 
@@ -93,6 +92,7 @@ export interface Sale {
   chequeDetails?: ChequeInfo; 
   paidAmountBankTransfer?: number;
   bankTransferDetails?: BankTransferInfo;
+  creditUsed?: number;
 
   additionalPayments?: Payment[];
 
@@ -206,6 +206,7 @@ export interface FirestoreSale extends Omit<Sale, 'id' | 'saleDate' | 'items' | 
   updatedAt?: Timestamp;
   offerApplied?: boolean;
   vehicleId?: string;
+  creditUsed?: number;
 }
 
 export interface FirestoreStockTransaction {
@@ -346,6 +347,7 @@ export const saleConverter = {
       paidAmountCash: sale.paidAmountCash,
       paidAmountCheque: sale.paidAmountCheque,
       paidAmountBankTransfer: sale.paidAmountBankTransfer,
+      creditUsed: sale.creditUsed,
       
       totalAmountPaid: sale.totalAmountPaid,
       outstandingBalance: sale.outstandingBalance,
@@ -462,6 +464,7 @@ export const saleConverter = {
       chequeDetails: chequeDetails,
       paidAmountBankTransfer: data.paidAmountBankTransfer,
       bankTransferDetails: bankTransferDetails,
+      creditUsed: data.creditUsed,
       additionalPayments: Array.isArray(data.additionalPayments) ? data.additionalPayments.map((p: FirestorePayment) => ({
         ...p,
         date: p.date && p.date.toDate ? p.date.toDate() : new Date(0)
