@@ -114,7 +114,7 @@ export default function SalesPage() {
   const [isSalesPageFullScreen, setIsSalesPageFullScreen] = useState(false);
   const [isProcessingSale, setIsProcessingSale] = useState(false);
   const [isBuy12Get1FreeActive, setIsBuy12Get1FreeActive] = useState(false);
-  const [excludedOfferProductIds, setExcludedOfferProductIds] = useState<Set<string>>(new Set());
+  const [excludedOfferProductIds, setExcludedOfferProductIds] = useState<Set<string>>(new Set<string>());
 
   // New states for vehicle stock view
   const [viewMode, setViewMode] = useState<'main' | 'vehicle'>(isCashier ? 'vehicle' : 'main');
@@ -182,7 +182,7 @@ export default function SalesPage() {
 
   const handleToggleOffer = (checked: boolean) => {
     setIsBuy12Get1FreeActive(checked);
-    const newExclusions = checked ? excludedOfferProductIds : new Set();
+    const newExclusions = checked ? excludedOfferProductIds : new Set<string>();
     if (!checked) {
       // Clear exclusions when turning the offer off
       setExcludedOfferProductIds(newExclusions);
@@ -383,7 +383,7 @@ export default function SalesPage() {
     setSelectedCustomer(null);
     setCurrentSaleType('retail');
     setIsBuy12Get1FreeActive(false); 
-    setExcludedOfferProductIds(new Set());
+    setExcludedOfferProductIds(new Set<string>());
   };
 
   // The subtotal before any manual per-item discounts are applied.
