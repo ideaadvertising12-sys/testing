@@ -1,5 +1,6 @@
 // location src/lib/types.ts
-import { Timestamp, DocumentReference } from 'firebase/firestore';
+import { Timestamp, DocumentReference, doc } from 'firebase/firestore';
+import { db } from './firebase';
 
 // Base Interfaces
 export interface Product {
@@ -14,6 +15,8 @@ export interface Product {
   sku?: string;
   reorderLevel?: number;
   aiHint?: string;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export interface Customer {
@@ -23,6 +26,8 @@ export interface Customer {
   phone: string;
   address?: string;
   shopName?: string;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export interface CartItem {
@@ -73,8 +78,9 @@ export interface Payment {
   staffId: string;
 }
 
-export interface FirestorePayment extends Omit<Payment, 'date'> {
+export interface FirestorePayment extends Omit<Payment, 'date' | 'details'> {
   date: Timestamp;
+  details?: FirestoreChequeInfo | FirestoreBankTransferInfo;
 }
 
 export interface Sale {
@@ -108,6 +114,7 @@ export interface Sale {
   staffName?: string;
   offerApplied?: boolean;
   vehicleId?: string;
+  createdAt?: Date;
   updatedAt?: Date;
 }
 
@@ -139,6 +146,8 @@ export interface Vehicle {
   vehicleNumber: string;
   driverName?: string;
   notes?: string;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export interface ReturnTransaction {
@@ -160,20 +169,21 @@ export interface ReturnTransaction {
   // New fields for credit settlement
   settleOutstandingAmount?: number;
   refundAmount?: number;
+  createdAt?: Date;
 }
 
 // Firestore-specific types
-export interface FirestoreProduct extends Omit<Product, 'id'> {
+export interface FirestoreProduct extends Omit<Product, 'id' | 'createdAt' | 'updatedAt'> {
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 }
 
-export interface FirestoreCustomer extends Omit<Customer, 'id'> {
+export interface FirestoreCustomer extends Omit<Customer, 'id' | 'createdAt' | 'updatedAt'> {
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 }
 
-export interface FirestoreVehicle extends Omit<Vehicle, 'id'> {
+export interface FirestoreVehicle extends Omit<Vehicle, 'id' | 'createdAt' | 'updatedAt'> {
     createdAt?: Timestamp;
     updatedAt?: Timestamp;
 }
@@ -195,18 +205,14 @@ export interface FirestoreCartItem {
   returnedQuantity?: number;
 }
 
-export interface FirestoreSale extends Omit<Sale, 'id' | 'saleDate' | 'items' | 'chequeDetails' | 'bankTransferDetails' | 'additionalPayments' | 'updatedAt' | 'initialOutstandingBalance'> {
+export interface FirestoreSale extends Omit<Sale, 'id' | 'saleDate' | 'createdAt' | 'updatedAt' | 'items' | 'chequeDetails' | 'bankTransferDetails' | 'additionalPayments'> {
   items: FirestoreCartItem[];
   saleDate: Timestamp;
-  initialOutstandingBalance?: number;
   chequeDetails?: FirestoreChequeInfo;
   bankTransferDetails?: FirestoreBankTransferInfo;
   additionalPayments?: FirestorePayment[];
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
-  offerApplied?: boolean;
-  vehicleId?: string;
-  creditUsed?: number;
 }
 
 export interface FirestoreStockTransaction {
@@ -230,25 +236,19 @@ export interface FirestoreUser extends Omit<User, 'id'> {
     updatedAt?: Timestamp;
 }
 
-export interface FirestoreReturnTransaction extends Omit<ReturnTransaction, 'id' | 'returnDate' | 'returnedItems' | 'exchangedItems' | 'chequeDetails' | 'bankTransferDetails'> {
+export interface FirestoreReturnTransaction extends Omit<ReturnTransaction, 'id' | 'returnDate' | 'createdAt' | 'returnedItems' | 'exchangedItems' | 'chequeDetails' | 'bankTransferDetails'> {
   returnDate: Timestamp;
   createdAt: Timestamp;
   returnedItems: FirestoreCartItem[];
   exchangedItems: FirestoreCartItem[];
-  // Fields for payment made during exchange
-  amountPaid?: number;
-  paymentSummary?: string;
   chequeDetails?: FirestoreChequeInfo;
-  bankTransferDetails?: FirestoreBankTransferInfo;
-  changeGiven?: number;
-  settleOutstandingAmount?: number;
-  refundAmount?: number;
+  bankTransferDetails?: BankTransferInfo;
 }
 
 
 // Data Converters
 export const productConverter = {
-  toFirestore: (product: FirestoreProduct): Partial<FirestoreProduct> => {
+  toFirestore: (product: Product): Partial<FirestoreProduct> => {
     const firestoreProduct: Partial<FirestoreProduct> = {
       name: product.name,
       category: product.category,
@@ -267,8 +267,8 @@ export const productConverter = {
 
     return firestoreProduct;
   },
-  fromFirestore: (snapshot: any, options: any): Product => {
-    const data = snapshot.data(options);
+  fromFirestore: (snapshot: any): Product => {
+    const data = snapshot.data();
     return {
       id: snapshot.id,
       name: data.name,
@@ -280,13 +280,15 @@ export const productConverter = {
       description: data.description,
       sku: data.sku,
       reorderLevel: data.reorderLevel,
-      aiHint: data.aiHint
+      aiHint: data.aiHint,
+      createdAt: data.createdAt?.toDate(),
+      updatedAt: data.updatedAt?.toDate(),
     };
   }
 };
 
 export const customerConverter = {
-  toFirestore: (customer: FirestoreCustomer): Partial<FirestoreCustomer> => {
+  toFirestore: (customer: Customer): Partial<FirestoreCustomer> => {
     const firestoreCustomer: Partial<FirestoreCustomer> = {
       name: customer.name,
       phone: customer.phone,
@@ -300,21 +302,23 @@ export const customerConverter = {
 
     return firestoreCustomer;
   },
-  fromFirestore: (snapshot: any, options: any): Customer => {
-    const data = snapshot.data(options);
+  fromFirestore: (snapshot: any): Customer => {
+    const data = snapshot.data();
     return {
       id: snapshot.id,
       name: data.name,
       phone: data.phone,
       avatar: data.avatar,
       address: data.address,
-      shopName: data.shopName
+      shopName: data.shopName,
+      createdAt: data.createdAt?.toDate(),
+      updatedAt: data.updatedAt?.toDate(),
     };
   }
 };
 
 export const vehicleConverter = {
-    toFirestore: (vehicle: FirestoreVehicle): Partial<FirestoreVehicle> => {
+    toFirestore: (vehicle: Vehicle): Partial<FirestoreVehicle> => {
         const firestoreVehicle: Partial<FirestoreVehicle> = {
             vehicleNumber: vehicle.vehicleNumber,
             updatedAt: Timestamp.now(),
@@ -324,100 +328,89 @@ export const vehicleConverter = {
         if (!vehicle.createdAt) firestoreVehicle.createdAt = Timestamp.now();
         return firestoreVehicle;
     },
-    fromFirestore: (snapshot: any, options: any): Vehicle => {
-        const data = snapshot.data(options);
+    fromFirestore: (snapshot: any): Vehicle => {
+        const data = snapshot.data();
         return {
             id: snapshot.id,
             vehicleNumber: data.vehicleNumber,
             driverName: data.driverName,
-            notes: data.notes
+            notes: data.notes,
+            createdAt: data.createdAt?.toDate(),
+            updatedAt: data.updatedAt?.toDate(),
         };
     }
 };
 
 export const saleConverter = {
-  toFirestore: (sale: FirestoreSale): Partial<FirestoreSale> => {
+  toFirestore: (sale: Sale): Partial<FirestoreSale> => {
+    const firestoreSaleItems: FirestoreCartItem[] = sale.items.map(item => ({
+      productRef: doc(db, "products", item.id).path,
+      quantity: item.quantity,
+      appliedPrice: item.appliedPrice,
+      saleType: item.saleType,
+      productName: item.name,
+      productCategory: item.category,
+      productPrice: item.price,
+      isOfferItem: item.isOfferItem || false,
+      returnedQuantity: item.returnedQuantity,
+      ...(item.sku !== undefined && { productSku: item.sku }),
+    }));
+    
+    let firestoreChequeDetails: FirestoreChequeInfo | undefined = undefined;
+    if (sale.chequeDetails) {
+      firestoreChequeDetails = {
+        ...sale.chequeDetails,
+        date: sale.chequeDetails.date ? Timestamp.fromDate(sale.chequeDetails.date) : undefined,
+      };
+    }
+
     const firestoreSale: Partial<FirestoreSale> = {
-      items: sale.items,
+      items: firestoreSaleItems,
       subTotal: sale.subTotal,
       discountPercentage: sale.discountPercentage,
       discountAmount: sale.discountAmount,
-      totalAmount: sale.totalAmount, // Amount due
-      
+      totalAmount: sale.totalAmount,
       paidAmountCash: sale.paidAmountCash,
       paidAmountCheque: sale.paidAmountCheque,
+      chequeDetails: firestoreChequeDetails,
       paidAmountBankTransfer: sale.paidAmountBankTransfer,
+      bankTransferDetails: sale.bankTransferDetails,
       creditUsed: sale.creditUsed,
-      
       totalAmountPaid: sale.totalAmountPaid,
       outstandingBalance: sale.outstandingBalance,
       initialOutstandingBalance: sale.initialOutstandingBalance,
       changeGiven: sale.changeGiven,
       paymentSummary: sale.paymentSummary,
-
-      saleDate: sale.saleDate, // Firestore Timestamp
+      saleDate: Timestamp.fromDate(sale.saleDate),
       staffId: sale.staffId,
+      staffName: sale.staffName,
+      offerApplied: sale.offerApplied,
+      vehicleId: sale.vehicleId,
+      customerId: sale.customerId,
+      customerName: sale.customerName,
       updatedAt: Timestamp.now(),
+      additionalPayments: sale.additionalPayments?.map(p => {
+          const firestorePayment: FirestorePayment = { ...p, date: Timestamp.fromDate(p.date) };
+          if (firestorePayment.details && 'date' in firestorePayment.details && firestorePayment.details.date) {
+              (firestorePayment.details as FirestoreChequeInfo).date = Timestamp.fromDate(p.details!.date!);
+          }
+          return firestorePayment;
+      }),
     };
-    
-    if (sale.additionalPayments) {
-        firestoreSale.additionalPayments = sale.additionalPayments.map(p => {
-            const fp: FirestorePayment = { ...p, date: Timestamp.fromDate(p.date) };
-            return fp;
-        });
+
+    if (!sale.createdAt) {
+      firestoreSale.createdAt = Timestamp.now();
     }
 
-    if (sale.chequeDetails) {
-      const chequeDetailsToSave: Partial<FirestoreChequeInfo> = {...sale.chequeDetails};
-       if (sale.chequeDetails.date && !(sale.chequeDetails.date instanceof Timestamp)) {
-        chequeDetailsToSave.date = Timestamp.fromDate(sale.chequeDetails.date);
-      }
-      firestoreSale.chequeDetails = chequeDetailsToSave as FirestoreChequeInfo;
-    }
-    if (sale.bankTransferDetails) {
-      firestoreSale.bankTransferDetails = sale.bankTransferDetails;
-    }
-
-    if (sale.customerId) firestoreSale.customerId = sale.customerId;
-    if (sale.customerName) firestoreSale.customerName = sale.customerName;
-    if (sale.staffName) firestoreSale.staffName = sale.staffName;
-    if (sale.offerApplied !== undefined) firestoreSale.offerApplied = sale.offerApplied;
-    if (sale.vehicleId) firestoreSale.vehicleId = sale.vehicleId;
-    if (!sale.createdAt) firestoreSale.createdAt = Timestamp.now();
-    if (sale.initialOutstandingBalance !== undefined) firestoreSale.initialOutstandingBalance = sale.initialOutstandingBalance;
-
-
-    // Remove undefined fields to prevent Firestore errors
+    // Clean up undefined fields
     Object.keys(firestoreSale).forEach(key => {
-      if ((firestoreSale as any)[key] === undefined) {
-        delete (firestoreSale as any)[key];
-      }
+        if ((firestoreSale as any)[key] === undefined) delete (firestoreSale as any)[key];
     });
-    if (firestoreSale.chequeDetails) {
-      Object.keys(firestoreSale.chequeDetails).forEach(key => {
-        if ((firestoreSale.chequeDetails as any)[key] === undefined) {
-          delete (firestoreSale.chequeDetails as any)[key];
-        }
-      });
-      if (Object.keys(firestoreSale.chequeDetails).length === 0) {
-        delete firestoreSale.chequeDetails;
-      }
-    }
-    if (firestoreSale.bankTransferDetails) {
-      Object.keys(firestoreSale.bankTransferDetails).forEach(key => {
-        if ((firestoreSale.bankTransferDetails as any)[key] === undefined) {
-          delete (firestoreSale.bankTransferDetails as any)[key];
-        }
-      });
-      if (Object.keys(firestoreSale.bankTransferDetails).length === 0) {
-        delete firestoreSale.bankTransferDetails;
-      }
-    }
 
     return firestoreSale;
   },
-  fromFirestore: (snapshot: any, options: any): Sale => { 
-    const data = snapshot.data(options);
+  fromFirestore: (snapshot: any): Sale => { 
+    const data = snapshot.data();
     let chequeDetails;
     if (data.chequeDetails) {
         chequeDetails = {
@@ -425,11 +418,7 @@ export const saleConverter = {
             date: data.chequeDetails.date instanceof Timestamp ? data.chequeDetails.date.toDate() : undefined,
         }
     }
-    let bankTransferDetails;
-    if (data.bankTransferDetails) {
-        bankTransferDetails = { ...data.bankTransferDetails };
-    }
-
+    
     return {
       id: snapshot.id,
       items: Array.isArray(data.items) ? data.items.map((item: FirestoreCartItem): CartItem => {
@@ -439,7 +428,6 @@ export const saleConverter = {
         } else if (item.productRef instanceof DocumentReference) {
           id = item.productRef.id;
         }
-
         return {
           id,
           quantity: item.quantity,
@@ -457,38 +445,43 @@ export const saleConverter = {
       subTotal: data.subTotal,
       discountPercentage: data.discountPercentage,
       discountAmount: data.discountAmount,
-      totalAmount: data.totalAmount, // Amount due
-
+      totalAmount: data.totalAmount,
       paidAmountCash: data.paidAmountCash,
       paidAmountCheque: data.paidAmountCheque,
       chequeDetails: chequeDetails,
       paidAmountBankTransfer: data.paidAmountBankTransfer,
-      bankTransferDetails: bankTransferDetails,
+      bankTransferDetails: data.bankTransferDetails,
       creditUsed: data.creditUsed,
-      additionalPayments: Array.isArray(data.additionalPayments) ? data.additionalPayments.map((p: FirestorePayment) => ({
-        ...p,
-        date: p.date && p.date.toDate ? p.date.toDate() : new Date(0)
-      })) : undefined,
+      additionalPayments: Array.isArray(data.additionalPayments) ? data.additionalPayments.map((p: FirestorePayment) => {
+        const payment : Payment = {
+          ...p,
+          date: p.date.toDate()
+        };
+        if (p.details && p.method === "Cheque" && 'date' in p.details && p.details.date) {
+            (payment.details as ChequeInfo).date = p.details.date.toDate();
+        }
+        return payment;
+      }) : undefined,
       totalAmountPaid: data.totalAmountPaid,
       outstandingBalance: data.outstandingBalance,
       initialOutstandingBalance: data.initialOutstandingBalance,
       changeGiven: data.changeGiven,
       paymentSummary: data.paymentSummary || "N/A",
-
-      saleDate: data.saleDate && data.saleDate.toDate ? data.saleDate.toDate() : new Date(0),
+      saleDate: data.saleDate.toDate(),
       staffId: data.staffId,
       staffName: data.staffName,
       customerId: data.customerId,
       customerName: data.customerName,
       offerApplied: data.offerApplied || false,
       vehicleId: data.vehicleId,
+      createdAt: data.createdAt?.toDate(),
       updatedAt: data.updatedAt?.toDate(),
     };
   }
 };
 
 export const stockTransactionConverter = {
-  toFirestore: (transaction: Omit<StockTransaction, 'id'>): Partial<FirestoreStockTransaction> => {
+  toFirestore: (transaction: StockTransaction): Partial<FirestoreStockTransaction> => {
     const firestoreTransaction: Partial<FirestoreStockTransaction> = {
       productId: transaction.productId,
       productName: transaction.productName,
@@ -496,7 +489,7 @@ export const stockTransactionConverter = {
       quantity: transaction.quantity,
       previousStock: transaction.previousStock,
       newStock: transaction.newStock,
-      transactionDate: transaction.transactionDate as any, // Will be converted to Timestamp by Firestore
+      transactionDate: Timestamp.fromDate(transaction.transactionDate),
       userId: transaction.userId,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
@@ -508,7 +501,7 @@ export const stockTransactionConverter = {
 
     return firestoreTransaction;
   },
-  fromFirestore: (snapshot: { id: string; data(): any }): StockTransaction => {
+  fromFirestore: (snapshot: any): StockTransaction => {
     const data = snapshot.data();
     return {
       id: snapshot.id,
@@ -528,10 +521,41 @@ export const stockTransactionConverter = {
 };
 
 export const returnTransactionConverter = {
-  toFirestore: (returnData: FirestoreReturnTransaction): Partial<FirestoreReturnTransaction> => {
+  toFirestore: (returnData: ReturnTransaction): Partial<FirestoreReturnTransaction> => {
+      const mapItems = (items: CartItem[]): FirestoreCartItem[] => {
+        return items.map(item => ({
+            productRef: doc(db, 'products', item.id).path,
+            quantity: item.quantity,
+            appliedPrice: item.appliedPrice,
+            saleType: item.saleType,
+            productName: item.name,
+            productCategory: item.category,
+            productPrice: item.price,
+            productSku: item.sku,
+            isOfferItem: item.isOfferItem || false,
+        }));
+      };
+
     const dataToSave: Partial<FirestoreReturnTransaction> = {
-      ...returnData,
-      createdAt: Timestamp.now(),
+      originalSaleId: returnData.originalSaleId,
+      returnDate: Timestamp.fromDate(returnData.returnDate),
+      createdAt: returnData.createdAt ? Timestamp.fromDate(returnData.createdAt) : Timestamp.now(),
+      staffId: returnData.staffId,
+      customerId: returnData.customerId,
+      customerName: returnData.customerName,
+      returnedItems: mapItems(returnData.returnedItems),
+      exchangedItems: mapItems(returnData.exchangedItems),
+      notes: returnData.notes,
+      amountPaid: returnData.amountPaid,
+      paymentSummary: returnData.paymentSummary,
+      chequeDetails: returnData.chequeDetails ? {
+          ...returnData.chequeDetails,
+          date: returnData.chequeDetails.date ? Timestamp.fromDate(returnData.chequeDetails.date) : undefined
+      } : undefined,
+      bankTransferDetails: returnData.bankTransferDetails,
+      changeGiven: returnData.changeGiven,
+      settleOutstandingAmount: returnData.settleOutstandingAmount,
+      refundAmount: returnData.refundAmount,
     };
     Object.keys(dataToSave).forEach(key => ((dataToSave as any)[key] === undefined) && delete (dataToSave as any)[key]);
     return dataToSave;
@@ -554,7 +578,6 @@ export const returnTransactionConverter = {
             } else if (item.productRef instanceof DocumentReference) {
               id = item.productRef.id;
             }
-
             return {
               id,
               quantity: item.quantity,
@@ -564,7 +587,7 @@ export const returnTransactionConverter = {
               category: item.productCategory || "Other",
               price: typeof item.productPrice === 'number' ? item.productPrice : 0, 
               sku: item.productSku, 
-              isOfferItem: false, // Not relevant for this context
+              isOfferItem: false,
             };
         });
     };
@@ -585,13 +608,14 @@ export const returnTransactionConverter = {
       bankTransferDetails: data.bankTransferDetails,
       changeGiven: data.changeGiven,
       settleOutstandingAmount: data.settleOutstandingAmount,
-      refundAmount: data.refundAmount
+      refundAmount: data.refundAmount,
+      createdAt: data.createdAt?.toDate(),
     };
   }
 };
 
 export const userConverter = {
-    toFirestore: (user: FirestoreUser): Partial<FirestoreUser> => {
+    toFirestore: (user: User): Partial<FirestoreUser> => {
       const firestoreUser: Partial<FirestoreUser> = {
         username: user.username,
         name: user.name,
@@ -599,13 +623,12 @@ export const userConverter = {
         password_hashed_or_plain: user.password_hashed_or_plain,
         updatedAt: Timestamp.now(),
       };
-      if (!user.createdAt) {
-          firestoreUser.createdAt = Timestamp.now();
-      }
+      // Note: We don't set createdAt here as this converter could be used for updates.
+      // The creation logic should handle setting the initial createdAt timestamp.
       return firestoreUser;
     },
-    fromFirestore: (snapshot: any, options: any): User & { id: string } => {
-      const data = snapshot.data(options);
+    fromFirestore: (snapshot: any): User & { id: string } => {
+      const data = snapshot.data();
       return {
         id: snapshot.id,
         username: data.username,
