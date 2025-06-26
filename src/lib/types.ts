@@ -26,6 +26,7 @@ export interface Customer {
   phone: string;
   address?: string;
   shopName?: string;
+  status?: 'active' | 'pending';
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -124,7 +125,8 @@ export type StockTransactionType =
   | "LOAD_TO_VEHICLE"
   | "UNLOAD_FROM_VEHICLE"
   | "REMOVE_STOCK_WASTAGE"
-  | "STOCK_ADJUSTMENT_MANUAL";
+  | "STOCK_ADJUSTMENT_MANUAL"
+  | "ISSUE_SAMPLE";
 
 export interface StockTransaction {
   id: string;
@@ -178,7 +180,8 @@ export interface FirestoreProduct extends Omit<Product, 'id' | 'createdAt' | 'up
   updatedAt?: Timestamp;
 }
 
-export interface FirestoreCustomer extends Omit<Customer, 'id' | 'createdAt' | 'updatedAt'> {
+export interface FirestoreCustomer extends Omit<Customer, 'id' | 'createdAt' | 'updatedAt' | 'status'> {
+  status?: 'active' | 'pending';
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 }
@@ -292,6 +295,7 @@ export const customerConverter = {
     const firestoreCustomer: Partial<FirestoreCustomer> = {
       name: customer.name,
       phone: customer.phone,
+      status: customer.status || 'active',
       updatedAt: Timestamp.now(),
     };
 
@@ -311,6 +315,7 @@ export const customerConverter = {
       avatar: data.avatar,
       address: data.address,
       shopName: data.shopName,
+      status: data.status || 'active',
       createdAt: data.createdAt?.toDate(),
       updatedAt: data.updatedAt?.toDate(),
     };

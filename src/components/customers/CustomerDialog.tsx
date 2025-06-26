@@ -14,6 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Customer } from "@/lib/types";
 import { useEffect, useState, FormEvent } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -25,6 +26,7 @@ const defaultCustomerData: Omit<Customer, 'id' | 'avatar'> = {
   phone: "",
   address: "",
   shopName: "",
+  status: 'active',
 };
 
 interface CustomerDialogProps {
@@ -34,6 +36,7 @@ interface CustomerDialogProps {
   isEditMode?: boolean;
   open: boolean; // Control open state from parent
   onOpenChange: (isOpen: boolean) => void; // Control open state from parent
+  initialStatus?: 'active' | 'pending';
 }
 
 export function CustomerDialog({
@@ -42,9 +45,10 @@ export function CustomerDialog({
   onSave,
   isEditMode = false,
   open,
-  onOpenChange
+  onOpenChange,
+  initialStatus = 'active'
 }: CustomerDialogProps) {
-  const [formData, setFormData] = useState<Omit<Customer, 'id' | 'avatar'>>(defaultCustomerData);
+  const [formData, setFormData] = useState<Partial<Omit<Customer, 'id' | 'avatar'>>>(defaultCustomerData);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { currentUser } = useAuth();
   const { toast } = useToast();
@@ -63,21 +67,26 @@ export function CustomerDialog({
           phone: customer.phone,
           address: customer.address || "",
           shopName: customer.shopName || "",
+          status: customer.status || 'active',
         });
       } else {
-        setFormData(defaultCustomerData);
+        setFormData({ ...defaultCustomerData, status: initialStatus });
       }
     }
-  }, [open, customer, actualIsEditMode]);
+  }, [open, customer, actualIsEditMode, initialStatus]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  const handleStatusChange = (value: 'active' | 'pending') => {
+    setFormData(prev => ({ ...prev, status: value }));
+  };
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!formData.name.trim() || !formData.phone.trim()) {
+    if (!formData.name?.trim() || !formData.phone?.trim()) {
       toast({
         variant: "destructive",
         title: "Validation Error",
@@ -97,16 +106,17 @@ export function CustomerDialog({
 
     setIsSubmitting(true);
     try {
-      // The ID is handled by the parent/hook, avatar is also generated server-side or by hook
       const customerDataToSave: Customer = {
-        id: customer?.id || Date.now().toString(), // Temporary ID if new, real ID from backend
-        avatar: customer?.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(formData.name)}`, // Placeholder avatar
-        ...formData
+        id: customer?.id || Date.now().toString(),
+        avatar: customer?.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(formData.name!)}`,
+        name: formData.name!,
+        phone: formData.phone!,
+        address: formData.address,
+        shopName: formData.shopName,
+        status: formData.status,
       };
       await onSave(customerDataToSave);
-      // Parent (CustomerDataTable) will close the dialog on successful save via onOpenChange
     } catch (error) {
-      // Toast for error is likely handled in the useCustomers hook or onSave implementation
       console.error("Failed to save customer:", error);
     } finally {
       setIsSubmitting(false);
@@ -133,7 +143,7 @@ export function CustomerDialog({
                 <Input
                   id="name"
                   name="name"
-                  value={formData.name}
+                  value={formData.name || ''}
                   onChange={handleChange}
                   placeholder="John Doe"
                   required
@@ -147,7 +157,7 @@ export function CustomerDialog({
                   id="phone"
                   name="phone"
                   type="tel"
-                  value={formData.phone}
+                  value={formData.phone || ''}
                   onChange={handleChange}
                   placeholder="+1234567890"
                   required
@@ -160,7 +170,7 @@ export function CustomerDialog({
                 <Input
                   id="shopName"
                   name="shopName"
-                  value={formData.shopName}
+                  value={formData.shopName || ''}
                   onChange={handleChange}
                   placeholder="Doe's Shop"
                   disabled={!canEditFields || isSubmitting}
@@ -172,12 +182,29 @@ export function CustomerDialog({
                 <Textarea
                   id="address"
                   name="address"
-                  value={formData.address}
+                  value={formData.address || ''}
                   onChange={handleChange}
                   placeholder="123 Main St, City"
                   disabled={!canEditFields || isSubmitting}
                   rows={3}
                 />
+              </div>
+              <div>
+                <Label htmlFor="status" className="block mb-2 font-medium">Customer Status</Label>
+                <Select
+                  name="status"
+                  value={formData.status || 'active'}
+                  onValueChange={handleStatusChange}
+                  disabled={!canEditFields || isSubmitting}
+                >
+                  <SelectTrigger id="status" className="h-11">
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </div>

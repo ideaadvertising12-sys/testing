@@ -27,6 +27,7 @@ import {
   MapPin, 
   UserCog,
   Undo2, 
+  Beaker,
 } from "lucide-react";
 
 import {
@@ -73,6 +74,7 @@ const ALL_NAV_ITEMS: NavItemConfig[] = [
   { id: "products", href: "/app/products", label: "Products", icon: Package, allowedRoles: ["admin"] },
   { id: "customers", href: "/app/customers", label: "Customers", icon: Users, allowedRoles: ["admin", "cashier"] },
   { id: "sales", href: "/app/sales", label: "Sales (POS)", icon: ShoppingCart, allowedRoles: ["admin", "cashier"] },
+  { id: "samples", href: "/app/samples", label: "Issue Samples", icon: Beaker, allowedRoles: ["admin", "cashier"] },
   {
     id: "invoicing",
     label: "Invoicing",

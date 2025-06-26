@@ -231,7 +231,7 @@ export default function SalesPage() {
         const currentQty = stockMap.get(tx.productId) || 0;
         if (tx.type === 'LOAD_TO_VEHICLE') {
           stockMap.set(tx.productId, currentQty + tx.quantity);
-        } else if (tx.type === 'UNLOAD_FROM_VEHICLE') {
+        } else if (tx.type === 'UNLOAD_FROM_VEHICLE' || tx.type === 'ISSUE_SAMPLE') {
           stockMap.set(tx.productId, currentQty - tx.quantity);
         }
       });

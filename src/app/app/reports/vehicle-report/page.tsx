@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState } from "react";
@@ -60,7 +61,7 @@ export default function VehicleReportPage() {
       tx.vehicleId === selectedVehicleId &&
       tx.transactionDate >= reportStartDate &&
       tx.transactionDate <= reportEndDate &&
-      (tx.type === 'LOAD_TO_VEHICLE' || tx.type === 'UNLOAD_FROM_VEHICLE')
+      (tx.type === 'LOAD_TO_VEHICLE' || tx.type === 'UNLOAD_FROM_VEHICLE' || tx.type === 'ISSUE_SAMPLE')
     );
 
     const processedData = new Map<string, VehicleReportItem>();
@@ -80,7 +81,7 @@ export default function VehicleReportPage() {
       const item = processedData.get(tx.productId)!;
       if (tx.type === 'LOAD_TO_VEHICLE') {
         item.totalLoaded += tx.quantity;
-      } else if (tx.type === 'UNLOAD_FROM_VEHICLE') {
+      } else if (tx.type === 'UNLOAD_FROM_VEHICLE' || tx.type === 'ISSUE_SAMPLE') {
         item.totalUnloaded += tx.quantity;
       }
     }
