@@ -17,7 +17,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { FileText, Smartphone, Laptop, Filter, Download, Undo2 } from "lucide-react";
+import { FileText, Smartphone, Laptop, Filter, Download, Undo2, Beaker } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -74,7 +74,13 @@ export function FullReportTable({ data, isLoading }: FullReportTableProps) {
           const rowKey = `${entry.transactionId}-${entry.productName}-${index}`;
           const isExpanded = expandedRow === rowKey;
           const isReturn = entry.transactionType === 'Return';
-          const isReturnedItem = isReturn && entry.quantity < 0;
+          const isSample = entry.transactionType === 'Sample';
+
+          const getBadgeVariant = () => {
+            if (isReturn) return "destructive";
+            if (isSample) return "secondary";
+            return "default";
+          }
 
           return (
             <div 
@@ -87,7 +93,8 @@ export function FullReportTable({ data, isLoading }: FullReportTableProps) {
                   <p className="font-medium text-sm">{entry.productName}</p>
                   <p className="text-xs text-muted-foreground">{entry.transactionDate}</p>
                 </div>
-                <Badge variant={isReturn ? "destructive" : "default"}>
+                <Badge variant={getBadgeVariant()}>
+                  {isSample ? <Beaker className="h-3 w-3 mr-1" /> : null}
                   {entry.transactionType}
                 </Badge>
               </div>
@@ -174,10 +181,22 @@ export function FullReportTable({ data, isLoading }: FullReportTableProps) {
           <TableBody>
             {data.map((entry, index) => {
               const isReturn = entry.transactionType === 'Return';
+              const isSample = entry.transactionType === 'Sample';
+              const getBadgeVariant = () => {
+                if (isReturn) return "destructive";
+                if (isSample) return "secondary";
+                return "outline";
+              }
+              const getRowClass = () => {
+                if (isReturn) return "bg-destructive/5 hover:bg-destructive/10";
+                if (isSample) return "bg-muted/30 hover:bg-muted/50";
+                return "hover:bg-muted/50";
+              }
+
               return (
                 <TableRow 
                   key={`${entry.transactionId}-${entry.productName}-${index}`} 
-                  className={cn("hover:bg-muted/50 transition-colors", isReturn && "bg-destructive/5 hover:bg-destructive/10")}
+                  className={cn("transition-colors", getRowClass())}
                 >
                   <TableCell className="font-mono text-xs">
                     <TooltipProvider>
@@ -194,7 +213,7 @@ export function FullReportTable({ data, isLoading }: FullReportTableProps) {
                     </TooltipProvider>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={isReturn ? "destructive" : "outline"}>{entry.transactionType}</Badge>
+                    <Badge variant={getBadgeVariant()}>{entry.transactionType}</Badge>
                   </TableCell>
                   <TableCell>{entry.transactionDate}</TableCell>
                   <TableCell>{entry.transactionTime}</TableCell>

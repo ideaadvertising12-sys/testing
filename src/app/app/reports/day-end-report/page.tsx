@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { CalendarClock, FileText, DownloadCloud, ReceiptText, Banknote, Building, Newspaper, CreditCard, AlertTriangle, ArrowDown, ArrowUp } from "lucide-react";
+import { CalendarClock, FileText, DownloadCloud, ReceiptText, Banknote, Building, Newspaper, CreditCard, AlertTriangle, ArrowDown, ArrowUp, Beaker } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,13 +12,14 @@ import { useAuth } from "@/contexts/AuthContext";
 import { AccessDenied } from "@/components/AccessDenied";
 import { useRouter } from "next/navigation";
 import { GlobalPreloaderScreen } from "@/components/GlobalPreloaderScreen";
-import type { Sale, DayEndReportSummary, ReturnTransaction } from "@/lib/types";
+import type { Sale, DayEndReportSummary, ReturnTransaction, StockTransaction } from "@/lib/types";
 import { format, startOfDay, endOfDay, isSameDay } from "date-fns";
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { cn } from "@/lib/utils";
 import { useSalesData } from "@/hooks/useSalesData"; 
 import { useReturns } from "@/hooks/useReturns";
+import { useStockTransactions } from "@/hooks/useStockTransactions";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 
@@ -45,6 +46,7 @@ export default function DayEndReportPage() {
 
   const { sales: allSales, isLoading: isLoadingSales, error: salesError } = useSalesData(true); 
   const { returns, isLoading: isLoadingReturns, error: returnsError } = useReturns();
+  const { transactions: allTransactions, isLoading: isLoadingTransactions, error: transactionsError } = useStockTransactions();
 
   useEffect(() => {
     if (!currentUser) {
@@ -57,7 +59,7 @@ export default function DayEndReportPage() {
   }, [currentUser, router]);
 
   useEffect(() => {
-    if (selectedDate && !isLoadingSales && allSales && !isLoadingReturns && returns) {
+    if (selectedDate && !isLoadingSales && allSales && !isLoadingReturns && returns && !isLoadingTransactions && allTransactions) {
       const salesToday = allSales.filter(s => isSameDay(s.saleDate, selectedDate));
       const returnsToday = returns.filter(r => isSameDay(r.returnDate, selectedDate));
       const salesBeforeToday = allSales.filter(s => !isSameDay(s.saleDate, selectedDate));
@@ -121,6 +123,13 @@ export default function DayEndReportPage() {
       const totalPaidAgainstCreditToday = totalInitialCreditIssuedToday - totalOutstandingFromToday;
       const creditSalesCount = salesToday.filter(s => s.initialOutstandingBalance && s.initialOutstandingBalance > 0).length;
 
+      // --- Sample Calculations ---
+      const samplesIssuedToday = allTransactions.filter(tx => 
+        tx.type === 'ISSUE_SAMPLE' && isSameDay(tx.transactionDate, selectedDate)
+      );
+      const totalSamplesIssuedCount = samplesIssuedToday.reduce((sum, tx) => sum + tx.quantity, 0);
+      const sampleTransactionsCount = samplesIssuedToday.length;
+
       // --- Final Summary Object ---
       setReportSummary({
         reportDate: selectedDate,
@@ -141,27 +150,27 @@ export default function DayEndReportPage() {
         chequeNumbers: [...new Set(collectedCheques)],
         bankTransferRefs: [...new Set(collectedTransfers)],
         creditSalesCount: creditSalesCount,
+        samplesIssuedCount: totalSamplesIssuedCount,
+        sampleTransactionsCount: sampleTransactionsCount,
       });
 
     } else {
       setReportSummary(null);
     }
-  }, [selectedDate, allSales, isLoadingSales, returns, isLoadingReturns]);
+  }, [selectedDate, allSales, isLoadingSales, returns, isLoadingReturns, allTransactions, isLoadingTransactions]);
 
   const handleExportPDF = () => {
     if (!reportSummary || !selectedDate) return;
     const doc = new jsPDF() as jsPDFWithAutoTable;
     const reportDateFormatted = format(selectedDate, "PPP");
+    let yPos = 45;
+    const sectionSpacing = 10;
 
     doc.setFontSize(18);
     doc.text("Day End Report", 105, 20, { align: "center" });
     doc.setFontSize(12);
     doc.text(`Date: ${reportDateFormatted}`, 105, 30, { align: "center" });
 
-    let yPos = 45;
-    const lineSpacing = 7;
-    const sectionSpacing = 10;
-    
     const tableBody = [
         ['Gross Sales Today', formatCurrency(reportSummary.grossSalesValue)],
         ["Refunds for Today's Sales", formatCurrency(reportSummary.refundsForTodaySales)],
@@ -190,14 +199,29 @@ export default function DayEndReportPage() {
 
     yPos = doc.autoTable.previous.finalY + sectionSpacing;
 
+    if ((reportSummary.samplesIssuedCount ?? 0) > 0) {
+        doc.autoTable({
+            startY: yPos,
+            head: [['Samples Summary', 'Count']],
+            body: [
+                ['Total Sample Items Issued', reportSummary.samplesIssuedCount],
+                ['Number of Sample Transactions', reportSummary.sampleTransactionsCount],
+            ],
+            theme: 'striped',
+            headStyles: { fillColor: [30, 18, 57] },
+            columnStyles: { 1: { halign: 'right' } }
+        });
+        yPos = doc.autoTable.previous.finalY + sectionSpacing;
+    }
+
     if (reportSummary.chequeNumbers.length > 0 || reportSummary.bankTransferRefs.length > 0) {
         doc.setFontSize(14);
         doc.text("Collection Details", 14, yPos);
-        yPos += lineSpacing;
+        yPos += 7;
         doc.setFontSize(10);
         if (reportSummary.chequeNumbers.length > 0) {
             doc.text(`Collected Cheque Numbers: ${reportSummary.chequeNumbers.join(', ')}`, 14, yPos);
-            yPos += lineSpacing;
+            yPos += 7;
         }
         if (reportSummary.bankTransferRefs.length > 0) {
             doc.text(`Collected Bank Transfer Refs: ${reportSummary.bankTransferRefs.join(', ')}`, 14, yPos);
@@ -232,7 +256,7 @@ export default function DayEndReportPage() {
           />
         </PopoverContent>
       </Popover>
-      <Button onClick={handleExportPDF} variant="outline" size="sm" disabled={!reportSummary || isLoadingSales || isLoadingReturns}>
+      <Button onClick={handleExportPDF} variant="outline" size="sm" disabled={!reportSummary || isLoadingSales || isLoadingReturns || isLoadingTransactions}>
         <DownloadCloud className="mr-2 h-4 w-4" /> Export PDF
       </Button>
     </div>
@@ -244,8 +268,10 @@ export default function DayEndReportPage() {
   if (currentUser.role !== "admin") {
     return <AccessDenied message="Day End reports are not available for your role. Redirecting..." />;
   }
+  
+  const pageIsLoading = (isLoadingSales || isLoadingReturns || isLoadingTransactions) && !reportSummary;
 
-  if ((isLoadingSales || isLoadingReturns) && !reportSummary) {
+  if (pageIsLoading) {
     return <GlobalPreloaderScreen message="Fetching report data..." />
   }
 
@@ -258,11 +284,11 @@ export default function DayEndReportPage() {
         action={reportActions}
       />
 
-      {(salesError || returnsError) && (
+      {(salesError || returnsError || transactionsError) && (
         <Alert variant="destructive" className="mb-4">
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle>Error Loading Data</AlertTitle>
-          <AlertDescription>{salesError || returnsError}</AlertDescription>
+          <AlertDescription>{salesError || returnsError || transactionsError}</AlertDescription>
         </Alert>
       )}
 
@@ -272,12 +298,12 @@ export default function DayEndReportPage() {
             <CardHeader>
               <CardTitle className="font-headline">Report for: {selectedDate ? format(selectedDate, "PPP") : "N/A"}</CardTitle>
               <CardDescription>
-                <span className="font-medium">Total Transactions: {reportSummary.totalTransactions}</span>
+                <span className="font-medium">Total Sales Transactions: {reportSummary.totalTransactions}</span>
               </CardDescription>
             </CardHeader>
           </Card>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-6">
             {/* Cash Flow Card */}
             <Card>
               <CardHeader>
@@ -322,6 +348,18 @@ export default function DayEndReportPage() {
                 <p className="flex justify-between font-bold text-base"><span>Net Outstanding:</span> <span className="text-destructive">{formatCurrency(reportSummary.netOutstandingFromToday)}</span></p>
               </CardContent>
             </Card>
+            
+            {/* Samples Issued Card */}
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2"><Beaker className="h-5 w-5 text-purple-600"/>Samples Issued</CardTitle>
+                    <CardDescription>Free samples given out today</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-2 text-sm">
+                    <p className="flex justify-between"><span>Total Items Issued:</span> <span className="font-semibold">{reportSummary.samplesIssuedCount}</span></p>
+                    <p className="flex justify-between"><span>Number of Transactions:</span> <span className="font-semibold">{reportSummary.sampleTransactionsCount}</span></p>
+                </CardContent>
+            </Card>
           </div>
 
           <Card className="shadow-lg">
@@ -332,7 +370,7 @@ export default function DayEndReportPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
                     <p className="flex justify-between"><span>Gross Sales Value:</span> <strong className="text-right">{formatCurrency(reportSummary.grossSalesValue)}</strong></p>
                     <p className="flex justify-between text-blue-600"><span>Total Collections:</span> <strong className="text-right">{formatCurrency(reportSummary.totalCashIn + reportSummary.totalChequeIn + reportSummary.totalBankTransferIn)}</strong></p>
-                    <p className="flex justify-between"><span>Refunds on Today's Sales:</span> <strong className="text-right text-orange-600">{formatCurrency(reportSummary.refundsForTodaySales)}</strong></p>
+                    <p className="flex justify-between text-orange-600"><span>Refunds on Today's Sales:</span> <strong className="text-right">{formatCurrency(reportSummary.refundsForTodaySales)}</strong></p>
                     <p className="flex justify-between text-destructive"><span>Total Refunds Paid Out:</span> <strong className="text-right">{formatCurrency(reportSummary.totalRefundsPaidToday)}</strong></p>
                     <p className="flex justify-between font-bold text-primary text-lg border-t pt-2 mt-2"><span>Net Sales Value:</span> <strong className="text-right">{formatCurrency(reportSummary.netSalesValue)}</strong></p>
                     <p className="flex justify-between font-bold text-primary text-lg border-t pt-2 mt-2"><span>Net Cash In Hand:</span> <strong className="text-right">{formatCurrency(reportSummary.netCashInHand)}</strong></p>
@@ -348,7 +386,7 @@ export default function DayEndReportPage() {
           <CardContent>
             <p className="text-muted-foreground flex items-center">
               <ReceiptText className="mr-2 h-5 w-5" />
-              {selectedDate ? `No sales transactions found for ${format(selectedDate, "PPP")}.` : "Please select a date to view the report."}
+              {selectedDate ? `No transactions found for ${format(selectedDate, "PPP")}.` : "Please select a date to view the report."}
             </p>
           </CardContent>
         </Card>

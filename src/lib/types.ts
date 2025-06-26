@@ -1,3 +1,4 @@
+
 // location src/lib/types.ts
 import { Timestamp, DocumentReference, doc } from 'firebase/firestore';
 import { db } from './firebase';
@@ -677,19 +678,19 @@ export interface NavItemConfig {
 }
 
 export interface FullReportEntry {
-  transactionId: string; // From Sale.id or ReturnTransaction.id
-  transactionType: 'Sale' | 'Return';
-  transactionDate: string; // Formatted yyyy-MM-dd
-  transactionTime: string; // Formatted HH:mm:ss
-  relatedId?: string; // For Returns, this is the originalSaleId
-  invoiceCloseDate?: string; // Only applicable to Sales
+  transactionId: string;
+  transactionType: 'Sale' | 'Return' | 'Sample';
+  transactionDate: string; 
+  transactionTime: string; 
+  relatedId?: string; 
+  invoiceCloseDate?: string;
   customerName: string;
   productName: string;
   productCategory: Product["category"];
-  quantity: number; // Can be negative for returned items
+  quantity: number;
   appliedPrice: number;
-  lineTotal: number; // Can be negative for returned items
-  saleType?: 'retail' | 'wholesale'; // For sales or exchanged items
+  lineTotal: number;
+  saleType?: 'retail' | 'wholesale';
   paymentSummary?: Sale["paymentSummary"];
   paymentDetails?: {
     date: Date;
@@ -714,30 +715,24 @@ export interface ActivityItem {
 export interface DayEndReportSummary {
   reportDate: Date;
   totalTransactions: number;
-  
-  // Sales figures
   grossSalesValue: number;
   refundsForTodaySales: number;
   refundsForPastSales: number;
   netSalesValue: number;
-
-  // Collection figures
   totalCashIn: number;
   totalChequeIn: number;
   totalBankTransferIn: number;
   totalChangeGiven: number;
   totalRefundsPaidToday: number;
   netCashInHand: number;
-
-  // Credit figures for today's sales
   newCreditIssued: number;
   paidAgainstNewCredit: number;
   netOutstandingFromToday: number;
-  
-  // Details for display
   chequeNumbers: string[];
   bankTransferRefs: string[];
   creditSalesCount: number;
+  samplesIssuedCount?: number;
+  sampleTransactionsCount?: number;
 }
 
 

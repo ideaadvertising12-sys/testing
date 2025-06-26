@@ -1,12 +1,12 @@
 
 "use client";
 
-import { ClipboardList, FileText, Printer, DownloadCloud, Filter, Loader2 } from "lucide-react";
+import { ClipboardList, FileText, Printer, DownloadCloud, Filter, Loader2, Beaker } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FullReportTable } from "@/components/reports/FullReportTable";
-import type { FullReportEntry, Sale, ReturnTransaction, Product } from "@/lib/types"; 
+import type { FullReportEntry, Sale, ReturnTransaction, Product, StockTransaction } from "@/lib/types"; 
 import { useAuth } from "@/contexts/AuthContext";
 import { AccessDenied } from "@/components/AccessDenied";
 import React, { useEffect, useState, useMemo } from "react";
@@ -22,6 +22,8 @@ import { addDays, format, parseISO } from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useSalesData } from "@/hooks/useSalesData"; 
 import { useReturns } from "@/hooks/useReturns";
+import { useStockTransactions } from "@/hooks/useStockTransactions";
+import { useProducts } from "@/hooks/useProducts";
 
 interface jsPDFWithAutoTable extends jsPDF {
   autoTable: (options: any) => jsPDF;
@@ -29,7 +31,9 @@ interface jsPDFWithAutoTable extends jsPDF {
 
 function transformTransactionsToFullReportEntries(
   sales: Sale[],
-  returns: ReturnTransaction[]
+  returns: ReturnTransaction[],
+  stockTransactions: StockTransaction[],
+  allProducts: Product[]
 ): FullReportEntry[] {
   const reportEntries: FullReportEntry[] = [];
   const formatCurrency = (amount: number) => new Intl.NumberFormat('en-LK', { style: 'currency', currency: 'LKR' }).format(amount);
@@ -124,6 +128,31 @@ function transformTransactionsToFullReportEntries(
     });
   });
 
+  // Process Samples
+  stockTransactions.forEach(tx => {
+    if (tx.type === 'ISSUE_SAMPLE') {
+      const customerNameMatch = tx.notes?.match(/Sample for (.*?)\./);
+      const customerName = customerNameMatch ? customerNameMatch[1] : 'Unknown';
+      const product = allProducts.find(p => p.id === tx.productId);
+
+      reportEntries.push({
+        transactionId: tx.id,
+        transactionType: 'Sample',
+        transactionDate: format(tx.transactionDate, "yyyy-MM-dd"),
+        transactionTime: format(tx.transactionDate, "HH:mm:ss"),
+        customerName: customerName,
+        productName: tx.productName,
+        productCategory: product?.category || 'Other',
+        quantity: -tx.quantity,
+        appliedPrice: 0,
+        lineTotal: 0,
+        paymentSummary: 'N/A',
+        staffId: tx.userId || 'N/A',
+      });
+    }
+  });
+
+
   return reportEntries.sort((a,b) => new Date(b.transactionDate + 'T' + b.transactionTime).getTime() - new Date(a.transactionDate + 'T' + a.transactionTime).getTime());
 }
 
@@ -134,6 +163,8 @@ export default function FullReportPage() {
   
   const { sales: liveSales, isLoading: isLoadingSales, error: salesError } = useSalesData(false);
   const { returns, isLoading: isLoadingReturns, error: returnsError } = useReturns();
+  const { transactions: stockTransactions, isLoading: isLoadingStock, error: stockError } = useStockTransactions();
+  const { products: allProducts, isLoading: isLoadingProducts, error: productsError } = useProducts();
 
   const [reportData, setReportData] = useState<FullReportEntry[]>([]);
   const [filteredData, setFilteredData] = useState<FullReportEntry[]>([]);
@@ -148,10 +179,10 @@ export default function FullReportPage() {
 
 
   useEffect(() => {
-    if (!isLoadingSales && !isLoadingReturns && liveSales && returns) {
-      setReportData(transformTransactionsToFullReportEntries(liveSales, returns));
+    if (!isLoadingSales && !isLoadingReturns && !isLoadingStock && !isLoadingProducts && liveSales && returns && stockTransactions && allProducts) {
+      setReportData(transformTransactionsToFullReportEntries(liveSales, returns, stockTransactions, allProducts));
     }
-  }, [liveSales, returns, isLoadingSales, isLoadingReturns]);
+  }, [liveSales, returns, stockTransactions, allProducts, isLoadingSales, isLoadingReturns, isLoadingStock, isLoadingProducts]);
 
 
   // Apply filters
@@ -206,7 +237,7 @@ export default function FullReportPage() {
     }
   }, [currentUser, router]);
 
-  const pageIsLoading = isLoadingSales || isLoadingReturns;
+  const pageIsLoading = isLoadingSales || isLoadingReturns || isLoadingStock || isLoadingProducts;
 
   if (!currentUser) {
      return <GlobalPreloaderScreen message="Loading report..." />;
@@ -364,6 +395,8 @@ export default function FullReportPage() {
                 {filteredData.length} transactions found
                 {salesError && <span className="text-destructive ml-2"> (Sales Error: {salesError})</span>}
                 {returnsError && <span className="text-destructive ml-2"> (Returns Error: {returnsError})</span>}
+                {stockError && <span className="text-destructive ml-2"> (Stock Error: {stockError})</span>}
+                {productsError && <span className="text-destructive ml-2"> (Products Error: {productsError})</span>}
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
@@ -392,6 +425,7 @@ export default function FullReportPage() {
                 <SelectItem value="all">All Transaction Types</SelectItem>
                 <SelectItem value="Sale">Sale</SelectItem>
                 <SelectItem value="Return">Return / Exchange</SelectItem>
+                <SelectItem value="Sample">Sample Issue</SelectItem>
               </SelectContent>
             </Select>
 
