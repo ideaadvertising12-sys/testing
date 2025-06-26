@@ -485,25 +485,31 @@ export function BillDialog({
                 </div>
             )}
 
-            <div className="space-y-1 text-xs mb-4">
-              <h4 className="font-semibold text-sm mb-2 mt-2">Payment Summary:</h4>
-              {isReprintMode && (
-                <div className="space-y-2">
-                  <div className="border-l-2 pl-2">
-                      {(saleForPrinting?.paidAmountCash ?? 0) > 0 && <p>Initial Cash: {formatCurrency(saleForPrinting!.paidAmountCash!)}</p>}
-                      {(saleForPrinting?.paidAmountCheque ?? 0) > 0 && <p>Initial Cheque: {formatCurrency(saleForPrinting!.paidAmountCheque!)} (#{saleForPrinting!.chequeDetails?.number})</p>}
-                      {(saleForPrinting?.paidAmountBankTransfer ?? 0) > 0 && <p>Initial Bank Transfer: {formatCurrency(saleForPrinting!.paidAmountBankTransfer!)}</p>}
-                      {(saleForPrinting?.creditUsed ?? 0) > 0 && <p className="text-green-600">Credit Used: {formatCurrency(saleForPrinting!.creditUsed!)}</p>}
-                      {(saleForPrinting?.changeGiven ?? 0) > 0 && <p className="text-green-600">Initial Change: {formatCurrency(saleForPrinting!.changeGiven!)}</p>}
+            <div className="space-y-1 text-sm mb-4">
+              <h4 className="font-semibold text-base mb-2 mt-2">Final Summary:</h4>
+              
+              {isReprintMode ? (
+                  <div className="text-xs space-y-1">
+                      {(saleForPrinting?.paidAmountCash ?? 0) > 0 && <div className="flex justify-between"><span>Initial Cash:</span><span>{formatCurrency(saleForPrinting!.paidAmountCash!)}</span></div>}
+                      {(saleForPrinting?.paidAmountCheque ?? 0) > 0 && <div className="flex justify-between"><span>Initial Cheque:</span><span>{formatCurrency(saleForPrinting!.paidAmountCheque!)} (#{saleForPrinting!.chequeDetails?.number})</span></div>}
+                      {(saleForPrinting?.paidAmountBankTransfer ?? 0) > 0 && <div className="flex justify-between"><span>Initial Bank Transfer:</span><span>{formatCurrency(saleForPrinting!.paidAmountBankTransfer!)}</span></div>}
+                      {(saleForPrinting?.creditUsed ?? 0) > 0 && <div className="flex justify-between text-green-600"><span>Credit Used:</span><span>{formatCurrency(saleForPrinting!.creditUsed!)}</span></div>}
+                      {(saleForPrinting?.changeGiven ?? 0) > 0 && <div className="flex justify-between text-green-600"><span>Initial Change Given:</span><span>{formatCurrency(saleForPrinting!.changeGiven!)}</span></div>}
+                      {saleForPrinting?.additionalPayments?.map((p, i) => (
+                          <div key={i} className="border-t mt-1 pt-1">
+                              <p className="font-medium text-muted-foreground">{format(p.date, "PP, p")}</p>
+                              <div className="flex justify-between"><span>{p.method} Payment:</span><span>{formatCurrency(p.amount)}</span></div>
+                          </div>
+                      ))}
                   </div>
-                  {saleForPrinting?.additionalPayments?.map((p, i) => (
-                    <div key={i} className="border-l-2 pl-2">
-                      <p className="font-medium text-muted-foreground">{format(p.date, "PP, p")}</p>
-                      <p>{p.method} Payment: {formatCurrency(p.amount)}</p>
-                      {p.method === 'Cheque' && p.details && 'number' in p.details && <p className="text-muted-foreground text-[11px]">#{p.details.number}</p>}
-                    </div>
-                  ))}
-                </div>
+              ) : (
+                  <div className="text-xs space-y-1">
+                      {parsedCreditApplied > 0 && <div className="flex justify-between text-green-600"><span>Credit Applied:</span><span>- {formatCurrency(parsedCreditApplied)}</span></div>}
+                      {parsedCashTendered > 0 && <div className="flex justify-between"><span>Cash Tendered:</span><span>{formatCurrency(parsedCashTendered)}</span></div>}
+                      {parsedChequeAmountPaid > 0 && <div className="flex justify-between"><span>Cheque Paid:</span><span>{formatCurrency(parsedChequeAmountPaid)}</span></div>}
+                      {parsedBankTransferAmountPaid > 0 && <div className="flex justify-between"><span>Bank Transfer Paid:</span><span>{formatCurrency(parsedBankTransferAmountPaid)}</span></div>}
+                      {changeGiven > 0 && <div className="flex justify-between text-green-600"><span>Change Given:</span><span>{formatCurrency(changeGiven)}</span></div>}
+                  </div>
               )}
 
               <Separator className="my-2"/>
@@ -512,12 +518,8 @@ export function BillDialog({
                 <span>{formatCurrency(isReprintMode ? (saleForPrinting?.totalAmountPaid || 0) : totalPaymentApplied)}</span>
               </div>
               <div className={cn("flex justify-between font-bold", (isReprintMode ? (saleForPrinting?.outstandingBalance || 0) : outstandingBalance) > 0 ? "text-destructive" : "text-muted-foreground")}>
-                <span>Balance Due:</span>
+                <span>Outstanding Balance:</span>
                 <span>{formatCurrency(isReprintMode ? (saleForPrinting?.outstandingBalance || 0) : outstandingBalance)}</span>
-              </div>
-              <div className="flex justify-between text-xs text-muted-foreground pt-1">
-                  <span>Payment Summary:</span>
-                  <span className="text-right">{isReprintMode ? saleForPrinting?.paymentSummary : getPaymentSummary()}</span>
               </div>
             </div>
 
