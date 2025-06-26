@@ -43,6 +43,7 @@ export function ReturnInvoiceDialog({ isOpen, onOpenChange, returnTransaction }:
     changeGiven,
     settleOutstandingAmount,
     refundAmount,
+    cashPaidOut,
   } = returnTransaction;
 
   const returnTotalValue = returnedItems.reduce((total, item) => {
@@ -55,6 +56,7 @@ export function ReturnInvoiceDialog({ isOpen, onOpenChange, returnTransaction }:
   
   const netCreditAfterSettle = returnTotalValue - (settleOutstandingAmount || 0);
   const finalDifference = exchangeTotalValue - netCreditAfterSettle;
+  const totalRefundValue = (refundAmount || 0) + (cashPaidOut || 0);
 
   const handlePrint = () => {
     window.print();
@@ -155,41 +157,51 @@ export function ReturnInvoiceDialog({ isOpen, onOpenChange, returnTransaction }:
                   )}
                   <Separator className="my-1"/>
                   <div className="flex justify-between">
-                      <span className="text-muted-foreground">Net Credit After Settle:</span>
+                      <span className="text-muted-foreground">Net Credit:</span>
                       <span>{formatCurrency(netCreditAfterSettle)}</span>
                   </div>
                    <div className="flex justify-between">
                       <span className="text-muted-foreground">New Items Cost:</span>
                       <span>- {formatCurrency(exchangeTotalValue)}</span>
                   </div>
-                  
-                  {amountPaid && amountPaid > 0 && (
-                     <div className="flex justify-between">
-                        <span className="text-muted-foreground">Amount Paid:</span>
-                        <span>- {formatCurrency(amountPaid)}</span>
-                    </div>
-                  )}
-                  {changeGiven && changeGiven > 0 && (
-                      <div className="flex justify-between text-green-600">
-                          <span className="text-muted-foreground">Change Given:</span>
-                          <span>{formatCurrency(changeGiven)}</span>
-                      </div>
-                  )}
                   <Separator className="my-1"/>
                   <div className={cn(
                     "flex justify-between font-bold text-lg",
                     finalDifference >= 0 ? "text-destructive" : "text-green-600"
                   )}>
-                    <span>{finalDifference >= 0 ? 'FINAL BALANCE DUE:' : 'REFUND DUE:'}</span>
+                    <span>{finalDifference >= 0 ? 'FINAL BALANCE DUE:' : 'TOTAL REFUND DUE:'}</span>
                     <span>{formatCurrency(Math.abs(finalDifference))}</span>
                   </div>
-                   {refundAmount && refundAmount > 0 && (
-                      <div className="flex justify-between text-lg text-green-600 font-bold">
-                          <span>Final Refund:</span>
-                          <span>{formatCurrency(refundAmount)}</span>
+
+                  {/* Payment Details */}
+                   {(amountPaid && amountPaid > 0) && (
+                     <div className="flex justify-between">
+                        <span className="text-muted-foreground">Amount Paid by Customer:</span>
+                        <span>{formatCurrency(amountPaid)}</span>
+                    </div>
+                  )}
+                  {(changeGiven && changeGiven > 0) && (
+                      <div className="flex justify-between text-green-600">
+                          <span className="text-muted-foreground">Change Given:</span>
+                          <span>{formatCurrency(changeGiven)}</span>
                       </div>
                   )}
                   {paymentSummary && <p className="text-xs text-muted-foreground text-right">{paymentSummary}</p>}
+                  
+                  {/* Refund Payout Details */}
+                  {(totalRefundValue > 0) && <Separator className="my-2"/>}
+                  {(cashPaidOut && cashPaidOut > 0) && (
+                      <div className="flex justify-between text-green-700">
+                          <span className="text-muted-foreground">Cash Paid Out:</span>
+                          <span>{formatCurrency(cashPaidOut)}</span>
+                      </div>
+                  )}
+                  {(refundAmount && refundAmount > 0) && (
+                      <div className="flex justify-between text-green-700">
+                          <span className="text-muted-foreground">Credited to Account:</span>
+                          <span>{formatCurrency(refundAmount)}</span>
+                      </div>
+                  )}
               </div>
               
               <p className="text-center text-xs mt-6">Thank you!</p>

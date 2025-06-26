@@ -58,7 +58,7 @@ export const getProduct = async (id: string): Promise<Product | null> => {
 
 export const addProduct = async (productData: Omit<Product, 'id'>): Promise<string> => {
   checkFirebase();
-  const docRef = await addDoc(collection(db, "products"), productConverter.toFirestore(productData as Product));
+  const docRef = await addDoc(collection(db, "products").withConverter(productConverter), productData);
   return docRef.id;
 };
 
@@ -91,7 +91,7 @@ export const getCustomer = async (id: string): Promise<Customer | null> => {
 
 export const addCustomer = async (customerData: Omit<Customer, 'id'>): Promise<string> => {
   checkFirebase();
-  const docRef = await addDoc(collection(db, "customers"), customerConverter.toFirestore(customerData as Customer));
+  const docRef = await addDoc(collection(db, "customers").withConverter(customerConverter), customerData);
   return docRef.id;
 };
 
@@ -262,6 +262,7 @@ interface ProcessReturnArgs {
   customerName?: string;
   settleOutstandingAmount?: number;
   refundAmount?: number;
+  cashPaidOut?: number;
   payment?: {
     amountPaid: number;
     paymentSummary: string;
@@ -281,6 +282,7 @@ export const processReturnTransaction = async ({
   customerName,
   settleOutstandingAmount,
   refundAmount,
+  cashPaidOut,
   payment,
   vehicleId,
 }: ProcessReturnArgs): Promise<{ returnId: string, returnData: ReturnTransaction }> => {
@@ -439,7 +441,7 @@ export const processReturnTransaction = async ({
     }
     
     transaction.update(saleRef, { 
-        items: newSaleItems.map(saleConverter.toFirestore).flatMap(s => s.items || []), 
+        items: newSaleItems.map(item => saleConverter.toFirestore({} as Sale, item)),
         updatedAt: Timestamp.now() 
     });
 
@@ -450,7 +452,9 @@ export const processReturnTransaction = async ({
       originalSaleId: saleId, returnDate: new Date(), staffId, customerId, customerName,
       returnedItems: returnedItems,
       exchangedItems: exchangedItems,
-      settleOutstandingAmount, refundAmount,
+      settleOutstandingAmount, 
+      refundAmount,
+      cashPaidOut,
       ...payment
     };
 

@@ -171,7 +171,8 @@ export interface ReturnTransaction {
   changeGiven?: number;
   // New fields for credit settlement
   settleOutstandingAmount?: number;
-  refundAmount?: number;
+  refundAmount?: number; // Credit added to customer account
+  cashPaidOut?: number; // Cash given back to customer
   createdAt?: Date;
 }
 
@@ -562,6 +563,7 @@ export const returnTransactionConverter = {
       changeGiven: returnData.changeGiven,
       settleOutstandingAmount: returnData.settleOutstandingAmount,
       refundAmount: returnData.refundAmount,
+      cashPaidOut: returnData.cashPaidOut,
     };
     Object.keys(dataToSave).forEach(key => ((dataToSave as any)[key] === undefined) && delete (dataToSave as any)[key]);
     return dataToSave;
@@ -615,6 +617,7 @@ export const returnTransactionConverter = {
       changeGiven: data.changeGiven,
       settleOutstandingAmount: data.settleOutstandingAmount,
       refundAmount: data.refundAmount,
+      cashPaidOut: data.cashPaidOut,
       createdAt: data.createdAt?.toDate(),
     };
   }

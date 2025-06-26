@@ -32,7 +32,8 @@ interface ReturnRequestBody {
   customerId?: string;
   customerName?: string;
   settleOutstandingAmount?: number;
-  refundAmount?: number;
+  refundAmount?: number; // Credit added to account
+  cashPaidOut?: number; // Cash given to customer
   payment?: {
     amountPaid: number;
     paymentSummary: string;
@@ -54,6 +55,7 @@ export async function POST(request: NextRequest) {
         customerName,
         settleOutstandingAmount,
         refundAmount,
+        cashPaidOut,
         payment,
         vehicleId,
     }: ReturnRequestBody = await request.json();
@@ -74,6 +76,7 @@ export async function POST(request: NextRequest) {
         customerName,
         settleOutstandingAmount,
         refundAmount,
+        cashPaidOut,
         payment,
         vehicleId,
     });

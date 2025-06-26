@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
@@ -7,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Search, Package, Hash, Loader2, Users, ChevronsUpDown, Check, ArrowRight, Undo2, XCircle, PlusCircle, MinusCircle, Trash2, CalendarIcon, Wallet, Gift, Tag, Truck, Warehouse } from "lucide-react";
+import { Search, Package, Hash, Loader2, Users, ChevronsUpDown, Check, ArrowRight, Undo2, XCircle, PlusCircle, MinusCircle, Trash2, CalendarIcon, Wallet, Gift, Tag, Truck, Warehouse, Banknote } from "lucide-react";
 import type { Customer, Sale, CartItem, Product, ReturnTransaction, ChequeInfo, BankTransferInfo, StockTransaction } from "@/lib/types";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useSalesData } from "@/hooks/useSalesData";
@@ -66,8 +67,9 @@ export default function ReturnsPage() {
   const [isVehicleStockLoading, setIsVehicleStockLoading] = useState(false);
   const [selectedVehicleIdForExchange, setSelectedVehicleIdForExchange] = useState<string | null>(null);
 
-  // Payment State (for when customer owes money)
+  // Payment State (for when customer owes money or gets a refund)
   const [cashTendered, setCashTendered] = useState<string>("");
+  const [cashPaidOut, setCashPaidOut] = useState<string>("");
   const [chequeAmountPaid, setChequeAmountPaid] = useState<string>("");
   const [chequeNumber, setChequeNumber] = useState<string>("");
   const [chequeBank, setChequeBank] = useState<string>("");
@@ -171,6 +173,7 @@ export default function ReturnsPage() {
     setApplyCredit(true);
     // Reset payment fields
     setCashTendered("");
+    setCashPaidOut("");
     setChequeAmountPaid("");
     setChequeNumber("");
     setChequeBank("");
@@ -346,11 +349,20 @@ export default function ReturnsPage() {
       refundToCustomer: finalDiff < 0 ? Math.abs(finalDiff) : 0,
     };
   }, [itemsToReturn, exchangeItems, selectedSale, applyCredit]);
+  
+  useEffect(() => {
+      if (refundToCustomer > 0) {
+        setCashPaidOut(refundToCustomer.toFixed(2));
+      } else {
+        setCashPaidOut("");
+      }
+  }, [refundToCustomer]);
 
   const parsedCashTendered = parseFloat(cashTendered) || 0;
   const parsedChequeAmountPaid = parseFloat(chequeAmountPaid) || 0;
   const parsedBankTransferAmountPaid = parseFloat(bankTransferAmountPaid) || 0;
   const totalTenderedByMethods = parsedCashTendered + parsedChequeAmountPaid + parsedBankTransferAmountPaid;
+  const parsedCashPaidOut = parseFloat(cashPaidOut) || 0;
   
   const changeGiven = useMemo(() => {
     if (finalAmountDue <= 0) return 0;
@@ -362,6 +374,8 @@ export default function ReturnsPage() {
   }, [parsedCashTendered, parsedChequeAmountPaid, parsedBankTransferAmountPaid, totalTenderedByMethods, finalAmountDue]);
 
   const totalPaymentApplied = totalTenderedByMethods - changeGiven;
+
+  const creditToAccount = refundToCustomer - parsedCashPaidOut;
 
   const getPaymentSummary = useCallback(() => {
     const methodsUsed: string[] = [];
@@ -381,6 +395,10 @@ export default function ReturnsPage() {
     }
     if (finalAmountDue > 0 && totalPaymentApplied < finalAmountDue) {
         toast({ variant: "destructive", title: "Insufficient Payment", description: `Amount to pay is ${formatCurrency(finalAmountDue)}, but only ${formatCurrency(totalPaymentApplied)} was provided.` });
+        return;
+    }
+    if(parsedCashPaidOut > refundToCustomer) {
+        toast({ variant: "destructive", title: "Invalid Refund Amount", description: `Cannot pay out more than the total refund due of ${formatCurrency(refundToCustomer)}.` });
         return;
     }
 
@@ -413,7 +431,8 @@ export default function ReturnsPage() {
             customerId: selectedSale.customerId,
             customerName: selectedSale.customerName,
             settleOutstandingAmount: outstandingToSettle > 0 ? outstandingToSettle : undefined,
-            refundAmount: refundToCustomer > 0 ? refundToCustomer : undefined,
+            refundAmount: creditToAccount > 0 ? creditToAccount : undefined,
+            cashPaidOut: parsedCashPaidOut > 0 ? parsedCashPaidOut : undefined,
             vehicleId: viewMode === 'vehicle' ? selectedVehicleIdForExchange : undefined,
         };
         
@@ -739,11 +758,11 @@ export default function ReturnsPage() {
                     {outstandingToSettle > 0 && <div className="flex justify-between items-center text-sm text-blue-600"><span className="text-muted-foreground pl-4">Outstanding Settled:</span><span className="font-medium">- {formatCurrency(outstandingToSettle)}</span></div>}
                     <Separator className="!my-1"/>
                     <div className="flex justify-between items-center text-sm"><span className="text-muted-foreground">Net Credit:</span><span className="font-medium">{formatCurrency(netCreditAfterSettle)}</span></div>
-                    <div className="flex justify-between items-center text-sm"><span className="text-muted-foreground">New Items Total:</span><span className="font-medium">- {formatCurrency(exchangeItems.reduce((sum, item) => sum + item.quantity * item.appliedPrice, 0))}</span></div>
+                    <div className="flex justify-between items-center text-sm"><span className="text-muted-foreground">New Items Cost:</span><span className="font-medium">- {formatCurrency(exchangeItems.reduce((sum, item) => sum + item.quantity * item.appliedPrice, 0))}</span></div>
                     <Separator className="!my-1"/>
                     
                     <div className={cn("flex justify-between items-center font-bold text-lg", finalAmountDue > 0 ? "text-destructive" : "text-green-600")}>
-                        <span>{finalAmountDue > 0 ? 'Amount to Pay:' : 'Refund to Customer:'}</span>
+                        <span>{finalAmountDue > 0 ? 'Amount to Pay:' : 'Total Refund Due:'}</span>
                         <span>{formatCurrency(finalAmountDue > 0 ? finalAmountDue : refundToCustomer)}</span>
                     </div>
                 </div>
@@ -765,6 +784,20 @@ export default function ReturnsPage() {
                       <span>{formatCurrency(changeGiven)}</span>
                     </div>
                   </div>
+                )}
+                
+                {refundToCustomer > 0 && (
+                    <div className="mt-4 pt-4 border-t space-y-4">
+                        <h3 className="text-sm font-semibold flex items-center gap-2"><Banknote className="h-4 w-4 text-green-600"/>Refund Payout</h3>
+                         <div>
+                            <Label htmlFor="cashPaidOut" className="text-xs">Cash Paid Out (Rs.)</Label>
+                            <Input id="cashPaidOut" type="number" value={cashPaidOut} onChange={(e) => setCashPaidOut(e.target.value)} placeholder="0.00" className="h-9 mt-1" min="0" max={refundToCustomer.toFixed(2)} step="0.01"/>
+                        </div>
+                        <div className="flex justify-between items-center font-semibold text-sm text-primary">
+                            <span>Remaining as Credit:</span>
+                            <span>{formatCurrency(creditToAccount)}</span>
+                        </div>
+                    </div>
                 )}
 
                 <div className="flex justify-end mt-4">
