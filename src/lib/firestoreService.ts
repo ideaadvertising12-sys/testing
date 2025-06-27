@@ -39,6 +39,7 @@ import {
   returnTransactionConverter,
   type FirestoreReturnTransaction,
   type Payment,
+  type FirestorePayment,
 } from "./types";
 
 // Product Services
@@ -440,9 +441,28 @@ export const processReturnTransaction = async ({
       }
     }
     
-    transaction.update(saleRef, { 
-        items: newSaleItems.map(item => saleConverter.toFirestore({} as Sale, item)),
-        updatedAt: Timestamp.now() 
+    // Update the original sale with new returned quantities
+    transaction.update(saleRef, {
+      items: newSaleItems.map(item => {
+        const firestoreItem: FirestoreCartItem = {
+          productRef: doc(db, "products", item.id).path,
+          quantity: item.quantity,
+          appliedPrice: item.appliedPrice,
+          saleType: item.saleType,
+          productName: item.name,
+          productCategory: item.category,
+          productPrice: item.price,
+          isOfferItem: item.isOfferItem || false,
+        };
+        if (item.returnedQuantity !== undefined) {
+          firestoreItem.returnedQuantity = item.returnedQuantity;
+        }
+        if (item.sku !== undefined) {
+          firestoreItem.productSku = item.sku;
+        }
+        return firestoreItem;
+      }),
+      updatedAt: Timestamp.now(),
     });
 
     const returnDocRef = doc(db, 'returns', returnId);
