@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
   try {
     const saleDataFromClient = await request.json();
 
-    // Basic validation for core sale structure
+    // --- Start Validation ---
     if (!saleDataFromClient || !Array.isArray(saleDataFromClient.items) || saleDataFromClient.items.length === 0) {
       return NextResponse.json({ error: 'Invalid sale data: Items are missing or empty.' }, { status: 400 });
     }
@@ -31,7 +31,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid sale data: Missing core payment fields (totalAmount, totalAmountPaid, outstandingBalance, paymentSummary).' }, { status: 400 });
     }
 
-    // Validate payment breakdown
     if (saleDataFromClient.paidAmountCash !== undefined && typeof saleDataFromClient.paidAmountCash !== 'number') {
         return NextResponse.json({ error: 'Invalid cash payment amount.' }, { status: 400 });
     }
@@ -52,34 +51,15 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Invalid cheque date provided.' }, { status: 400 });
     }
     if (saleDataFromClient.paidAmountBankTransfer > 0 && !saleDataFromClient.bankTransferDetails) {
-        // Basic check, can be more granular (e.g. require bankName or referenceNumber)
         return NextResponse.json({ error: 'Bank transfer details are required for bank transfer payments.' }, { status: 400 });
     }
+    // --- End Validation ---
 
     const saleDate = saleDataFromClient.saleDate ? new Date(saleDataFromClient.saleDate) : new Date();
     
-    // --- Defensive Object Construction to avoid 'undefined' ---
-    let chequeDetailsForDb: ChequeInfo | undefined = undefined;
-    if (saleDataFromClient.chequeDetails) {
-        const details: ChequeInfo = {};
-        if (saleDataFromClient.chequeDetails.number) details.number = saleDataFromClient.chequeDetails.number;
-        if (saleDataFromClient.chequeDetails.bank) details.bank = saleDataFromClient.chequeDetails.bank;
-        if (saleDataFromClient.chequeDetails.date) details.date = new Date(saleDataFromClient.chequeDetails.date);
-        if (saleDataFromClient.chequeDetails.amount) details.amount = saleDataFromClient.chequeDetails.amount;
-        if (Object.keys(details).length > 0) chequeDetailsForDb = details;
-    }
-
-    let bankTransferDetailsForDb: BankTransferInfo | undefined = undefined;
-    if (saleDataFromClient.bankTransferDetails) {
-        const details: BankTransferInfo = {};
-        if (saleDataFromClient.bankTransferDetails.bankName) details.bankName = saleDataFromClient.bankTransferDetails.bankName;
-        if (saleDataFromClient.bankTransferDetails.referenceNumber) details.referenceNumber = saleDataFromClient.bankTransferDetails.referenceNumber;
-        if (saleDataFromClient.bankTransferDetails.amount) details.amount = saleDataFromClient.bankTransferDetails.amount;
-        if (Object.keys(details).length > 0) bankTransferDetailsForDb = details;
-    }
-
+    // --- Start Defensive Payload Construction ---
+    // Start with a base object of required fields
     const salePayload: Omit<Sale, 'id'> = {
-      // Required fields
       items: saleDataFromClient.items as CartItem[],
       subTotal: saleDataFromClient.subTotal,
       discountPercentage: saleDataFromClient.discountPercentage,
@@ -93,21 +73,42 @@ export async function POST(request: NextRequest) {
       offerApplied: saleDataFromClient.offerApplied || false,
     };
 
-    // Add optional fields only if they have a value
-    if (saleDataFromClient.customerId) salePayload.customerId = saleDataFromClient.customerId;
-    if (saleDataFromClient.customerName) salePayload.customerName = saleDataFromClient.customerName;
-    if (saleDataFromClient.paidAmountCash) salePayload.paidAmountCash = saleDataFromClient.paidAmountCash;
-    if (saleDataFromClient.paidAmountCheque) salePayload.paidAmountCheque = saleDataFromClient.paidAmountCheque;
-    if (chequeDetailsForDb) salePayload.chequeDetails = chequeDetailsForDb;
-    if (saleDataFromClient.paidAmountBankTransfer) salePayload.paidAmountBankTransfer = saleDataFromClient.paidAmountBankTransfer;
-    if (bankTransferDetailsForDb) salePayload.bankTransferDetails = bankTransferDetailsForDb;
-    if (saleDataFromClient.creditUsed) salePayload.creditUsed = saleDataFromClient.creditUsed;
-    if (saleDataFromClient.outstandingBalance) salePayload.initialOutstandingBalance = saleDataFromClient.outstandingBalance;
-    if (saleDataFromClient.changeGiven) salePayload.changeGiven = saleDataFromClient.changeGiven;
-    if (saleDataFromClient.staffName) salePayload.staffName = saleDataFromClient.staffName;
-    if (saleDataFromClient.vehicleId) salePayload.vehicleId = saleDataFromClient.vehicleId;
+    // Conditionally add optional fields ONLY if they are not undefined
+    if (saleDataFromClient.customerId !== undefined) salePayload.customerId = saleDataFromClient.customerId;
+    if (saleDataFromClient.customerName !== undefined) salePayload.customerName = saleDataFromClient.customerName;
+    if (saleDataFromClient.staffName !== undefined) salePayload.staffName = saleDataFromClient.staffName;
+    if (saleDataFromClient.vehicleId !== undefined) salePayload.vehicleId = saleDataFromClient.vehicleId;
     
-    // --- End Defensive Object Construction ---
+    // Check for numeric fields, including 0
+    if (saleDataFromClient.paidAmountCash !== undefined) salePayload.paidAmountCash = saleDataFromClient.paidAmountCash;
+    if (saleDataFromClient.paidAmountCheque !== undefined) salePayload.paidAmountCheque = saleDataFromClient.paidAmountCheque;
+    if (saleDataFromClient.paidAmountBankTransfer !== undefined) salePayload.paidAmountBankTransfer = saleDataFromClient.paidAmountBankTransfer;
+    if (saleDataFromClient.creditUsed !== undefined) salePayload.creditUsed = saleDataFromClient.creditUsed;
+    if (saleDataFromClient.changeGiven !== undefined) salePayload.changeGiven = saleDataFromClient.changeGiven;
+
+    // Special logic for initial outstanding balance - only set if it was a credit sale
+    if (saleDataFromClient.outstandingBalance > 0) {
+      salePayload.initialOutstandingBalance = saleDataFromClient.outstandingBalance;
+    }
+
+    // Defensively construct nested objects
+    if (saleDataFromClient.chequeDetails) {
+        const details: ChequeInfo = {};
+        if (saleDataFromClient.chequeDetails.number) details.number = saleDataFromClient.chequeDetails.number;
+        if (saleDataFromClient.chequeDetails.bank) details.bank = saleDataFromClient.chequeDetails.bank;
+        if (saleDataFromClient.chequeDetails.date) details.date = new Date(saleDataFromClient.chequeDetails.date);
+        if (saleDataFromClient.chequeDetails.amount !== undefined) details.amount = saleDataFromClient.chequeDetails.amount;
+        if (Object.keys(details).length > 0) salePayload.chequeDetails = details;
+    }
+
+    if (saleDataFromClient.bankTransferDetails) {
+        const details: BankTransferInfo = {};
+        if (saleDataFromClient.bankTransferDetails.bankName) details.bankName = saleDataFromClient.bankTransferDetails.bankName;
+        if (saleDataFromClient.bankTransferDetails.referenceNumber) details.referenceNumber = saleDataFromClient.bankTransferDetails.referenceNumber;
+        if (saleDataFromClient.bankTransferDetails.amount !== undefined) details.amount = saleDataFromClient.bankTransferDetails.amount;
+        if (Object.keys(details).length > 0) salePayload.bankTransferDetails = details;
+    }
+    // --- End Defensive Payload Construction ---
 
     const saleId = await addSale(salePayload);
     
