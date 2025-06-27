@@ -363,12 +363,31 @@ export const saleConverter = {
       ...(item.sku !== undefined && { productSku: item.sku }),
     }));
     
-    let firestoreChequeDetails: FirestoreChequeInfo | undefined = undefined;
+    let firestoreChequeDetails: FirestoreChequeInfo | undefined;
     if (sale.chequeDetails) {
-      firestoreChequeDetails = {
-        ...sale.chequeDetails,
-        date: sale.chequeDetails.date ? Timestamp.fromDate(sale.chequeDetails.date) : undefined,
-      };
+        const { number, bank, date, amount } = sale.chequeDetails;
+        const details: FirestoreChequeInfo = {};
+        if (number) details.number = number;
+        if (bank) details.bank = bank;
+        if (date) details.date = Timestamp.fromDate(date);
+        if (amount) details.amount = amount;
+        
+        if (Object.keys(details).length > 0) {
+            firestoreChequeDetails = details;
+        }
+    }
+
+    let firestoreBankTransferDetails: BankTransferInfo | undefined;
+    if (sale.bankTransferDetails) {
+        const { bankName, referenceNumber, amount } = sale.bankTransferDetails;
+        const details: BankTransferInfo = {};
+        if (bankName) details.bankName = bankName;
+        if (referenceNumber) details.referenceNumber = referenceNumber;
+        if (amount) details.amount = amount;
+
+        if (Object.keys(details).length > 0) {
+            firestoreBankTransferDetails = details;
+        }
     }
 
     const firestoreSale: Partial<FirestoreSale> = {
@@ -381,7 +400,7 @@ export const saleConverter = {
       paidAmountCheque: sale.paidAmountCheque,
       chequeDetails: firestoreChequeDetails,
       paidAmountBankTransfer: sale.paidAmountBankTransfer,
-      bankTransferDetails: sale.bankTransferDetails,
+      bankTransferDetails: firestoreBankTransferDetails,
       creditUsed: sale.creditUsed,
       totalAmountPaid: sale.totalAmountPaid,
       outstandingBalance: sale.outstandingBalance,
@@ -543,6 +562,27 @@ export const returnTransactionConverter = {
         }));
       };
 
+    let firestoreChequeDetails: FirestoreChequeInfo | undefined;
+    if (returnData.chequeDetails) {
+        const { number, bank, date, amount } = returnData.chequeDetails;
+        const details: FirestoreChequeInfo = {};
+        if (number) details.number = number;
+        if (bank) details.bank = bank;
+        if (date) details.date = Timestamp.fromDate(date);
+        if (amount) details.amount = amount;
+        if (Object.keys(details).length > 0) firestoreChequeDetails = details;
+    }
+
+    let firestoreBankTransferDetails: BankTransferInfo | undefined;
+    if (returnData.bankTransferDetails) {
+        const { bankName, referenceNumber, amount } = returnData.bankTransferDetails;
+        const details: BankTransferInfo = {};
+        if (bankName) details.bankName = bankName;
+        if (referenceNumber) details.referenceNumber = referenceNumber;
+        if (amount) details.amount = amount;
+        if (Object.keys(details).length > 0) firestoreBankTransferDetails = details;
+    }
+
     const dataToSave: Partial<FirestoreReturnTransaction> = {
       originalSaleId: returnData.originalSaleId,
       returnDate: Timestamp.fromDate(returnData.returnDate),
@@ -555,11 +595,8 @@ export const returnTransactionConverter = {
       notes: returnData.notes,
       amountPaid: returnData.amountPaid,
       paymentSummary: returnData.paymentSummary,
-      chequeDetails: returnData.chequeDetails ? {
-          ...returnData.chequeDetails,
-          date: returnData.chequeDetails.date ? Timestamp.fromDate(returnData.chequeDetails.date) : undefined
-      } : undefined,
-      bankTransferDetails: returnData.bankTransferDetails,
+      chequeDetails: firestoreChequeDetails,
+      bankTransferDetails: firestoreBankTransferDetails,
       changeGiven: returnData.changeGiven,
       settleOutstandingAmount: returnData.settleOutstandingAmount,
       refundAmount: returnData.refundAmount,
@@ -752,3 +789,4 @@ export interface VehicleReportItem {
   totalUnloaded: number;
   netChange: number;
 }
+
