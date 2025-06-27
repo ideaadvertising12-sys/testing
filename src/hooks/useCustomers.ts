@@ -56,19 +56,13 @@ export function useCustomers() {
       }
       const newCustomer = await response.json();
       setCustomers((prev) => [...prev, newCustomer].sort((a, b) => a.name.localeCompare(b.name)));
-      toast({
-        title: "Customer Added",
-        description: `${customerData.name} has been successfully added.`,
-      });
       return newCustomer;
     } catch (err: any) {
       console.error("Error adding customer:", err);
-      const errorMessage = err.message || "An unknown error occurred while adding the customer.";
-      setError(errorMessage); // Keep this for potential global error display
       toast({
         variant: "destructive",
         title: "Failed to Add Customer",
-        description: errorMessage,
+        description: err.message,
       });
       return null;
     } finally {
@@ -88,26 +82,21 @@ export function useCustomers() {
          const errorData = await response.json().catch(() => ({ message: "Failed to update customer" }));
         throw new Error(errorData.message || `Failed to update customer. Server responded with status ${response.status}.`);
       }
-      // Assuming PUT returns the updated customer or just a success message.
-      // If it returns the updated customer:
-      // const updatedCustomer = await response.json();
-      // setCustomers((prev) => prev.map((c) => (c.id === id ? { ...c, ...updatedCustomer } : c)));
-      // For now, we'll refetch to get the latest state.
-      await fetchCustomers(); 
-      toast({
-        title: "Customer Updated",
-        description: `${customerData.name || 'Customer'} has been successfully updated.`,
-      });
-      const updatedCustomer = customers.find(c => c.id === id); // optimistic find
-      return updatedCustomer ? { ...updatedCustomer, ...customerData } : null;
+      let updatedCustomerState: Customer | null = null;
+      setCustomers((prev) => prev.map((c) => {
+        if (c.id === id) {
+          updatedCustomerState = { ...c, ...customerData };
+          return updatedCustomerState;
+        }
+        return c;
+      }));
+      return updatedCustomerState;
     } catch (err: any) {
       console.error("Error updating customer:", err);
-      const errorMessage = err.message || "An unknown error occurred while updating the customer.";
-      setError(errorMessage);
       toast({
         variant: "destructive",
         title: "Failed to Update Customer",
-        description: errorMessage,
+        description: err.message,
       });
       return null;
     } finally {
@@ -126,19 +115,13 @@ export function useCustomers() {
         throw new Error(errorData.message || `Failed to delete customer. Server responded with status ${response.status}.`);
       }
       setCustomers((prev) => prev.filter((c) => c.id !== id));
-      toast({
-        title: "Customer Deleted",
-        description: "The customer has been successfully deleted.",
-      });
       return true;
     } catch (err: any) {
       console.error("Error deleting customer:", err);
-      const errorMessage = err.message || "An unknown error occurred while deleting the customer.";
-      setError(errorMessage);
       toast({
         variant: "destructive",
         title: "Failed to Delete Customer",
-        description: errorMessage,
+        description: err.message,
       });
       return false;
     } finally {
