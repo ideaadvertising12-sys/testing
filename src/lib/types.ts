@@ -350,18 +350,25 @@ export const vehicleConverter = {
 
 export const saleConverter = {
   toFirestore: (sale: Sale): Partial<FirestoreSale> => {
-    const firestoreSaleItems: FirestoreCartItem[] = sale.items.map(item => ({
-      productRef: doc(db, "products", item.id).path,
-      quantity: item.quantity,
-      appliedPrice: item.appliedPrice,
-      saleType: item.saleType,
-      productName: item.name,
-      productCategory: item.category,
-      productPrice: item.price,
-      isOfferItem: item.isOfferItem || false,
-      returnedQuantity: item.returnedQuantity,
-      ...(item.sku !== undefined && { productSku: item.sku }),
-    }));
+    const firestoreSaleItems: FirestoreCartItem[] = sale.items.map(item => {
+        const firestoreItem: FirestoreCartItem = {
+          productRef: doc(db, "products", item.id).path,
+          quantity: item.quantity,
+          appliedPrice: item.appliedPrice,
+          saleType: item.saleType,
+          productName: item.name,
+          productCategory: item.category,
+          productPrice: item.price,
+          isOfferItem: item.isOfferItem || false,
+        };
+        if (item.returnedQuantity !== undefined) {
+          firestoreItem.returnedQuantity = item.returnedQuantity;
+        }
+        if (item.sku !== undefined) {
+          firestoreItem.productSku = item.sku;
+        }
+        return firestoreItem;
+    });
     
     let firestoreChequeDetails: FirestoreChequeInfo | undefined;
     if (sale.chequeDetails) {
@@ -428,9 +435,12 @@ export const saleConverter = {
       firestoreSale.createdAt = Timestamp.now();
     }
 
-    // Clean up undefined fields
-    Object.keys(firestoreSale).forEach(key => {
-        if ((firestoreSale as any)[key] === undefined) delete (firestoreSale as any)[key];
+    // Clean up undefined fields at the top level
+    Object.keys(firestoreSale).forEach(keyStr => {
+        const key = keyStr as keyof typeof firestoreSale;
+        if (firestoreSale[key] === undefined) {
+            delete firestoreSale[key];
+        }
     });
 
     return firestoreSale;
@@ -549,17 +559,25 @@ export const stockTransactionConverter = {
 export const returnTransactionConverter = {
   toFirestore: (returnData: ReturnTransaction): Partial<FirestoreReturnTransaction> => {
       const mapItems = (items: CartItem[]): FirestoreCartItem[] => {
-        return items.map(item => ({
-            productRef: doc(db, 'products', item.id).path,
-            quantity: item.quantity,
-            appliedPrice: item.appliedPrice,
-            saleType: item.saleType,
-            productName: item.name,
-            productCategory: item.category,
-            productPrice: item.price,
-            productSku: item.sku,
-            isOfferItem: item.isOfferItem || false,
-        }));
+        return items.map(item => {
+            const firestoreItem: FirestoreCartItem = {
+              productRef: doc(db, 'products', item.id).path,
+              quantity: item.quantity,
+              appliedPrice: item.appliedPrice,
+              saleType: item.saleType,
+              productName: item.name,
+              productCategory: item.category,
+              productPrice: item.price,
+              isOfferItem: item.isOfferItem || false,
+            };
+            if (item.returnedQuantity !== undefined) {
+              firestoreItem.returnedQuantity = item.returnedQuantity;
+            }
+            if (item.sku !== undefined) {
+              firestoreItem.productSku = item.sku;
+            }
+            return firestoreItem;
+        });
       };
 
     let firestoreChequeDetails: FirestoreChequeInfo | undefined;
@@ -789,4 +807,3 @@ export interface VehicleReportItem {
   totalUnloaded: number;
   netChange: number;
 }
-
