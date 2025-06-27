@@ -37,6 +37,8 @@ export function ManageStockForm() {
   const [transactionDate, setTransactionDate] = useState<string>("");
   const [notes, setNotes] = useState<string>("");
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | undefined>(undefined);
+  const [startMeter, setStartMeter] = useState<string>("");
+  const [endMeter, setEndMeter] = useState<string>("");
   
   const [transactionItems, setTransactionItems] = useState<TransactionItem[]>([]);
   
@@ -55,6 +57,12 @@ export function ManageStockForm() {
     const localDate = new Date(now.getTime() - (offset * 60000));
     setTransactionDate(localDate.toISOString().slice(0, 16));
   }, []);
+  
+  useEffect(() => {
+    // Reset meter readings when transaction type changes
+    setStartMeter("");
+    setEndMeter("");
+  }, [transactionType]);
 
   const fetchVehicleStock = async (vehicleId: string) => {
     if (!vehicleId) {
@@ -123,6 +131,8 @@ export function ManageStockForm() {
     setTransactionItems([]);
     setNotes("");
     setSelectedVehicleId(undefined);
+    setStartMeter("");
+    setEndMeter("");
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -218,6 +228,8 @@ export function ManageStockForm() {
             notes: notes || undefined,
             vehicleId: (transactionType === 'LOAD_TO_VEHICLE' || transactionType === 'UNLOAD_FROM_VEHICLE') ? selectedVehicleId : undefined,
             userId: currentUser?.username || 'system',
+            startMeter: transactionType === 'LOAD_TO_VEHICLE' && startMeter ? Number(startMeter) : undefined,
+            endMeter: transactionType === 'UNLOAD_FROM_VEHICLE' && endMeter ? Number(endMeter) : undefined,
         };
 
         await StockService.createTransaction(transactionData);
@@ -336,6 +348,37 @@ export function ManageStockForm() {
                     )}
                   </SelectContent>
                 </Select>
+              </div>
+            )}
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+             {(transactionType === "LOAD_TO_VEHICLE") && (
+              <div className="space-y-1.5">
+                <Label htmlFor="startMeter">Start Meter (km)</Label>
+                <Input
+                  id="startMeter"
+                  type="number"
+                  value={startMeter}
+                  onChange={(e) => setStartMeter(e.target.value)}
+                  className="h-11"
+                  placeholder="Enter starting vehicle mileage"
+                  min="0"
+                />
+              </div>
+            )}
+            {(transactionType === "UNLOAD_FROM_VEHICLE") && (
+              <div className="space-y-1.5">
+                <Label htmlFor="endMeter">End Meter (km)</Label>
+                <Input
+                  id="endMeter"
+                  type="number"
+                  value={endMeter}
+                  onChange={(e) => setEndMeter(e.target.value)}
+                  className="h-11"
+                  placeholder="Enter ending vehicle mileage"
+                  min={startMeter || "0"}
+                />
               </div>
             )}
           </div>

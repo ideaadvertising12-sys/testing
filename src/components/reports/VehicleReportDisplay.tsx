@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { VehicleReportItem } from "@/lib/types";
@@ -13,14 +14,20 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { DownloadCloud, FileText } from "lucide-react";
+import { DownloadCloud, FileText, GaugeCircle, Route } from "lucide-react";
 import { format } from 'date-fns';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import { Separator } from "../ui/separator";
 
 interface VehicleReportDisplayProps {
-  data: VehicleReportItem[];
+  report: {
+    items: VehicleReportItem[];
+    startMeter?: number;
+    endMeter?: number;
+    totalKm?: number;
+  };
   vehicleNumber: string;
   reportDate?: Date;
 }
@@ -29,7 +36,8 @@ interface jsPDFWithAutoTable extends jsPDF {
   autoTable: (options: any) => jsPDF;
 }
 
-export function VehicleReportDisplay({ data, vehicleNumber, reportDate }: VehicleReportDisplayProps) {
+export function VehicleReportDisplay({ report, vehicleNumber, reportDate }: VehicleReportDisplayProps) {
+  const { items: data, startMeter, endMeter, totalKm } = report;
     
   const totals = {
     loaded: data.reduce((sum, item) => sum + item.totalLoaded, 0),
@@ -38,32 +46,78 @@ export function VehicleReportDisplay({ data, vehicleNumber, reportDate }: Vehicl
   };
 
   const handleExportExcel = () => {
-    const dataToExport = data.map(item => ({
+    // Mileage data
+    const mileageData = [
+        ["Vehicle Report", vehicleNumber],
+        ["Date", reportDate ? format(reportDate, 'yyyy-MM-dd') : 'N/A'],
+        [],
+        ["Mileage Summary"],
+        ["Start Meter (km)", startMeter ?? 'N/A'],
+        ["End Meter (km)", endMeter ?? 'N/A'],
+        ["Total Traveled (km)", totalKm ?? 'N/A'],
+        []
+    ];
+    const stockHeader = ['Product Name', 'SKU', 'Total Loaded', 'Total Unloaded', 'Net Change'];
+    
+    // Stock data
+    const stockData = data.map(item => ({
         'Product Name': item.productName,
         'SKU': item.productSku || 'N/A',
         'Total Loaded': item.totalLoaded,
         'Total Unloaded': item.totalUnloaded,
         'Net Change': item.netChange
     }));
-    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
-    XLSX.utils.sheet_add_aoa(worksheet, [
-        ["", "", "Total Loaded", "Total Unloaded", "Net Change"],
-        ["", "", totals.loaded, totals.unloaded, totals.netChange]
-    ], { origin: -1 });
+    
+    // Totals row for stock
+    const stockTotals = {
+        'Product Name': 'Totals',
+        'SKU': '',
+        'Total Loaded': totals.loaded,
+        'Total Unloaded': totals.unloaded,
+        'Net Change': totals.netChange
+    };
+
+    const worksheet = XLSX.utils.json_to_sheet(stockData, { header: stockHeader, skipHeader: true });
+    XLSX.utils.sheet_add_aoa(worksheet, mileageData, { origin: "A1" });
+    XLSX.utils.sheet_add_aoa(worksheet, [stockHeader], { origin: "A9" });
+    XLSX.utils.sheet_add_json(worksheet, [stockTotals], { origin: -1, skipHeader: true });
 
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, `Vehicle Report ${vehicleNumber}`);
+    XLSX.utils.book_append_sheet(workbook, worksheet, `Vehicle Report`);
     XLSX.writeFile(workbook, `Vehicle_Report_${vehicleNumber}_${format(new Date(), 'yyyyMMdd')}.xlsx`);
   };
 
   const handleExportPDF = () => {
     const doc = new jsPDF() as jsPDFWithAutoTable;
+    let yPos = 22;
     doc.text(`Vehicle Report for: ${vehicleNumber}`, 14, 16);
     doc.setFontSize(10);
-    doc.text(`Date: ${reportDate ? format(reportDate, 'PPP') : 'N/A'}`, 14, 22);
+    doc.text(`Date: ${reportDate ? format(reportDate, 'PPP') : 'N/A'}`, 14, yPos);
+    yPos += 10;
+
+    if (startMeter !== undefined || endMeter !== undefined || totalKm !== undefined) {
+      doc.setFontSize(12);
+      doc.text("Mileage Summary", 14, yPos);
+      yPos += 6;
+      doc.autoTable({
+        startY: yPos,
+        body: [
+          ['Start Meter', `${startMeter ?? 'N/A'} km`],
+          ['End Meter', `${endMeter ?? 'N/A'} km`],
+          ['Total Traveled', `${totalKm ?? 'N/A'} km`],
+        ],
+        theme: 'plain',
+        styles: { fontSize: 10 }
+      });
+      yPos = doc.autoTable.previous.finalY + 10;
+    }
+    
+    doc.setFontSize(12);
+    doc.text("Stock Summary", 14, yPos);
+    yPos += 6;
 
     doc.autoTable({
-        startY: 30,
+        startY: yPos,
         head: [['Product Name', 'SKU', 'Total Loaded', 'Total Unloaded', 'Net Change']],
         body: data.map(item => [
             item.productName,
@@ -83,7 +137,7 @@ export function VehicleReportDisplay({ data, vehicleNumber, reportDate }: Vehicl
     doc.save(`Vehicle_Report_${vehicleNumber}_${format(new Date(), 'yyyyMMdd')}.pdf`);
   };
     
-  if (data.length === 0) {
+  if (data.length === 0 && totalKm === undefined) {
     return (
       <Card className="shadow-lg">
         <CardHeader>
@@ -116,7 +170,34 @@ export function VehicleReportDisplay({ data, vehicleNumber, reportDate }: Vehicl
         </div>
       </CardHeader>
       <CardContent>
-        <ScrollArea className="h-[calc(100vh-32rem)]">
+        { (startMeter !== undefined || endMeter !== undefined) && (
+            <div className="mb-6">
+                <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                    <Route className="h-5 w-5 text-primary"/>
+                    Mileage Summary
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+                    <Card className="p-4">
+                        <CardTitle className="text-sm font-medium text-muted-foreground">Start Meter</CardTitle>
+                        <p className="text-2xl font-bold">{startMeter ?? 'N/A'} <span className="text-sm font-normal">km</span></p>
+                    </Card>
+                    <Card className="p-4">
+                        <CardTitle className="text-sm font-medium text-muted-foreground">End Meter</CardTitle>
+                        <p className="text-2xl font-bold">{endMeter ?? 'N/A'} <span className="text-sm font-normal">km</span></p>
+                    </Card>
+                    <Card className="p-4 bg-primary/5">
+                        <CardTitle className="text-sm font-medium text-muted-foreground">Total Traveled</CardTitle>
+                        <p className="text-2xl font-bold text-primary">{totalKm ?? 'N/A'} <span className="text-sm font-normal">km</span></p>
+                    </Card>
+                </div>
+            </div>
+        )}
+        <Separator className="my-6"/>
+         <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+            <GaugeCircle className="h-5 w-5 text-primary"/>
+            Stock Movement Summary
+        </h3>
+        <ScrollArea className="h-full max-h-[calc(100vh-42rem)]">
           <Table>
             <TableHeader className="sticky top-0 bg-card z-10">
               <TableRow>

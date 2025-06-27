@@ -142,6 +142,8 @@ export interface StockTransaction {
   notes?: string;
   vehicleId?: string;
   userId?: string;
+  startMeter?: number;
+  endMeter?: number;
 }
 
 export interface Vehicle {
@@ -232,6 +234,8 @@ export interface FirestoreStockTransaction {
   notes?: string;
   vehicleId?: string;
   userId?: string;
+  startMeter?: number;
+  endMeter?: number;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 }
@@ -534,6 +538,8 @@ export const stockTransactionConverter = {
     if (transaction.productSku) firestoreTransaction.productSku = transaction.productSku;
     if (transaction.notes) firestoreTransaction.notes = transaction.notes;
     if (transaction.vehicleId) firestoreTransaction.vehicleId = transaction.vehicleId;
+    if (transaction.startMeter) firestoreTransaction.startMeter = transaction.startMeter;
+    if (transaction.endMeter) firestoreTransaction.endMeter = transaction.endMeter;
 
     return firestoreTransaction;
   },
@@ -551,7 +557,9 @@ export const stockTransactionConverter = {
       transactionDate: data.transactionDate.toDate(),
       notes: data.notes,
       vehicleId: data.vehicleId,
-      userId: data.userId
+      userId: data.userId,
+      startMeter: data.startMeter,
+      endMeter: data.endMeter,
     };
   }
 };
