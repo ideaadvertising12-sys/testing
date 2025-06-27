@@ -66,13 +66,15 @@ export function CartView({
   const customerOptions = React.useMemo(() => {
     const options = [{ value: "guest", label: "Walk-in / Guest", customerObject: null as Customer | null }];
     if (allCustomers) {
-      allCustomers.forEach(customer => {
-        options.push({
-          value: customer.id,
-          label: `${customer.name} (${customer.phone || 'N/A'})${customer.shopName ? ` - ${customer.shopName}` : ''}`,
-          customerObject: customer
+      allCustomers
+        .filter(c => c.status !== 'pending')
+        .forEach(customer => {
+          options.push({
+            value: customer.id,
+            label: `${customer.name} (${customer.phone || 'N/A'})${customer.shopName ? ` - ${customer.shopName}` : ''}`,
+            customerObject: customer
+          });
         });
-      });
     }
     return options;
   }, [allCustomers]);

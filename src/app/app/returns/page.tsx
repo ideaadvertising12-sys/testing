@@ -91,7 +91,9 @@ export default function ReturnsPage() {
 
   const customerOptions = useMemo(() => {
     if (!customers) return [];
-    return customers.map(customer => ({
+    return customers
+      .filter(c => c.status !== 'pending')
+      .map(customer => ({
       value: customer.id,
       label: `${customer.name} (${customer.shopName || customer.phone})`,
       customerObject: customer
