@@ -26,6 +26,8 @@ import { Calendar } from "@/components/ui/calendar";
 import { Switch } from "@/components/ui/switch";
 import { useVehicles } from "@/hooks/useVehicles";
 import { PageHeader } from "@/components/PageHeader";
+import { useReturns } from "@/hooks/useReturns";
+
 
 interface ReturnItem extends CartItem {
   returnQuantity: number;
@@ -40,6 +42,7 @@ export default function ReturnsPage() {
   const { sales, isLoading: isLoadingSales, refetchSales } = useSalesData(false);
   const { products: allProducts, isLoading: isLoadingProducts, refetch: refetchProducts } = useProducts();
   const { vehicles, isLoading: isLoadingVehicles } = useVehicles();
+  const { returns, isLoading: isLoadingReturns, refetchReturns } = useReturns();
   const { currentUser } = useAuth();
   const { toast } = useToast();
 
@@ -51,6 +54,8 @@ export default function ReturnsPage() {
   const [selectedSaleId, setSelectedSaleId] = useState<string>("");
   const [openCustomerPopover, setOpenCustomerPopover] = useState(false);
   const [isSearchingSale, setIsSearchingSale] = useState(false);
+  const [directRefundAmount, setDirectRefundAmount] = useState<string>("");
+
 
   // Return Processing State
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
@@ -113,6 +118,20 @@ export default function ReturnsPage() {
     setSelectedSale(null);
     setItemsToReturn([]);
   }, [selectedCustomer, sales]);
+
+  const customerCreditBalance = useMemo(() => {
+    if (!selectedCustomer || !sales || !returns) return 0;
+
+    const totalRefundsNet = returns
+      .filter(r => r.customerId === selectedCustomer.id)
+      .reduce((sum, r) => sum + (r.refundAmount || 0), 0);
+
+    const totalCreditUsedOnSales = sales
+      .filter(s => s.customerId === selectedCustomer.id)
+      .reduce((sum, s) => sum + (s.creditUsed || 0), 0);
+      
+    return totalRefundsNet - totalCreditUsedOnSales;
+  }, [selectedCustomer, sales, returns]);
   
   const handleSearchSale = () => {
     if (!selectedSaleId) return;
@@ -392,13 +411,11 @@ export default function ReturnsPage() {
 
     const activeReturnedItems = itemsToReturn.filter(item => item.returnQuantity > 0);
 
-    // More robust validation for empty transaction
     if (activeReturnedItems.length === 0 && exchangeItems.length === 0 && creditToAccount <= 0 && parsedCashPaidOut <= 0 && outstandingToSettle <= 0) {
         toast({ variant: "destructive", title: "Nothing to Process", description: "Please specify items, settle an amount, or provide a refund." });
         return;
     }
     
-    // Validate payment details if amount is due
     if (finalAmountDue > 0) {
       if (totalPaymentApplied < finalAmountDue) {
           toast({ variant: "destructive", title: "Insufficient Payment", description: `Amount to pay is ${formatCurrency(finalAmountDue)}, but only ${formatCurrency(totalPaymentApplied)} was provided.` });
@@ -414,7 +431,6 @@ export default function ReturnsPage() {
       }
     }
     
-    // Validate refund amount
     if(parsedCashPaidOut > refundToCustomer) {
         toast({ variant: "destructive", title: "Invalid Refund Amount", description: `Cannot pay out more than the total refund due of ${formatCurrency(refundToCustomer)}.` });
         return;
@@ -490,6 +506,7 @@ export default function ReturnsPage() {
 
         await refetchProducts();
         await refetchSales();
+        await refetchReturns();
 
     } catch (error: any) {
         toast({
@@ -502,7 +519,48 @@ export default function ReturnsPage() {
     }
   };
 
-  const isLoading = isLoadingCustomers || isLoadingSales || isLoadingProducts;
+  const handleProcessDirectRefund = async () => {
+    if (!selectedCustomer || !currentUser) return;
+    const amount = parseFloat(directRefundAmount);
+
+    if (isNaN(amount) || amount <= 0) {
+        toast({ variant: "destructive", title: "Invalid Amount" });
+        return;
+    }
+    if (amount > customerCreditBalance) {
+        toast({ variant: "destructive", title: "Amount exceeds available credit." });
+        return;
+    }
+
+    setIsProcessing(true);
+    try {
+        const response = await fetch('/api/returns/direct-refund', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                customerId: selectedCustomer.id,
+                customerName: selectedCustomer.name,
+                cashPaidOut: amount,
+                staffId: currentUser.username,
+            }),
+        });
+
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'Failed to process refund.');
+
+        toast({ title: "Success", description: "Direct cash refund processed." });
+        await Promise.all([refetchSales(), refetchReturns()]);
+        setDirectRefundAmount("");
+        // A receipt could be shown here too, but for now we reset.
+        resetSearch();
+    } catch (error: any) {
+        toast({ variant: "destructive", title: "Error", description: error.message });
+    } finally {
+        setIsProcessing(false);
+    }
+  }
+
+  const isLoading = isLoadingCustomers || isLoadingSales || isLoadingProducts || isLoadingReturns;
   const currentCustomerLabel = selectedCustomer
     ? `${selectedCustomer.name} (${selectedCustomer.shopName || selectedCustomer.phone})`
     : "Select a customer...";
@@ -518,8 +576,8 @@ export default function ReturnsPage() {
   const renderInitialSearchView = () => (
     <Card className="lg:col-span-3">
         <CardHeader>
-          <CardTitle>Process a Return</CardTitle>
-          <CardDescription>Start by finding the customer and original sale.</CardDescription>
+          <CardTitle>Process a Return or Refund</CardTitle>
+          <CardDescription>Start by finding the customer. You can then process a return against a sale or a direct cash refund from their credit balance.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="space-y-2">
@@ -551,7 +609,7 @@ export default function ReturnsPage() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="saleId">Original Sale ID *</Label>
+            <Label htmlFor="saleId">Original Sale ID (for returns/exchanges)</Label>
             <div className="flex gap-2">
                <Select value={selectedSaleId} onValueChange={setSelectedSaleId} disabled={!selectedCustomer || customerSales.length === 0}>
                 <SelectTrigger id="saleId"><SelectValue placeholder={!selectedCustomer ? "Select customer first" : "Select a sale..."} /></SelectTrigger>
@@ -841,7 +899,47 @@ export default function ReturnsPage() {
         icon={Undo2}
       />
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        { selectedSale ? renderReturnProcessingView() : renderInitialSearchView() }
+        {selectedSale ? (
+          renderReturnProcessingView()
+        ) : (
+          <>
+            {renderInitialSearchView()}
+            {selectedCustomer && customerCreditBalance > 0 && (
+                <Card className="lg:col-span-3 mt-6">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2"><Banknote className="h-5 w-5 text-green-600" /> Direct Cash Refund</CardTitle>
+                        <CardDescription>Refund a portion of the customer's available credit balance as cash.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="p-3 rounded-md bg-green-50 border border-green-200">
+                            <p className="text-sm">Available Credit Balance:</p>
+                            <p className="text-2xl font-bold text-green-700">{formatCurrency(customerCreditBalance)}</p>
+                        </div>
+                        <div>
+                            <Label htmlFor="direct-refund-amount">Amount to Refund as Cash (Rs.)</Label>
+                            <Input 
+                                id="direct-refund-amount"
+                                type="number"
+                                value={directRefundAmount}
+                                onChange={(e) => setDirectRefundAmount(e.target.value)}
+                                placeholder="0.00"
+                                className="h-11 mt-1"
+                                min="0"
+                                max={customerCreditBalance.toFixed(2)}
+                                step="0.01"
+                            />
+                        </div>
+                        <div className="flex justify-end">
+                            <Button onClick={handleProcessDirectRefund} disabled={isProcessing || !directRefundAmount || parseFloat(directRefundAmount) <= 0}>
+                                {isProcessing ? <Loader2 className="animate-spin mr-2" /> : <ArrowRight className="mr-2 h-4 w-4" />}
+                                Process Cash Refund
+                            </Button>
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
+          </>
+        )}
         {returnReceiptData && (
           <ReturnInvoiceDialog
             isOpen={isReceiptOpen}
