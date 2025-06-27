@@ -48,7 +48,7 @@ export default function DashboardPage() {
   } = useProducts();
   const { returns, isLoading: isLoadingReturns, error: returnsError } = useReturns();
 
-  // Calculate revenue for today with proper memoization
+  // Calculate revenue for today, accounting for same-day returns
   const { revenueToday, salesCountToday } = useMemo(() => {
     if (isLoadingSales || isLoadingReturns || !sales || !returns) return { revenueToday: 0, salesCountToday: 0 };
     
@@ -64,38 +64,44 @@ export default function DashboardPage() {
 
     const salesRevenueToday = todaySales.reduce((sum, sale) => sum + (Number(sale.totalAmount) || 0), 0);
 
-    const refundsForTodaySales = returns
+    const returnedValueForTodaySales = returns
       .filter(ret => {
-        // Must be a refund made today
-        if (!ret.refundAmount || ret.refundAmount <= 0) return false;
+        // Return must have happened today
         const returnDate = ret.returnDate instanceof Date ? ret.returnDate : new Date(ret.returnDate);
         if (returnDate < today || returnDate > endOfToday) return false;
         
-        // Find the original sale
+        // Original sale must have also happened today
         const originalSale = sales.find(s => s.id === ret.originalSaleId);
-        if (!originalSale) return false; // Can't determine original date
+        if (!originalSale) return false; 
 
-        // Check if original sale was also today
         const originalSaleDate = originalSale.saleDate instanceof Date ? originalSale.saleDate : new Date(originalSale.saleDate);
         return originalSaleDate >= today && originalSaleDate <= endOfToday;
       })
-      .reduce((sum, ret) => sum + (ret.refundAmount || 0), 0);
+      .reduce((sum, ret) => {
+          // Sum the value of the returned items
+          const returnedValue = ret.returnedItems.reduce((itemSum, item) => itemSum + (item.quantity * item.appliedPrice), 0);
+          return sum + returnedValue;
+      }, 0);
       
     return {
-      revenueToday: salesRevenueToday - refundsForTodaySales,
+      revenueToday: salesRevenueToday - returnedValueForTodaySales,
       salesCountToday: todaySales.length
     };
   }, [sales, returns, isLoadingSales, isLoadingReturns]);
 
-  // Calculate net revenue with proper memoization
+  // Calculate net revenue, accounting for all returns across all time
   const { netTotalRevenue, totalRefundsAllTime } = useMemo(() => {
     if (isLoadingSales || isLoadingReturns || !returns || grossTotalRevenue === undefined) {
       return { netTotalRevenue: 0, totalRefundsAllTime: 0 };
     }
-    const totalRefunds = returns.reduce((sum, ret) => sum + (ret.refundAmount || 0), 0);
+    const totalReturnedValue = returns.reduce((sum, ret) => {
+        const returnedValue = ret.returnedItems.reduce((itemSum, item) => itemSum + (item.quantity * item.appliedPrice), 0);
+        return sum + returnedValue;
+    }, 0);
+
     return {
-      netTotalRevenue: grossTotalRevenue - totalRefunds,
-      totalRefundsAllTime: totalRefunds
+      netTotalRevenue: grossTotalRevenue - totalReturnedValue,
+      totalRefundsAllTime: totalReturnedValue
     };
   }, [grossTotalRevenue, returns, isLoadingSales, isLoadingReturns]);
 
