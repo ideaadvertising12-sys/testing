@@ -66,7 +66,11 @@ export const addProduct = async (productData: Omit<Product, 'id'>): Promise<stri
 export const updateProduct = async (id: string, productData: Partial<Omit<Product, 'id'>>): Promise<void> => {
   checkFirebase();
   const productDocRef = doc(db, "products", id);
-  await updateDoc(productDocRef, productConverter.toFirestore(productData as Product));
+  const dataWithTimestamp = {
+    ...productData,
+    updatedAt: Timestamp.now()
+  };
+  await updateDoc(productDocRef, dataWithTimestamp);
 };
 
 export const deleteProduct = async (id: string): Promise<void> => {
@@ -99,7 +103,11 @@ export const addCustomer = async (customerData: Omit<Customer, 'id'>): Promise<s
 export const updateCustomer = async (id: string, customerData: Partial<Omit<Customer, 'id'>>): Promise<void> => {
   checkFirebase();
   const customerDocRef = doc(db, "customers", id);
-  await updateDoc(customerDocRef, customerConverter.toFirestore(customerData as Customer));
+  const dataWithTimestamp = {
+    ...customerData,
+    updatedAt: Timestamp.now()
+  };
+  await updateDoc(customerDocRef, dataWithTimestamp);
 };
 
 export const deleteCustomer = async (id: string): Promise<void> => {
