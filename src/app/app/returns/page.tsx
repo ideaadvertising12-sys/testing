@@ -389,14 +389,30 @@ export default function ReturnsPage() {
     if (!selectedSale || !currentUser) return;
 
     const activeReturnedItems = itemsToReturn.filter(item => item.returnQuantity > 0);
-    if (activeReturnedItems.length === 0 && exchangeItems.length === 0) {
-        toast({ variant: "destructive", title: "Nothing to Process", description: "Please specify items to return or exchange." });
+
+    // More robust validation for empty transaction
+    if (activeReturnedItems.length === 0 && exchangeItems.length === 0 && creditToAccount <= 0 && parsedCashPaidOut <= 0 && outstandingToSettle <= 0) {
+        toast({ variant: "destructive", title: "Nothing to Process", description: "Please specify items, settle an amount, or provide a refund." });
         return;
     }
-    if (finalAmountDue > 0 && totalPaymentApplied < finalAmountDue) {
-        toast({ variant: "destructive", title: "Insufficient Payment", description: `Amount to pay is ${formatCurrency(finalAmountDue)}, but only ${formatCurrency(totalPaymentApplied)} was provided.` });
+    
+    // Validate payment details if amount is due
+    if (finalAmountDue > 0) {
+      if (totalPaymentApplied < finalAmountDue) {
+          toast({ variant: "destructive", title: "Insufficient Payment", description: `Amount to pay is ${formatCurrency(finalAmountDue)}, but only ${formatCurrency(totalPaymentApplied)} was provided.` });
+          return;
+      }
+      if (parsedChequeAmountPaid > 0 && !chequeNumber.trim()) {
+        toast({ variant: "destructive", title: "Cheque Details Required", description: "Please enter a cheque number for cheque payments." });
         return;
+      }
+      if (parsedBankTransferAmountPaid > 0 && !bankTransferReference.trim() && !bankTransferBankName.trim()) {
+        toast({ variant: "destructive", title: "Bank Transfer Details Required", description: "Please enter a bank name or reference number for bank transfers." });
+        return;
+      }
     }
+    
+    // Validate refund amount
     if(parsedCashPaidOut > refundToCustomer) {
         toast({ variant: "destructive", title: "Invalid Refund Amount", description: `Cannot pay out more than the total refund due of ${formatCurrency(refundToCustomer)}.` });
         return;
