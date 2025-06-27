@@ -56,56 +56,58 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Bank transfer details are required for bank transfer payments.' }, { status: 400 });
     }
 
-
     const saleDate = saleDataFromClient.saleDate ? new Date(saleDataFromClient.saleDate) : new Date();
     
+    // --- Defensive Object Construction to avoid 'undefined' ---
     let chequeDetailsForDb: ChequeInfo | undefined = undefined;
     if (saleDataFromClient.chequeDetails) {
-        chequeDetailsForDb = {
-            number: saleDataFromClient.chequeDetails.number,
-            bank: saleDataFromClient.chequeDetails.bank,
-            date: saleDataFromClient.chequeDetails.date ? new Date(saleDataFromClient.chequeDetails.date) : undefined,
-            amount: saleDataFromClient.chequeDetails.amount,
-        };
+        const details: ChequeInfo = {};
+        if (saleDataFromClient.chequeDetails.number) details.number = saleDataFromClient.chequeDetails.number;
+        if (saleDataFromClient.chequeDetails.bank) details.bank = saleDataFromClient.chequeDetails.bank;
+        if (saleDataFromClient.chequeDetails.date) details.date = new Date(saleDataFromClient.chequeDetails.date);
+        if (saleDataFromClient.chequeDetails.amount) details.amount = saleDataFromClient.chequeDetails.amount;
+        if (Object.keys(details).length > 0) chequeDetailsForDb = details;
     }
 
     let bankTransferDetailsForDb: BankTransferInfo | undefined = undefined;
     if (saleDataFromClient.bankTransferDetails) {
-        bankTransferDetailsForDb = {
-            bankName: saleDataFromClient.bankTransferDetails.bankName,
-            referenceNumber: saleDataFromClient.bankTransferDetails.referenceNumber,
-            amount: saleDataFromClient.bankTransferDetails.amount,
-        };
+        const details: BankTransferInfo = {};
+        if (saleDataFromClient.bankTransferDetails.bankName) details.bankName = saleDataFromClient.bankTransferDetails.bankName;
+        if (saleDataFromClient.bankTransferDetails.referenceNumber) details.referenceNumber = saleDataFromClient.bankTransferDetails.referenceNumber;
+        if (saleDataFromClient.bankTransferDetails.amount) details.amount = saleDataFromClient.bankTransferDetails.amount;
+        if (Object.keys(details).length > 0) bankTransferDetailsForDb = details;
     }
 
-
-    const salePayload = {
-      customerId: saleDataFromClient.customerId,
-      customerName: saleDataFromClient.customerName,
+    const salePayload: Omit<Sale, 'id'> = {
+      // Required fields
       items: saleDataFromClient.items as CartItem[],
       subTotal: saleDataFromClient.subTotal,
       discountPercentage: saleDataFromClient.discountPercentage,
       discountAmount: saleDataFromClient.discountAmount,
-      totalAmount: saleDataFromClient.totalAmount, 
-
-      paidAmountCash: saleDataFromClient.paidAmountCash,
-      paidAmountCheque: saleDataFromClient.paidAmountCheque,
-      chequeDetails: chequeDetailsForDb,
-      paidAmountBankTransfer: saleDataFromClient.paidAmountBankTransfer,
-      bankTransferDetails: bankTransferDetailsForDb,
-      creditUsed: saleDataFromClient.creditUsed,
+      totalAmount: saleDataFromClient.totalAmount,
       totalAmountPaid: saleDataFromClient.totalAmountPaid,
       outstandingBalance: saleDataFromClient.outstandingBalance,
-      initialOutstandingBalance: saleDataFromClient.outstandingBalance,
-      changeGiven: saleDataFromClient.changeGiven,
       paymentSummary: saleDataFromClient.paymentSummary,
-      
-      offerApplied: saleDataFromClient.offerApplied || false,
       saleDate: saleDate,
       staffId: saleDataFromClient.staffId || "staff001",
-      staffName: saleDataFromClient.staffName,
-      vehicleId: saleDataFromClient.vehicleId, 
+      offerApplied: saleDataFromClient.offerApplied || false,
     };
+
+    // Add optional fields only if they have a value
+    if (saleDataFromClient.customerId) salePayload.customerId = saleDataFromClient.customerId;
+    if (saleDataFromClient.customerName) salePayload.customerName = saleDataFromClient.customerName;
+    if (saleDataFromClient.paidAmountCash) salePayload.paidAmountCash = saleDataFromClient.paidAmountCash;
+    if (saleDataFromClient.paidAmountCheque) salePayload.paidAmountCheque = saleDataFromClient.paidAmountCheque;
+    if (chequeDetailsForDb) salePayload.chequeDetails = chequeDetailsForDb;
+    if (saleDataFromClient.paidAmountBankTransfer) salePayload.paidAmountBankTransfer = saleDataFromClient.paidAmountBankTransfer;
+    if (bankTransferDetailsForDb) salePayload.bankTransferDetails = bankTransferDetailsForDb;
+    if (saleDataFromClient.creditUsed) salePayload.creditUsed = saleDataFromClient.creditUsed;
+    if (saleDataFromClient.outstandingBalance) salePayload.initialOutstandingBalance = saleDataFromClient.outstandingBalance;
+    if (saleDataFromClient.changeGiven) salePayload.changeGiven = saleDataFromClient.changeGiven;
+    if (saleDataFromClient.staffName) salePayload.staffName = saleDataFromClient.staffName;
+    if (saleDataFromClient.vehicleId) salePayload.vehicleId = saleDataFromClient.vehicleId;
+    
+    // --- End Defensive Object Construction ---
 
     const saleId = await addSale(salePayload);
     
