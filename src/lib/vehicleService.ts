@@ -19,39 +19,45 @@ export const VehicleService = {
     checkFirebase();
     const q = query(collection(db, 'vehicles')).withConverter(vehicleConverter);
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({
-      ...doc.data(),
-      id: doc.id
-    }));
+    return snapshot.docs.map(doc => doc.data());
   },
 
   async getVehicleById(id: string): Promise<Vehicle | null> {
     checkFirebase();
     const docRef = doc(db, 'vehicles', id).withConverter(vehicleConverter);
     const snapshot = await getDoc(docRef);
-    return snapshot.exists() ? {
-      ...snapshot.data(),
-      id: snapshot.id
-    } : null;
+    return snapshot.exists() ? snapshot.data() : null;
   },
 
   async createVehicle(vehicleData: Omit<Vehicle, 'id'>): Promise<string> {
     checkFirebase();
-    const dataToCreate = vehicleConverter.toFirestore(vehicleData as FirestoreVehicle);
-    const docRef = await addDoc(
-      collection(db, 'vehicles'),
-      dataToCreate
-    );
+    
+    // Manually construct the data for creation to ensure type safety.
+    const dataToCreate: any = {
+      vehicleNumber: vehicleData.vehicleNumber,
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now()
+    };
+
+    if (vehicleData.driverName) dataToCreate.driverName = vehicleData.driverName;
+    if (vehicleData.notes) dataToCreate.notes = vehicleData.notes;
+
+    const docRef = await addDoc(collection(db, 'vehicles'), dataToCreate);
     return docRef.id;
   },
 
   async updateVehicle(id: string, vehicleData: Partial<Omit<Vehicle, 'id'>>): Promise<void> {
     checkFirebase();
     const docRef = doc(db, 'vehicles', id);
-    const dataToUpdate: Partial<FirestoreVehicle> = {
-      ...vehicleData,
+    
+    // Explicitly build the update object to avoid type conflicts and unintended field updates.
+    const dataToUpdate: { [key: string]: any } = {
       updatedAt: Timestamp.now()
     };
+    if (vehicleData.vehicleNumber !== undefined) dataToUpdate.vehicleNumber = vehicleData.vehicleNumber;
+    if (vehicleData.driverName !== undefined) dataToUpdate.driverName = vehicleData.driverName;
+    if (vehicleData.notes !== undefined) dataToUpdate.notes = vehicleData.notes;
+
     await updateDoc(docRef, dataToUpdate);
   },
 
@@ -68,10 +74,7 @@ export const VehicleService = {
     checkFirebase();
     const q = query(collection(db, 'vehicles')).withConverter(vehicleConverter);
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const vehicles = snapshot.docs.map(docSnapshot => ({
-        ...docSnapshot.data(),
-        id: docSnapshot.id
-      }));
+      const vehicles = snapshot.docs.map(docSnapshot => docSnapshot.data());
       callback(vehicles);
     }, (error) => {
       console.error("Error subscribing to vehicles:", error);
