@@ -19,41 +19,37 @@ export const CustomerService = {
     checkFirebase();
     const q = query(collection(db, 'customers')).withConverter(customerConverter);
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
+    return snapshot.docs.map(doc => doc.data());
   },
 
   async getCustomerById(id: string): Promise<Customer | null> {
     checkFirebase();
     const docRef = doc(db, 'customers', id).withConverter(customerConverter);
     const snapshot = await getDoc(docRef);
-    return snapshot.exists() ? { id: snapshot.id, ...snapshot.data() } : null;
+    return snapshot.exists() ? snapshot.data() : null;
   },
 
   async createCustomer(customerData: Omit<Customer, 'id'>): Promise<Customer> {
     checkFirebase();
-    // Ensure timestamps are correctly handled if not already by the converter
-    const dataWithTimestamps: FirestoreCustomer = {
-      ...customerData,
-      createdAt: Timestamp.now(),
-      updatedAt: Timestamp.now()
-    };
     const docRef = await addDoc(
       collection(db, 'customers').withConverter(customerConverter),
-      dataWithTimestamps // Use the dataWithTimestamps
+      customerData
     );
-    // The fromFirestore converter in types.ts will handle converting Timestamps back to Dates
-    // So, we return the customerData as is, plus the new ID.
-    return { id: docRef.id, ...customerData };
+    const newDocSnap = await getDoc(docRef.withConverter(customerConverter));
+    if (!newDocSnap.exists()) {
+        throw new Error("Failed to create and fetch the new customer.");
+    }
+    return newDocSnap.data();
   },
 
   async updateCustomer(id: string, customerData: Partial<Omit<Customer, 'id'>>): Promise<void> {
     checkFirebase();
-    const docRef = doc(db, 'customers', id).withConverter(customerConverter);
-    // The converter's toFirestore should handle the updatedAt timestamp
-    await updateDoc(docRef, customerData as Partial<FirestoreCustomer>);
+    const docRef = doc(db, 'customers', id);
+    // Directly pass partial data along with the timestamp. Firestore handles it.
+    await updateDoc(docRef, {
+        ...customerData,
+        updatedAt: Timestamp.now()
+    });
   },
 
   async deleteCustomer(id: string): Promise<void> {
@@ -66,14 +62,10 @@ export const CustomerService = {
     checkFirebase();
     const q = query(collection(db, 'customers')).withConverter(customerConverter);
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const customers = snapshot.docs.map(docSnapshot => ({ // Renamed doc to docSnapshot to avoid conflict
-        id: docSnapshot.id,
-        ...docSnapshot.data()
-      }));
+      const customers = snapshot.docs.map(docSnapshot => docSnapshot.data());
       callback(customers);
     }, (error) => {
       console.error("Error subscribing to customers:", error);
-      // Optionally, notify the user or trigger an error state in the app
     });
     return unsubscribe;
   }
