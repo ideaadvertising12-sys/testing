@@ -52,17 +52,14 @@ export const ProductService = {
     checkFirebase();
     const q = query(collection(db, 'products')).withConverter(productConverter);
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
+    return snapshot.docs.map(doc => doc.data());
   },
 
   async getProductById(id: string): Promise<Product | null> {
     checkFirebase();
     const docRef = doc(db, 'products', id).withConverter(productConverter);
     const snapshot = await getDoc(docRef);
-    return snapshot.exists() ? { id: snapshot.id, ...snapshot.data() } : null;
+    return snapshot.exists() ? snapshot.data() : null;
   },
 
   async createProduct(productData: Omit<Product, 'id'>): Promise<Product> {
@@ -70,7 +67,13 @@ export const ProductService = {
     const newCustomId = await generateCustomProductId();
     const productDocRef = doc(db, 'products', newCustomId);
 
-    const dataToCreate = productConverter.toFirestore(productData as FirestoreProduct); 
+    // Create a temporary full Product object to satisfy the converter's type requirement.
+    // The ID is not written to the document fields but is needed for the type.
+    const productForConverter: Product = {
+        id: newCustomId,
+        ...productData,
+    };
+    const dataToCreate = productConverter.toFirestore(productForConverter); 
     
     await setDoc(productDocRef, dataToCreate);
 
@@ -131,10 +134,7 @@ export const ProductService = {
     checkFirebase();
     const q = query(collection(db, 'products')).withConverter(productConverter);
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const products = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+      const products = snapshot.docs.map(doc => doc.data());
       callback(products);
     }, (error) => {
       console.error("Error subscribing to products:", error);
