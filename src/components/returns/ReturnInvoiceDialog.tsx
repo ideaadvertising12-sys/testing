@@ -1,4 +1,3 @@
-
 "use client";
 
 import React from 'react';
@@ -75,14 +74,14 @@ export function ReturnInvoiceDialog({ isOpen, onOpenChange, returnTransaction }:
         <ScrollArea className="flex-grow print:overflow-visible print:max-h-none print:h-auto">
           <div id="return-receipt-content" className="p-6 bg-card text-card-foreground rounded-md print:p-4 print:bg-transparent print:text-black print:max-h-none print:overflow-visible">
               <div className="text-center mb-6">
-                <div className="flex justify-center mb-2">
+                <div className="flex justify-center mb-2 logo-container">
                   <AppLogo size="md"/>
                 </div>
                 <p className="text-sm">4/1 Bujjampala, Dankotuwa</p>
                 <p className="text-sm">Hotline: 077-3383721, 077-1066595</p>
               </div>
 
-              <Separator className="my-4"/>
+              <Separator className="my-4 summary-separator"/>
               
               <div className="text-xs mb-4">
                 <p><strong>Return ID:</strong> <span className="font-mono">{returnId || 'N/A'}</span></p>
@@ -91,7 +90,7 @@ export function ReturnInvoiceDialog({ isOpen, onOpenChange, returnTransaction }:
                 <p><strong>Customer:</strong> {customerName || "N/A"}</p>
                 <p><strong>Served by:</strong> {staffId}</p>
               </div>
-              <Separator className="my-4"/>
+              <Separator className="my-4 summary-separator"/>
 
               {/* Returned Items */}
               {returnedItems.length > 0 && (
@@ -114,7 +113,7 @@ export function ReturnInvoiceDialog({ isOpen, onOpenChange, returnTransaction }:
                     <span>Total Return Credit:</span>
                     <span className="ml-4">{formatCurrency(returnTotalValue)}</span>
                   </div>
-                  <Separator className="my-4"/>
+                  <Separator className="my-4 summary-separator"/>
                 </>
               )}
               
@@ -139,7 +138,7 @@ export function ReturnInvoiceDialog({ isOpen, onOpenChange, returnTransaction }:
                     <span>Total New Items Cost:</span>
                     <span className="ml-4">{formatCurrency(exchangeTotalValue)}</span>
                   </div>
-                  <Separator className="my-4"/>
+                  <Separator className="my-4 summary-separator"/>
                 </>
               )}
               
@@ -155,7 +154,7 @@ export function ReturnInvoiceDialog({ isOpen, onOpenChange, returnTransaction }:
                         <span>- {formatCurrency(settleOutstandingAmount)}</span>
                     </div>
                   )}
-                  <Separator className="my-1"/>
+                  <Separator className="my-1 summary-separator"/>
                   <div className="flex justify-between">
                       <span className="text-muted-foreground">Net Credit:</span>
                       <span>{formatCurrency(netCreditAfterSettle)}</span>
@@ -164,7 +163,8 @@ export function ReturnInvoiceDialog({ isOpen, onOpenChange, returnTransaction }:
                       <span className="text-muted-foreground">New Items Cost:</span>
                       <span>- {formatCurrency(exchangeTotalValue)}</span>
                   </div>
-                  <Separator className="my-1"/>
+                  <Separator className="my-1 summary-separator"/>
+                  
                   <div className={cn(
                     "flex justify-between font-bold text-lg",
                     finalDifference >= 0 ? "text-destructive" : "text-green-600"
@@ -189,7 +189,7 @@ export function ReturnInvoiceDialog({ isOpen, onOpenChange, returnTransaction }:
                   {paymentSummary && <p className="text-xs text-muted-foreground text-right">{paymentSummary}</p>}
                   
                   {/* Refund Payout Details */}
-                  {(totalRefundValue > 0) && <Separator className="my-2"/>}
+                  {(totalRefundValue > 0) && <Separator className="my-2 summary-separator"/>}
                   {(cashPaidOut && cashPaidOut > 0) && (
                       <div className="flex justify-between text-green-700">
                           <span className="text-muted-foreground">Cash Paid Out:</span>

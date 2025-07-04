@@ -104,21 +104,24 @@
   body, html {
     background: white !important;
     color: black !important;
-    height: auto !important; /* Allow content to determine height */
+    height: auto !important;
     margin: 0 !important;
     padding: 0 !important;
-    overflow: visible !important; /* Ensure all content is printable */
-    font-size: 10pt; /* Adjust base font size for print */
+    overflow: visible !important;
+    font-family: 'Courier New', Courier, monospace !important;
   }
 
+  /* Hide non-printable elements */
   .app-layout-sidebar,
   .app-layout-header,
   .app-layout-main-footer,
   .report-action-buttons,
-  .page-header-non-printable, /* Generic class for page headers not meant for printing */
-  .print\:hidden { /* Utility class from Tailwind, explicitly reinforce */
+  .page-header-non-printable,
+  .print\:hidden {
     display: none !important;
   }
+  
+  /* --- Generic Dialog Print Styles --- */
   
   /* Hide Dialog Overlay during print */
   [data-radix-dialog-overlay] {
@@ -127,18 +130,18 @@
   
   /* Ensure Radix Dialog Content expands for printing */
   [data-radix-dialog-content] {
-    position: static !important; /* Override fixed positioning */
-    width: 100% !important;
-    max-width: 100% !important;
+    position: static !important;
+    width: auto !important; /* Let content decide width */
+    max-width: none !important;
     height: auto !important;
     max-height: none !important;
     border: none !important;
     box-shadow: none !important;
-    padding: 0 !important; /* Content padding is on #bill-content or similar */
+    padding: 0 !important;
     margin: 0 !important;
-    overflow: visible !important; /* Crucial for content flow */
-    transform: none !important; /* Reset any transforms */
-    display: block !important; /* Ensure it's not a flex container interfering */
+    overflow: visible !important;
+    transform: none !important;
+    display: block !important;
   }
   
   /* Ensure Radix ScrollArea Viewport also expands */
@@ -146,32 +149,77 @@
       max-height: none !important;
       overflow-y: visible !important;
       height: auto !important;
-      display: block !important; /* Ensure it's not a flex container interfering */
+      display: block !important;
   }
-
-
-  /* Specific to BillDialog content for printing */
-  #bill-content {
+  
+  /* --- 80mm Receipt Specific Styles --- */
+  #bill-content,
+  #return-receipt-content,
+  #payment-receipt-content {
     max-height: none !important;
     overflow: visible !important;
     box-shadow: none !important;
     border: none !important;
-    padding: 0.5in !important; /* Add some padding for print margins */
-    margin: 0 auto !important; /* Center the bill content on the page */
-    width: 100% !important; /* Or a fixed width like '72mm' for thermal printers */
-    max-width: 210mm; /* Approx A4 width, adjust if needed */
+    width: 72mm !important; /* Printable area for 80mm paper */
+    padding: 2mm !important;
+    margin: 0 !important;
     background-color: white !important;
     color: black !important;
+    font-size: 9pt !important; /* Base font size for receipt */
   }
-  
-  /* Ensure printable containers are visible and take up space */
-  .printable-report-container,
-  .printable-report-container *,
-  #bill-content * { /* Ensure all children of bill-content are visible */
+
+  #bill-content *,
+  #return-receipt-content *,
+  #payment-receipt-content * {
     visibility: visible;
   }
+  
+  .logo-container {
+      transform: scale(0.8);
+      margin-bottom: -10px;
+  }
+
+  #bill-content h2, #bill-content h3, #bill-content p, #bill-content div,
+  #return-receipt-content h2, #return-receipt-content h3, #return-receipt-content p, #return-receipt-content div,
+  #payment-receipt-content h2, #payment-receipt-content h3, #payment-receipt-content p, #payment-receipt-content div {
+      font-size: 9pt !important;
+      line-height: 1.3 !important;
+  }
+
+  #bill-content table,
+  #return-receipt-content table,
+  #payment-receipt-content table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    table-layout: fixed; /* Important for fixed width */
+    font-size: 8pt !important;
+  }
+
+  #bill-content th, #bill-content td,
+  #return-receipt-content th, #return-receipt-content td,
+  #payment-receipt-content th, #payment-receipt-content td {
+      border: none !important;
+      padding: 1px 2px !important;
+      word-break: break-word;
+  }
+  
+  #bill-content thead tr,
+  #return-receipt-content thead tr,
+  #payment-receipt-content thead tr {
+      border-bottom: 1px dashed black !important;
+  }
+  
+  .summary-separator {
+      border-top: 1px dashed black !important;
+      margin: 4px 0 !important;
+      background: transparent !important; /* Override default bg-border */
+      height: 1px !important;
+  }
+
+  /* --- Full Page Report Specific Styles --- */
+
   .printable-report-container {
-    position: static !important; /* Changed from absolute for better flow */
+    position: static !important;
     left: 0;
     top: 0;
     width: 100%;
@@ -181,48 +229,47 @@
     border: none !important;
   }
 
+  .printable-report-container table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    table-layout: auto;
+  }
+
+  .printable-report-container th, 
+  .printable-report-container td {
+    border: 1px solid #ccc !important;
+    padding: 4px !important;
+    font-size: 9pt !important;
+    word-break: break-word;
+  }
+  
+  .printable-report-container thead {
+    background-color: #f0f0f0 !important;
+    -webkit-print-color-adjust: exact;
+    color-adjust: exact;
+    display: table-header-group;
+  }
+
+  /* General utilities */
   main {
     padding: 0 !important;
     margin: 0 !important;
-    overflow: visible !important; /* Allow main to expand */
+    overflow: visible !important;
   }
 
-  /* Ensure table takes full width and looks decent */
-  table {
-    width: 100% !important;
-    border-collapse: collapse !important;
-    table-layout: auto; /* Let table decide column widths */
-  }
-  th, td {
-    border: 1px solid #ccc !important; /* Basic border for table cells */
-    padding: 4px !important;
-    font-size: 9pt !important;
-    word-break: break-word; /* Break long words to prevent overflow */
-  }
-  thead {
-    background-color: #f0f0f0 !important; /* Light grey for header */
-    -webkit-print-color-adjust: exact; /* Chrome, Safari */
-    color-adjust: exact; /* Firefox, Edge */
-    display: table-header-group; /* Ensure thead repeats on each page if table breaks */
-  }
-  
-  /* Hide scrollbars in print */
   ::-webkit-scrollbar {
     display: none;
   }
-
-  /* Prevent page breaks inside common elements */
+  
   img, svg {
     break-inside: avoid;
   }
-  
-  /* Adjust specific elements if needed */
+
   .text-xs { font-size: 8pt !important; }
   .text-sm { font-size: 9pt !important; }
   .text-base { font-size: 10pt !important; }
   .font-semibold { font-weight: 600 !important; }
   .font-bold { font-weight: 700 !important; }
-
 }
 
 

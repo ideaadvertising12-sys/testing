@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
@@ -174,19 +173,21 @@ export function PaymentDialog({ isOpen, onOpenChange, sale, onSuccess }: Payment
         )}>
          <div id="payment-receipt-content" className="hidden print:block p-4">
             <div className="text-center mb-4">
-              <AppLogo size="md"/>
+              <div className="logo-container inline-block">
+                <AppLogo size="md"/>
+              </div>
               <p className="text-xs">4/1 Bujjampala, Dankotuwa</p>
               <p className="text-xs">Hotline: 077-3383721, 077-1066595</p>
             </div>
             <h2 className="text-center font-bold text-lg mb-4">PAYMENT RECEIPT</h2>
-             <Separator className="my-2"/>
+             <Separator className="my-2 summary-separator"/>
             <div className="text-xs space-y-0.5">
                 <p><strong>Original Invoice ID:</strong> {receipt.saleId}</p>
                 <p><strong>Customer:</strong> {receipt.customerName || 'N/A'}</p>
                 <p><strong>Payment Date:</strong> {format(receipt.paymentDate, "PP, p")}</p>
                 <p><strong>Received by:</strong> {receipt.staffId}</p>
             </div>
-             <Separator className="my-2"/>
+             <Separator className="my-2 summary-separator"/>
             <div className="text-sm space-y-1 mt-4">
                 <div className="flex justify-between">
                     <span>Payment Method:</span>

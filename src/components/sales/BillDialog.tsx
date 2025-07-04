@@ -1,4 +1,3 @@
-
 "use client";
 
 import type { CartItem, Customer, Sale, ChequeInfo, BankTransferInfo } from "@/lib/types";
@@ -328,14 +327,14 @@ export function BillDialog({
             )}
           >
             <div className="text-center mb-6">
-              <div className="flex justify-center mb-2">
+              <div className="flex justify-center mb-2 logo-container">
                  <AppLogo size="md"/>
               </div>
               <p className="text-sm">4/1 Bujjampala, Dankotuwa</p>
               <p className="text-sm">Hotline: 077-3383721, 077-1066595</p>
             </div>
 
-            <Separator className="my-4"/>
+            <Separator className="my-4 summary-separator"/>
 
             <div className="text-xs mb-4">
               <p>Date: {transactionDate.toLocaleDateString()} {transactionDate.toLocaleTimeString()}</p>
@@ -346,7 +345,7 @@ export function BillDialog({
               {offerWasApplied && <p className="font-semibold text-green-600">Offer: Buy 12 Get 1 Free Applied!</p>}
             </div>
 
-            <Separator className="my-4"/>
+            <Separator className="my-4 summary-separator"/>
             
             <h3 className="font-semibold mb-2 text-sm">Order Summary:</h3>
             <div className="max-h-[150px] overflow-y-auto print:max-h-none print:overflow-visible mb-4">
@@ -402,14 +401,14 @@ export function BillDialog({
                   <span>- Rs. {discountAmountToDisplay.toFixed(2)}</span>
                 </div>
               )}
-              <Separator className="my-1"/>
+              <Separator className="my-1 summary-separator"/>
               <div className="flex justify-between font-bold text-lg text-primary">
                 <span>TOTAL AMOUNT DUE:</span>
                 <span>Rs. {totalAmountDueForDisplay.toFixed(2)}</span>
               </div>
             </div>
             
-            <Separator className="my-4"/>
+            <Separator className="my-4 summary-separator"/>
 
             {!isReprintMode && (
                 <div className="mb-4 space-y-4 print:hidden">
@@ -512,7 +511,7 @@ export function BillDialog({
                   </div>
               )}
 
-              <Separator className="my-2"/>
+              <Separator className="my-2 summary-separator"/>
               <div className="flex justify-between font-semibold">
                 <span>Total Paid:</span>
                 <span>{formatCurrency(isReprintMode ? (saleForPrinting?.totalAmountPaid || 0) : totalPaymentApplied)}</span>
