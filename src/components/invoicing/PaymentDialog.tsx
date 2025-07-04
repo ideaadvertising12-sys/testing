@@ -168,7 +168,7 @@ export function PaymentDialog({ isOpen, onOpenChange, sale, onSuccess }: Payment
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className={cn(
-          "sm:max-w-lg flex flex-col max-h-[90vh]",
+          "sm:max-w-lg flex flex-col max-h-[90vh] printable-content",
           "print:shadow-none print:border-none print:max-w-full print:max-h-none print:m-0 print:p-0 print:h-auto print:overflow-visible"
         )}>
          <div id="payment-receipt-content" className="hidden print:block p-4">

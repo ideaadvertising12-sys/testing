@@ -101,85 +101,67 @@
 }
 
 @media print {
-  body, html {
-    background: white !important;
-    color: black !important;
-    height: auto !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    overflow: visible !important;
-    font-family: 'Courier New', Courier, monospace !important;
+  /* Hide everything by default */
+  body * {
+    visibility: hidden !important;
   }
 
-  /* Hide non-printable elements */
-  .app-layout-sidebar,
-  .app-layout-header,
-  .app-layout-main-footer,
-  .report-action-buttons,
-  .page-header-non-printable,
-  .print\:hidden {
-    display: none !important;
+  /* Make only the printable content and its children visible */
+  .printable-content,
+  .printable-content * {
+    visibility: visible !important;
   }
   
-  /* --- Generic Dialog Print Styles --- */
-  
-  /* Hide Dialog Overlay during print */
-  [data-radix-dialog-overlay] {
-    display: none !important;
-  }
-  
-  /* Ensure Radix Dialog Content expands for printing */
-  [data-radix-dialog-content] {
-    position: static !important;
-    width: auto !important; /* Let content decide width */
-    max-width: none !important;
+  /* Reset the dialog's position and style to be a static block for printing */
+  .printable-content {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
     height: auto !important;
+    max-width: none !important;
     max-height: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
     border: none !important;
     box-shadow: none !important;
-    padding: 0 !important;
-    margin: 0 !important;
+    background: white !important;
+    color: black !important;
     overflow: visible !important;
-    transform: none !important;
-    display: block !important;
   }
   
-  /* Ensure Radix ScrollArea Viewport also expands */
-  [data-radix-scroll-area-viewport] {
-      max-height: none !important;
-      overflow-y: visible !important;
-      height: auto !important;
-      display: block !important;
-      width: auto !important; /* Allow content to define width during print */
+  /* Make sure scroll areas don't constrain the content */
+  .printable-content [data-radix-scroll-area-viewport] {
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
   }
   
   /* --- 80mm Receipt Specific Styles --- */
   #bill-content,
   #return-receipt-content,
   #payment-receipt-content {
-    max-height: none !important;
-    overflow: visible !important;
-    box-shadow: none !important;
-    border: none !important;
-    width: 72mm !important; /* Printable area for 80mm paper */
+    width: 72mm !important;
+    margin: 0 auto !important; /* Center the receipt on the page */
     padding: 2mm !important;
-    margin: 0 !important;
-    background-color: white !important;
-    color: black !important;
-    font-size: 9pt !important; /* Base font size for receipt */
-  }
-
-  #bill-content *,
-  #return-receipt-content *,
-  #payment-receipt-content * {
-    visibility: visible;
+    font-size: 9pt !important;
+    font-family: 'Courier New', Courier, monospace !important;
   }
   
+  /* Reset logo and separator styles for print */
   .logo-container {
       transform: scale(0.8);
       margin-bottom: -10px;
   }
 
+  .summary-separator {
+      border-top: 1px dashed black !important;
+      margin: 4px 0 !important;
+      background: transparent !important;
+      height: 1px !important;
+  }
+  
+  /* Generic text element resets for receipts */
   #bill-content h2, #bill-content h3, #bill-content p, #bill-content div,
   #return-receipt-content h2, #return-receipt-content h3, #return-receipt-content p, #return-receipt-content div,
   #payment-receipt-content h2, #payment-receipt-content h3, #payment-receipt-content p, #payment-receipt-content div {
@@ -187,12 +169,13 @@
       line-height: 1.3 !important;
   }
 
+  /* Table specific styles for receipts */
   #bill-content table,
   #return-receipt-content table,
   #payment-receipt-content table {
     width: 100% !important;
     border-collapse: collapse !important;
-    table-layout: fixed; /* Important for fixed width */
+    table-layout: fixed;
     font-size: 8pt !important;
   }
 
@@ -209,17 +192,10 @@
   #payment-receipt-content thead tr {
       border-bottom: 1px dashed black !important;
   }
-  
-  .summary-separator {
-      border-top: 1px dashed black !important;
-      margin: 4px 0 !important;
-      background: transparent !important; /* Override default bg-border */
-      height: 1px !important;
-  }
 
-  /* --- Full Page Report Specific Styles --- */
-
-  .printable-report-container {
+  /* Full Page Report Styles (should be unaffected if not printing from there) */
+   .printable-report-container {
+    visibility: visible !important; 
     position: static !important;
     left: 0;
     top: 0;
@@ -230,48 +206,24 @@
     border: none !important;
   }
 
-  .printable-report-container table {
+   .printable-report-container table {
     width: 100% !important;
     border-collapse: collapse !important;
     table-layout: auto;
   }
 
-  .printable-report-container th, 
-  .printable-report-container td {
+   .printable-report-container th, 
+   .printable-report-container td {
     border: 1px solid #ccc !important;
     padding: 4px !important;
     font-size: 9pt !important;
     word-break: break-word;
   }
   
-  .printable-report-container thead {
+   .printable-report-container thead {
     background-color: #f0f0f0 !important;
     -webkit-print-color-adjust: exact;
     color-adjust: exact;
     display: table-header-group;
   }
-
-  /* General utilities */
-  main {
-    padding: 0 !important;
-    margin: 0 !important;
-    overflow: visible !important;
-  }
-
-  ::-webkit-scrollbar {
-    display: none;
-  }
-  
-  img, svg {
-    break-inside: avoid;
-  }
-
-  .text-xs { font-size: 8pt !important; }
-  .text-sm { font-size: 9pt !important; }
-  .text-base { font-size: 10pt !important; }
-  .font-semibold { font-weight: 600 !important; }
-  .font-bold { font-weight: 700 !important; }
 }
-
-
-    

@@ -63,8 +63,7 @@ export function ReturnInvoiceDialog({ isOpen, onOpenChange, returnTransaction }:
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className={cn(
-        "sm:max-w-lg flex flex-col p-0 print:p-0",
-        "print:shadow-none print:border-none print:max-w-none print:max-h-none print:m-0 print:h-auto print:overflow-visible",
+        "sm:max-w-lg flex flex-col p-0 printable-content",
         isOpen ? "max-h-[90vh]" : ""
       )}>
         <DialogHeader className="print:hidden px-6 pt-6">
@@ -77,10 +76,7 @@ export function ReturnInvoiceDialog({ isOpen, onOpenChange, returnTransaction }:
         <ScrollArea className="flex-grow print:overflow-visible print:max-h-none print:h-auto">
           <div 
             id="return-receipt-content" 
-            className={cn(
-              "p-4 bg-card text-card-foreground",
-              "print:p-2 print:bg-transparent print:text-black print:max-h-none print:overflow-visible"
-            )}
+            className="p-4 bg-card text-card-foreground"
           >
             <div className="text-center mb-4 print:mb-2">
               <div className="flex justify-center mb-1 logo-container print:scale-75 print:mb-0">
