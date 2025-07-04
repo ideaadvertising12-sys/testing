@@ -322,8 +322,8 @@ export function BillDialog({
           <div 
             id="bill-content" 
             className={cn(
-                "p-6 bg-card text-card-foreground rounded-md",
-                "print:p-4 print:bg-transparent print:text-black print:max-h-none print:overflow-visible"
+                "p-6 bg-card text-card-foreground",
+                "print:p-2 print:bg-transparent print:text-black print:max-h-none print:overflow-visible"
             )}
           >
             <div className="text-center mb-6">

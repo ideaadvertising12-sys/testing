@@ -150,6 +150,7 @@
       overflow-y: visible !important;
       height: auto !important;
       display: block !important;
+      width: auto !important; /* Allow content to define width during print */
   }
   
   /* --- 80mm Receipt Specific Styles --- */
