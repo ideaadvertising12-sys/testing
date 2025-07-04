@@ -236,7 +236,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
   if (isMobile) {
     return (
       <Sheet open={openMobile} onOpenChange={setOpenMobile}>
-        <div className="flex flex-col h-full bg-background">
+        <div id="app-shell-root" className="flex flex-col h-full bg-background">
           <SheetContent
             side="left"
             className="p-0 w-[280px] flex flex-col data-[state=closed]:duration-200 data-[state=open]:duration-300 bg-sidebar text-sidebar-foreground border-r-0"
@@ -283,7 +283,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
 
   // Desktop Layout
   return (
-    <div className="flex h-full bg-background">
+    <div id="app-shell-root" className="flex h-full bg-background">
       <AppNewSidebar
         className={cn(
           "h-full border-r border-sidebar-border",

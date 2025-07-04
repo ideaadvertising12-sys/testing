@@ -101,15 +101,10 @@
 }
 
 @media print {
-  /* Hide everything by default */
-  body * {
-    visibility: hidden !important;
-  }
-
-  /* Make only the printable content and its children visible */
-  .printable-content,
-  .printable-content * {
-    visibility: visible !important;
+  /* Hide the main app shell and the toaster notifications */
+  #app-shell-root,
+  .toaster-wrapper-for-print-hide {
+    display: none !important;
   }
   
   /* Reset the dialog's position and style to be a static block for printing */

@@ -37,7 +37,9 @@ export default function RootLayout({
                 </main>
                 {/* Footer element removed from here */}
               </div>
-              <Toaster />
+              <div className="toaster-wrapper-for-print-hide">
+                <Toaster />
+              </div>
             </FullscreenProvider>
           </AuthProvider>
         </AppThemeProvider>
