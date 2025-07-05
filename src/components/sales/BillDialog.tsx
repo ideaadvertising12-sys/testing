@@ -83,13 +83,12 @@ export function BillDialog({
       setIsProcessing(false);
       // DO NOT close the dialog here. The print command is async.
       // The user will close it manually after printing.
-      // onOpenChange(false);
       setFinalSaleData(null);
     }
   }, [finalSaleData]);
 
   const saleForPrinting = finalSaleData || existingSaleData;
-  const isReprintMode = !!saleForPrinting;
+  const isReprintMode = !!existingSaleData;
 
   const transactionDate = saleForPrinting ? new Date(saleForPrinting.saleDate) : new Date();
   const displaySaleId = saleForPrinting ? saleForPrinting.id : null;
@@ -212,7 +211,7 @@ export function BillDialog({
   const handlePrimaryAction = async () => {
     if (isReprintMode) {
       window.print();
-      onOpenChange(false); 
+      // onOpenChange(false); // DO NOT CLOSE DIALOG, as it removes the content before printing can finish.
       return;
     }
 
