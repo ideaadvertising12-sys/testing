@@ -165,46 +165,48 @@ export function PaymentDialog({ isOpen, onOpenChange, sale, onSuccess }: Payment
       staffId: currentUser?.username
   };
 
+  const receiptContent = (
+    <div id="payment-receipt-content" className="p-4 bg-card text-card-foreground">
+        <div className="text-center mb-4">
+          <div className="logo-container inline-block">
+            <AppLogo size="md"/>
+          </div>
+          <p className="text-xs">4/1 Bujjampala, Dankotuwa</p>
+          <p className="text-xs">Hotline: 077-3383721, 077-1066595</p>
+        </div>
+        <h2 className="text-center font-bold text-lg mb-4">PAYMENT RECEIPT</h2>
+          <Separator className="my-2 summary-separator"/>
+        <div className="text-xs space-y-0.5">
+            <p><strong>Original Invoice ID:</strong> {receipt.saleId}</p>
+            <p><strong>Customer:</strong> {receipt.customerName || 'N/A'}</p>
+            <p><strong>Payment Date:</strong> {format(receipt.paymentDate, "PP, p")}</p>
+            <p><strong>Received by:</strong> {receipt.staffId}</p>
+        </div>
+          <Separator className="my-2 summary-separator"/>
+        <div className="text-sm space-y-1 mt-4">
+            <div className="flex justify-between">
+                <span>Payment Method:</span>
+                <span className="font-medium">{receipt.paymentMethod}</span>
+            </div>
+            <div className="flex justify-between text-lg font-bold text-primary">
+                <span>Amount Paid:</span>
+                <span>{formatCurrency(receipt.paymentAmount)}</span>
+            </div>
+              <div className="flex justify-between">
+                <span>New Outstanding Balance:</span>
+                <span className="font-medium">{formatCurrency(receipt.newOutstandingBalance)}</span>
+            </div>
+        </div>
+          <p className="text-center text-xs mt-6">Thank you for your payment!</p>
+    </div>
+  );
+
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className={cn(
-          "sm:max-w-lg flex flex-col max-h-[90vh] printable-content",
-          "print:shadow-none print:border-none print:max-w-full print:max-h-none print:m-0 print:p-0 print:h-auto print:overflow-visible"
-        )}>
-         <div id="payment-receipt-content" className="hidden print:block p-4">
-            <div className="text-center mb-4">
-              <div className="logo-container inline-block">
-                <AppLogo size="md"/>
-              </div>
-              <p className="text-xs">4/1 Bujjampala, Dankotuwa</p>
-              <p className="text-xs">Hotline: 077-3383721, 077-1066595</p>
-            </div>
-            <h2 className="text-center font-bold text-lg mb-4">PAYMENT RECEIPT</h2>
-             <Separator className="my-2 summary-separator"/>
-            <div className="text-xs space-y-0.5">
-                <p><strong>Original Invoice ID:</strong> {receipt.saleId}</p>
-                <p><strong>Customer:</strong> {receipt.customerName || 'N/A'}</p>
-                <p><strong>Payment Date:</strong> {format(receipt.paymentDate, "PP, p")}</p>
-                <p><strong>Received by:</strong> {receipt.staffId}</p>
-            </div>
-             <Separator className="my-2 summary-separator"/>
-            <div className="text-sm space-y-1 mt-4">
-                <div className="flex justify-between">
-                    <span>Payment Method:</span>
-                    <span className="font-medium">{receipt.paymentMethod}</span>
-                </div>
-                <div className="flex justify-between text-lg font-bold text-primary">
-                    <span>Amount Paid:</span>
-                    <span>{formatCurrency(receipt.paymentAmount)}</span>
-                </div>
-                 <div className="flex justify-between">
-                    <span>New Outstanding Balance:</span>
-                    <span className="font-medium">{formatCurrency(receipt.newOutstandingBalance)}</span>
-                </div>
-            </div>
-             <p className="text-center text-xs mt-6">Thank you for your payment!</p>
+      <DialogContent className={cn("sm:max-w-lg flex flex-col max-h-[90vh] printable-content")}>
+        <div className="hidden print:block">
+          {receiptContent}
         </div>
-
         <div className="print:hidden flex flex-col flex-grow min-h-0">
             <DialogHeader>
               <DialogTitle className="font-headline text-xl">Add Payment for Invoice</DialogTitle>

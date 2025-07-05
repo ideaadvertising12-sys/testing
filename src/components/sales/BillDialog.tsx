@@ -77,10 +77,8 @@ export function BillDialog({
   const { toast } = useToast();
 
   useEffect(() => {
-    // This effect runs when finalSaleData is updated, ensuring the DOM is updated before printing.
     if (finalSaleData) {
       window.print();
-      // Reset state and close the dialog after printing
       setIsProcessing(false);
       onOpenChange(false);
       setFinalSaleData(null);
@@ -133,7 +131,6 @@ export function BillDialog({
       setFinalSaleData(null); 
       setCreditToApply("0");
       if (existingSaleData) {
-        // In reprint mode, we don't need to populate payment fields, only display existing data
         setCashTendered("");
         setChequeAmountPaid("");
         setChequeNumber("");
@@ -143,7 +140,6 @@ export function BillDialog({
         setBankTransferBankName("");
         setBankTransferReference("");
       } else {
-        // Reset for new sale
         setCashTendered("");
         setChequeAmountPaid("");
         setChequeNumber("");
@@ -299,236 +295,244 @@ export function BillDialog({
     (parsedChequeAmountPaid > 0 && !chequeNumber.trim()) || 
     isProcessing
   );
+  
+  const receiptContent = (
+    <div 
+      id="bill-content" 
+      className="p-4 bg-card text-card-foreground"
+    >
+      <div className="text-center mb-4">
+        <div className="flex justify-center mb-1 logo-container">
+            <AppLogo size="sm"/>
+        </div>
+        <p className="text-xs">4/1 Bujjampala, Dankotuwa</p>
+        <p className="text-xs">Hotline: 077-3383721, 077-1066595</p>
+      </div>
+
+      <Separator className="my-3 summary-separator"/>
+
+      <div className="text-xs mb-3 space-y-0.5">
+        <p>Date: {transactionDate.toLocaleDateString()} {transactionDate.toLocaleTimeString()}</p>
+        {displaySaleId && <p>Transaction ID: {displaySaleId}</p>}
+        {customerForDisplay && <p>Customer: {customerForDisplay.name} {customerForDisplay.shopName ? `(${customerForDisplay.shopName})` : ''}</p>}
+        <p>Served by: {saleForPrinting?.staffName || saleForPrinting?.staffId || 'Staff Member'}</p>
+        {invoiceCloseDate && <p className="font-semibold">Invoice Closed: {invoiceCloseDate}</p>}
+        {offerWasApplied && <p className="font-semibold text-green-600">Offer: Buy 12 Get 1 Free Applied!</p>}
+      </div>
+
+      <Separator className="my-3 summary-separator"/>
+      
+      <h3 className="font-semibold mb-2 text-sm">Order Summary:</h3>
+      <div className="mb-4">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="border-b">
+              <th className="text-left py-1 font-normal w-[35%]">Item</th>
+              <th className="text-center py-1 font-normal w-[10%]">Qty</th>
+              <th className="text-right py-1 font-normal w-[18%]">Price</th>
+              <th className="text-right py-1 font-normal w-[18%]">Disc. Price</th>
+              <th className="text-right py-1 font-normal w-[19%]">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {itemsToDisplay.map((item, index) => {
+              const originalPrice = item.price;
+              const hasDiscount = !item.isOfferItem && originalPrice > item.appliedPrice;
+
+              return (
+                <tr 
+                  key={`${item.id}-${item.saleType}-${item.isOfferItem ? 'offer' : 'paid'}-${index}`} 
+                  className="border-b border-dashed"
+                >
+                  <td className="py-1.5 break-words">
+                    {item.name}
+                    {item.isOfferItem && <Gift className="inline-block h-3 w-3 ml-1 text-green-600" />}
+                  </td>
+                  <td className="text-center py-1.5">{item.quantity}</td>
+                  <td className={cn("text-right py-1.5", hasDiscount && "line-through text-muted-foreground")}>
+                    {item.isOfferItem ? "FREE" : `Rs. ${originalPrice.toFixed(2)}`}
+                  </td>
+                  <td className="text-right py-1.5 font-medium">
+                    {item.isOfferItem ? "-" : (hasDiscount ? `Rs. ${item.appliedPrice.toFixed(2)}` : "-")}
+                  </td>
+                  <td className="text-right py-1.5 font-semibold">
+                    {item.isOfferItem ? "Rs. 0.00" : `Rs. ${(item.appliedPrice * item.quantity).toFixed(2)}`}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="space-y-1 text-xs mb-4">
+        <div className="flex justify-between">
+          <span>Subtotal:</span>
+          <span>Rs. {subtotalToDisplay.toFixed(2)}</span>
+        </div>
+        {discountAmountToDisplay > 0 && (
+          <div className="flex justify-between text-destructive">
+            <span>Total Discount:</span>
+            <span>- Rs. {discountAmountToDisplay.toFixed(2)}</span>
+          </div>
+        )}
+        <Separator className="my-1 summary-separator"/>
+        <div className="flex justify-between font-bold text-lg text-primary">
+          <span>TOTAL AMOUNT DUE:</span>
+          <span>Rs. {totalAmountDueForDisplay.toFixed(2)}</span>
+        </div>
+      </div>
+      
+      <Separator className="my-4 summary-separator"/>
+
+      <div className="space-y-1 text-sm mb-4">
+        <h4 className="font-semibold text-base mb-2 mt-2">Final Summary:</h4>
+        
+        {isReprintMode ? (
+            <div className="text-xs space-y-1">
+                {(saleForPrinting?.paidAmountCash ?? 0) > 0 && <div className="flex justify-between"><span>Initial Cash:</span><span>{formatCurrency(saleForPrinting!.paidAmountCash!)}</span></div>}
+                {(saleForPrinting?.paidAmountCheque ?? 0) > 0 && <div className="flex justify-between"><span>Initial Cheque:</span><span>{formatCurrency(saleForPrinting!.paidAmountCheque!)} (#{saleForPrinting!.chequeDetails?.number})</span></div>}
+                {(saleForPrinting?.paidAmountBankTransfer ?? 0) > 0 && <div className="flex justify-between"><span>Initial Bank Transfer:</span><span>{formatCurrency(saleForPrinting!.paidAmountBankTransfer!)}</span></div>}
+                {(saleForPrinting?.creditUsed ?? 0) > 0 && <div className="flex justify-between text-green-600"><span>Credit Used:</span><span>{formatCurrency(saleForPrinting!.creditUsed!)}</span></div>}
+                {(saleForPrinting?.changeGiven ?? 0) > 0 && <div className="flex justify-between text-green-600"><span>Initial Change Given:</span><span>{formatCurrency(saleForPrinting!.changeGiven!)}</span></div>}
+                {saleForPrinting?.additionalPayments?.map((p, i) => (
+                    <div key={i} className="border-t mt-1 pt-1">
+                        <p className="font-medium text-muted-foreground">{format(p.date, "PP, p")}</p>
+                        <div className="flex justify-between"><span>{p.method} Payment:</span><span>{formatCurrency(p.amount)}</span></div>
+                    </div>
+                ))}
+            </div>
+        ) : (
+            <div className="text-xs space-y-1">
+                {parsedCreditApplied > 0 && <div className="flex justify-between text-green-600"><span>Credit Applied:</span><span>- {formatCurrency(parsedCreditApplied)}</span></div>}
+                {parsedCashTendered > 0 && <div className="flex justify-between"><span>Cash Tendered:</span><span>{formatCurrency(parsedCashTendered)}</span></div>}
+                {parsedChequeAmountPaid > 0 && <div className="flex justify-between"><span>Cheque Paid:</span><span>{formatCurrency(parsedChequeAmountPaid)}</span></div>}
+                {parsedBankTransferAmountPaid > 0 && <div className="flex justify-between"><span>Bank Transfer Paid:</span><span>{formatCurrency(parsedBankTransferAmountPaid)}</span></div>}
+                {changeGiven > 0 && <div className="flex justify-between text-green-600"><span>Change Given:</span><span>{formatCurrency(changeGiven)}</span></div>}
+            </div>
+        )}
+
+        <Separator className="my-2 summary-separator"/>
+        <div className="flex justify-between font-semibold">
+          <span>Total Paid:</span>
+          <span>{formatCurrency(isReprintMode ? (saleForPrinting?.totalAmountPaid || 0) : totalPaymentApplied)}</span>
+        </div>
+        <div className={cn("flex justify-between font-bold", (isReprintMode ? (saleForPrinting?.outstandingBalance || 0) : outstandingBalance) > 0 ? "text-destructive" : "text-muted-foreground")}>
+          <span>Outstanding Balance:</span>
+          <span>{formatCurrency(isReprintMode ? (saleForPrinting?.outstandingBalance || 0) : outstandingBalance)}</span>
+        </div>
+      </div>
+
+      <p className="text-center text-xs mt-6">Thank you for your purchase!</p>
+      <p className="text-center text-xs">Please come again.</p>
+    </div>
+  );
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent 
         className={cn(
-          "sm:max-w-lg flex flex-col printable-content",
+          "sm:max-w-lg flex flex-col p-0 printable-content",
           isOpen ? "max-h-[90vh]" : "" 
         )}
       >
-        <DialogHeader className="print:hidden px-6 pt-6">
-          <DialogTitle className="font-headline text-xl">
-            {isReprintMode ? "View Invoice" : "Transaction Receipt & Payment"}
-          </DialogTitle>
-          <DialogDescription>
-            {isReprintMode ? `Details for invoice ${displaySaleId}.` : "Finalize payment and print the receipt."}
-          </DialogDescription>
-        </DialogHeader>
-        
-        <ScrollArea className="flex-grow print:overflow-visible print:max-h-none print:h-auto">
-          <div 
-            id="bill-content" 
-            className="p-6 bg-card text-card-foreground"
-          >
-            <div className="text-center mb-6">
-              <div className="flex justify-center mb-2 logo-container">
-                 <AppLogo size="md"/>
-              </div>
-              <p className="text-sm">4/1 Bujjampala, Dankotuwa</p>
-              <p className="text-sm">Hotline: 077-3383721, 077-1066595</p>
-            </div>
+        <div className="hidden print:block">
+            {receiptContent}
+        </div>
+        <div className="print:hidden flex flex-col flex-grow min-h-0">
+          <DialogHeader className="px-6 pt-6">
+            <DialogTitle className="font-headline text-xl">
+              {isReprintMode ? "View Invoice" : "Transaction Receipt & Payment"}
+            </DialogTitle>
+            <DialogDescription>
+              {isReprintMode ? `Details for invoice ${displaySaleId}.` : "Finalize payment and print the receipt."}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <ScrollArea className="flex-grow px-6">
+              {receiptContent}
+              {!isReprintMode && (
+                  <div className="mb-4 space-y-4">
+                      <h3 className="font-semibold text-sm">Payment Details:</h3>
+                       {outstandingBalance > 0 && !customerForDisplay && !isReprintMode && (
+                          <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-destructive text-sm flex items-start gap-2">
+                              <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                              <div>
+                              <p className="font-semibold">Customer Required</p>
+                              <p className="text-xs">A customer must be selected from the POS screen for credit or partially paid sales.</p>
+                              </div>
+                          </div>
+                      )}
 
-            <Separator className="my-4 summary-separator"/>
-
-            <div className="text-xs mb-4">
-              <p>Date: {transactionDate.toLocaleDateString()} {transactionDate.toLocaleTimeString()}</p>
-              {displaySaleId && <p>Transaction ID: {displaySaleId}</p>}
-              {customerForDisplay && <p>Customer: {customerForDisplay.name} {customerForDisplay.shopName ? `(${customerForDisplay.shopName})` : ''}</p>}
-              <p>Served by: {saleForPrinting?.staffName || saleForPrinting?.staffId || 'Staff Member'}</p>
-              {invoiceCloseDate && <p className="font-semibold">Invoice Closed: {invoiceCloseDate}</p>}
-              {offerWasApplied && <p className="font-semibold text-green-600">Offer: Buy 12 Get 1 Free Applied!</p>}
-            </div>
-
-            <Separator className="my-4 summary-separator"/>
-            
-            <h3 className="font-semibold mb-2 text-sm">Order Summary:</h3>
-            <div className="max-h-[150px] overflow-y-auto print:max-h-none print:overflow-visible mb-4">
-              <table className="w-full text-xs print:w-full">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-1 font-normal w-[35%]">Item</th>
-                    <th className="text-center py-1 font-normal w-[10%]">Qty</th>
-                    <th className="text-right py-1 font-normal w-[18%]">Price</th>
-                    <th className="text-right py-1 font-normal w-[18%]">Disc. Price</th>
-                    <th className="text-right py-1 font-normal w-[19%]">Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {itemsToDisplay.map((item, index) => {
-                    const originalPrice = item.price;
-                    const hasDiscount = !item.isOfferItem && originalPrice > item.appliedPrice;
-
-                    return (
-                      <tr 
-                        key={`${item.id}-${item.saleType}-${item.isOfferItem ? 'offer' : 'paid'}-${index}`} 
-                        className="border-b border-dashed"
-                      >
-                        <td className="py-1.5 break-words print:break-all">
-                          {item.name}
-                          {item.isOfferItem && <Gift className="inline-block h-3 w-3 ml-1 text-green-600" />}
-                        </td>
-                        <td className="text-center py-1.5">{item.quantity}</td>
-                        <td className={cn("text-right py-1.5", hasDiscount && "line-through text-muted-foreground")}>
-                          {item.isOfferItem ? "FREE" : `Rs. ${originalPrice.toFixed(2)}`}
-                        </td>
-                        <td className="text-right py-1.5 font-medium">
-                          {item.isOfferItem ? "-" : (hasDiscount ? `Rs. ${item.appliedPrice.toFixed(2)}` : "-")}
-                        </td>
-                        <td className="text-right py-1.5 font-semibold">
-                          {item.isOfferItem ? "Rs. 0.00" : `Rs. ${(item.appliedPrice * item.quantity).toFixed(2)}`}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="space-y-1 text-xs mb-4">
-              <div className="flex justify-between">
-                <span>Subtotal:</span>
-                <span>Rs. {subtotalToDisplay.toFixed(2)}</span>
-              </div>
-              {discountAmountToDisplay > 0 && (
-                <div className="flex justify-between text-destructive">
-                  <span>Total Discount:</span>
-                  <span>- Rs. {discountAmountToDisplay.toFixed(2)}</span>
-                </div>
-              )}
-              <Separator className="my-1 summary-separator"/>
-              <div className="flex justify-between font-bold text-lg text-primary">
-                <span>TOTAL AMOUNT DUE:</span>
-                <span>Rs. {totalAmountDueForDisplay.toFixed(2)}</span>
-              </div>
-            </div>
-            
-            <Separator className="my-4 summary-separator"/>
-
-            {!isReprintMode && (
-                <div className="mb-4 space-y-4 print:hidden">
-                    <h3 className="font-semibold text-sm">Payment Details:</h3>
-                     {outstandingBalance > 0 && !customerForDisplay && !isReprintMode && (
-                        <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-destructive text-sm flex items-start gap-2">
-                            <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                            <div>
-                            <p className="font-semibold">Customer Required</p>
-                            <p className="text-xs">A customer must be selected from the POS screen for credit or partially paid sales.</p>
+                      {(customerCreditBalance ?? 0) > 0 && (
+                         <div className="border p-3 rounded-md space-y-3 bg-green-50 dark:bg-green-900/20">
+                            <Label htmlFor="creditToApply" className="text-sm font-medium text-green-800 dark:text-green-300">
+                                Available Credit: {formatCurrency(customerCreditBalance)}
+                            </Label>
+                            <div className="flex items-center gap-2">
+                                <Input id="creditToApply" type="number" value={creditToApply} onChange={e => setCreditToApply(e.target.value)} placeholder="0.00" className="h-10 bg-background" min="0" max={Math.min(customerCreditBalance || 0, totalAmountDueForDisplay)} step="0.01" disabled={isProcessing}/>
+                                <Button type="button" variant="secondary" onClick={() => setCreditToApply(Math.min(customerCreditBalance || 0, totalAmountDueForDisplay).toString())}>Apply Max</Button>
                             </div>
                         </div>
-                    )}
-
-                    {(customerCreditBalance ?? 0) > 0 && (
-                       <div className="border p-3 rounded-md space-y-3 bg-green-50 dark:bg-green-900/20">
-                          <Label htmlFor="creditToApply" className="text-sm font-medium text-green-800 dark:text-green-300">
-                              Available Credit: {formatCurrency(customerCreditBalance)}
-                          </Label>
-                          <div className="flex items-center gap-2">
-                              <Input id="creditToApply" type="number" value={creditToApply} onChange={e => setCreditToApply(e.target.value)} placeholder="0.00" className="h-10 bg-background" min="0" max={Math.min(customerCreditBalance || 0, totalAmountDueForDisplay)} step="0.01" disabled={isProcessing}/>
-                              <Button type="button" variant="secondary" onClick={() => setCreditToApply(Math.min(customerCreditBalance || 0, totalAmountDueForDisplay).toString())}>Apply Max</Button>
+                      )}
+                      
+                      <div>
+                          <Label htmlFor="cashTendered" className="text-xs">Cash Paid (Rs.)</Label>
+                          <Input id="cashTendered" type="number" value={cashTendered} onChange={(e) => setCashTendered(e.target.value)} placeholder="0.00" className="h-10 mt-1" min="0" step="0.01" disabled={isProcessing}/>
+                      </div>
+                      <div className="border p-3 rounded-md space-y-3 bg-muted/50">
+                          <p className="text-xs font-medium">Cheque Payment (Optional)</p>
+                          <div>
+                              <Label htmlFor="chequeAmountPaid" className="text-xs">Cheque Amount (Rs.)</Label>
+                              <Input id="chequeAmountPaid" type="number" value={chequeAmountPaid} onChange={(e) => setChequeAmountPaid(e.target.value)} placeholder="0.00" className="h-10 mt-1 bg-background" min="0" step="0.01" disabled={isProcessing}/>
+                          </div>
+                          <div>
+                              <Label htmlFor="chequeNumber" className="text-xs">Cheque Number</Label>
+                              <Input id="chequeNumber" type="text" value={chequeNumber} onChange={(e) => setChequeNumber(e.target.value)} placeholder="Enter cheque number" className="h-10 mt-1 bg-background" disabled={isProcessing || parsedChequeAmountPaid <= 0} required={parsedChequeAmountPaid > 0}/>
+                          </div>
+                          <div>
+                              <Label htmlFor="chequeBank" className="text-xs">Cheque Bank</Label>
+                              <Input id="chequeBank" type="text" value={chequeBank} onChange={(e) => setChequeBank(e.target.value)} placeholder="Enter bank name" className="h-10 mt-1 bg-background" disabled={isProcessing || parsedChequeAmountPaid <= 0}/>
+                          </div>
+                          <div>
+                              <Label htmlFor="chequeDate" className="text-xs">Cheque Date</Label>
+                               <Popover>
+                                  <PopoverTrigger asChild>
+                                  <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal h-10 mt-1 bg-background", !chequeDate && "text-muted-foreground")} disabled={isProcessing || parsedChequeAmountPaid <= 0}>
+                                      <CalendarIcon className="mr-2 h-4 w-4" />
+                                      {chequeDate ? format(chequeDate, "PPP") : <span>Pick a date</span>}
+                                  </Button>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={chequeDate} onSelect={setChequeDate} initialFocus disabled={isProcessing || parsedChequeAmountPaid <= 0}/></PopoverContent>
+                              </Popover>
                           </div>
                       </div>
-                    )}
-                    
-                    <div>
-                        <Label htmlFor="cashTendered" className="text-xs">Cash Paid (Rs.)</Label>
-                        <Input id="cashTendered" type="number" value={cashTendered} onChange={(e) => setCashTendered(e.target.value)} placeholder="0.00" className="h-10 mt-1" min="0" step="0.01" disabled={isProcessing}/>
-                    </div>
-                    <div className="border p-3 rounded-md space-y-3 bg-muted/50">
-                        <p className="text-xs font-medium">Cheque Payment (Optional)</p>
-                        <div>
-                            <Label htmlFor="chequeAmountPaid" className="text-xs">Cheque Amount (Rs.)</Label>
-                            <Input id="chequeAmountPaid" type="number" value={chequeAmountPaid} onChange={(e) => setChequeAmountPaid(e.target.value)} placeholder="0.00" className="h-10 mt-1 bg-background" min="0" step="0.01" disabled={isProcessing}/>
-                        </div>
-                        <div>
-                            <Label htmlFor="chequeNumber" className="text-xs">Cheque Number</Label>
-                            <Input id="chequeNumber" type="text" value={chequeNumber} onChange={(e) => setChequeNumber(e.target.value)} placeholder="Enter cheque number" className="h-10 mt-1 bg-background" disabled={isProcessing || parsedChequeAmountPaid <= 0} required={parsedChequeAmountPaid > 0}/>
-                        </div>
-                        <div>
-                            <Label htmlFor="chequeBank" className="text-xs">Cheque Bank</Label>
-                            <Input id="chequeBank" type="text" value={chequeBank} onChange={(e) => setChequeBank(e.target.value)} placeholder="Enter bank name" className="h-10 mt-1 bg-background" disabled={isProcessing || parsedChequeAmountPaid <= 0}/>
-                        </div>
-                        <div>
-                            <Label htmlFor="chequeDate" className="text-xs">Cheque Date</Label>
-                             <Popover>
-                                <PopoverTrigger asChild>
-                                <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal h-10 mt-1 bg-background", !chequeDate && "text-muted-foreground")} disabled={isProcessing || parsedChequeAmountPaid <= 0}>
-                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                    {chequeDate ? format(chequeDate, "PPP") : <span>Pick a date</span>}
-                                </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={chequeDate} onSelect={setChequeDate} initialFocus disabled={isProcessing || parsedChequeAmountPaid <= 0}/></PopoverContent>
-                            </Popover>
-                        </div>
-                    </div>
-                     <div className="border p-3 rounded-md space-y-3 bg-muted/50">
-                        <p className="text-xs font-medium">Bank Transfer (Optional)</p>
-                        <div>
-                            <Label htmlFor="bankTransferAmountPaid" className="text-xs">Transfer Amount (Rs.)</Label>
-                            <Input id="bankTransferAmountPaid" type="number" value={bankTransferAmountPaid} onChange={(e) => setBankTransferAmountPaid(e.target.value)} placeholder="0.00" className="h-10 mt-1 bg-background" min="0" step="0.01" disabled={isProcessing}/>
-                        </div>
-                        <div>
-                            <Label htmlFor="bankTransferBankName" className="text-xs">Bank Name</Label>
-                            <Input id="bankTransferBankName" type="text" value={bankTransferBankName} onChange={(e) => setBankTransferBankName(e.target.value)} placeholder="Enter bank name" className="h-10 mt-1 bg-background" disabled={isProcessing || parsedBankTransferAmountPaid <= 0}/>
-                        </div>
-                        <div>
-                            <Label htmlFor="bankTransferReference" className="text-xs">Reference Number</Label>
-                            <Input id="bankTransferReference" type="text" value={bankTransferReference} onChange={(e) => setBankTransferReference(e.target.value)} placeholder="Enter reference number" className="h-10 mt-1 bg-background" disabled={isProcessing || parsedBankTransferAmountPaid <= 0}/>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            <div className="space-y-1 text-sm mb-4">
-              <h4 className="font-semibold text-base mb-2 mt-2">Final Summary:</h4>
-              
-              {isReprintMode ? (
-                  <div className="text-xs space-y-1">
-                      {(saleForPrinting?.paidAmountCash ?? 0) > 0 && <div className="flex justify-between"><span>Initial Cash:</span><span>{formatCurrency(saleForPrinting!.paidAmountCash!)}</span></div>}
-                      {(saleForPrinting?.paidAmountCheque ?? 0) > 0 && <div className="flex justify-between"><span>Initial Cheque:</span><span>{formatCurrency(saleForPrinting!.paidAmountCheque!)} (#{saleForPrinting!.chequeDetails?.number})</span></div>}
-                      {(saleForPrinting?.paidAmountBankTransfer ?? 0) > 0 && <div className="flex justify-between"><span>Initial Bank Transfer:</span><span>{formatCurrency(saleForPrinting!.paidAmountBankTransfer!)}</span></div>}
-                      {(saleForPrinting?.creditUsed ?? 0) > 0 && <div className="flex justify-between text-green-600"><span>Credit Used:</span><span>{formatCurrency(saleForPrinting!.creditUsed!)}</span></div>}
-                      {(saleForPrinting?.changeGiven ?? 0) > 0 && <div className="flex justify-between text-green-600"><span>Initial Change Given:</span><span>{formatCurrency(saleForPrinting!.changeGiven!)}</span></div>}
-                      {saleForPrinting?.additionalPayments?.map((p, i) => (
-                          <div key={i} className="border-t mt-1 pt-1">
-                              <p className="font-medium text-muted-foreground">{format(p.date, "PP, p")}</p>
-                              <div className="flex justify-between"><span>{p.method} Payment:</span><span>{formatCurrency(p.amount)}</span></div>
+                       <div className="border p-3 rounded-md space-y-3 bg-muted/50">
+                          <p className="text-xs font-medium">Bank Transfer (Optional)</p>
+                          <div>
+                              <Label htmlFor="bankTransferAmountPaid" className="text-xs">Transfer Amount (Rs.)</Label>
+                              <Input id="bankTransferAmountPaid" type="number" value={bankTransferAmountPaid} onChange={(e) => setBankTransferAmountPaid(e.target.value)} placeholder="0.00" className="h-10 mt-1 bg-background" min="0" step="0.01" disabled={isProcessing}/>
                           </div>
-                      ))}
-                  </div>
-              ) : (
-                  <div className="text-xs space-y-1">
-                      {parsedCreditApplied > 0 && <div className="flex justify-between text-green-600"><span>Credit Applied:</span><span>- {formatCurrency(parsedCreditApplied)}</span></div>}
-                      {parsedCashTendered > 0 && <div className="flex justify-between"><span>Cash Tendered:</span><span>{formatCurrency(parsedCashTendered)}</span></div>}
-                      {parsedChequeAmountPaid > 0 && <div className="flex justify-between"><span>Cheque Paid:</span><span>{formatCurrency(parsedChequeAmountPaid)}</span></div>}
-                      {parsedBankTransferAmountPaid > 0 && <div className="flex justify-between"><span>Bank Transfer Paid:</span><span>{formatCurrency(parsedBankTransferAmountPaid)}</span></div>}
-                      {changeGiven > 0 && <div className="flex justify-between text-green-600"><span>Change Given:</span><span>{formatCurrency(changeGiven)}</span></div>}
+                          <div>
+                              <Label htmlFor="bankTransferBankName" className="text-xs">Bank Name</Label>
+                              <Input id="bankTransferBankName" type="text" value={bankTransferBankName} onChange={(e) => setBankTransferBankName(e.target.value)} placeholder="Enter bank name" className="h-10 mt-1 bg-background" disabled={isProcessing || parsedBankTransferAmountPaid <= 0}/>
+                          </div>
+                          <div>
+                              <Label htmlFor="bankTransferReference" className="text-xs">Reference Number</Label>
+                              <Input id="bankTransferReference" type="text" value={bankTransferReference} onChange={(e) => setBankTransferReference(e.target.value)} placeholder="Enter reference number" className="h-10 mt-1 bg-background" disabled={isProcessing || parsedBankTransferAmountPaid <= 0}/>
+                          </div>
+                      </div>
                   </div>
               )}
+          </ScrollArea>
 
-              <Separator className="my-2 summary-separator"/>
-              <div className="flex justify-between font-semibold">
-                <span>Total Paid:</span>
-                <span>{formatCurrency(isReprintMode ? (saleForPrinting?.totalAmountPaid || 0) : totalPaymentApplied)}</span>
-              </div>
-              <div className={cn("flex justify-between font-bold", (isReprintMode ? (saleForPrinting?.outstandingBalance || 0) : outstandingBalance) > 0 ? "text-destructive" : "text-muted-foreground")}>
-                <span>Outstanding Balance:</span>
-                <span>{formatCurrency(isReprintMode ? (saleForPrinting?.outstandingBalance || 0) : outstandingBalance)}</span>
-              </div>
-            </div>
-
-            <p className="text-center text-xs mt-6">Thank you for your purchase!</p>
-            <p className="text-center text-xs">Please come again.</p>
-          </div>
-        </ScrollArea>
-
-        <DialogFooter className="mt-auto p-6 border-t print:hidden flex justify-end gap-2">
-           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isProcessing}>Cancel</Button>
-           <Button onClick={handlePrimaryAction} disabled={isPrimaryButtonDisabled || isProcessing}>
-             {isProcessing ? <><Banknote className="mr-2 h-4 w-4 animate-spin" /> Processing...</> : <><Printer className="mr-2 h-4 w-4" /> {isReprintMode ? "Print Receipt" : "Confirm & Print"}</>}
-           </Button>
-        </DialogFooter>
+          <DialogFooter className="p-4 border-t flex justify-end gap-2">
+             <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isProcessing}>Cancel</Button>
+             <Button onClick={handlePrimaryAction} disabled={isPrimaryButtonDisabled || isProcessing}>
+               {isProcessing ? <><Banknote className="mr-2 h-4 w-4 animate-spin" /> Processing...</> : <><Printer className="mr-2 h-4 w-4" /> {isReprintMode ? "Print Receipt" : "Confirm & Print"}</>}
+             </Button>
+          </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );
