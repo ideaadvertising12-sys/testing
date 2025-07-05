@@ -99,7 +99,16 @@
 }
 
 @media print {
+  body {
+    background: white;
+  }
+  
   /* ---- Universal Print Isolation ---- */
+  #app-shell-root, .toaster-wrapper-for-print-hide {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
   body * {
     visibility: hidden !important;
   }
@@ -122,6 +131,13 @@
     background: white !important;
     color: black !important;
     overflow: visible !important;
+  }
+
+  [data-radix-scroll-area-viewport] {
+      width: auto !important;
+      height: auto !important;
+      max-height: none !important;
+      overflow: visible !important;
   }
 
   /* --- 80mm Receipt Specific Styles --- */
@@ -161,7 +177,7 @@
   #payment-receipt-content table {
     width: 100% !important;
     border-collapse: collapse !important;
-    table-layout: fixed;
+    table-layout: fixed !important;
     font-size: 8pt !important;
   }
 
@@ -170,7 +186,7 @@
   #payment-receipt-content th, #payment-receipt-content td {
       border: none !important;
       padding: 1px 2px !important;
-      word-break: break-word;
+      word-break: break-word !important;
   }
   
   #bill-content thead tr,
