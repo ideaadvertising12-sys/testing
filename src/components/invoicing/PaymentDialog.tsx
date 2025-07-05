@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
@@ -168,7 +169,7 @@ export function PaymentDialog({ isOpen, onOpenChange, sale, onSuccess }: Payment
   const receiptContent = (
     <div id="payment-receipt-content" className="p-4 bg-card text-card-foreground">
         <div className="text-center mb-4">
-          <div className="logo-container inline-block">
+          <div className="flex justify-center mb-1 logo-container">
             <AppLogo size="md"/>
           </div>
           <p className="text-xs">4/1 Bujjampala, Dankotuwa</p>

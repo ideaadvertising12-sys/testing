@@ -119,10 +119,8 @@
     Now, ONLY make the specific receipt container and its children visible.
     This is the key to isolating the print content.
   */
-  #bill-content, #bill-content *,
-  #return-receipt-content, #return-receipt-content *,
-  #payment-receipt-content, #payment-receipt-content * {
-    visibility: visible;
+  .printable-content, .printable-content * {
+    visibility: visible !important;
   }
   
   /*
@@ -133,20 +131,28 @@
   #bill-content, 
   #return-receipt-content, 
   #payment-receipt-content {
-    position:absolute;
-    z-index:111;
-    padding: 2mm; /* Give a small printable margin */
-    width: 100%;
-    height:100%; /* Standard width for 80mm paper */
+    position: absolute;
+    left: 50%;
+    top: 0;
+    transform: translateX(-50%);
+    z-index: 111;
+    padding: 0 2mm 2mm; /* Give a small printable margin, but not at the top */
+    width: 72mm; /* Standard width for 80mm paper */
+    height: auto;
     font-size: 9pt !important;
     font-family: 'Courier New', Courier, monospace !important;
     background: white !important;
     color: black !important;
+    margin: 0;
   }
 
   .logo-container {
-      transform: scale(0.8);
-      margin-bottom: -10px;
+      margin-bottom: -5px; /* Pull content below slightly closer */
+  }
+  
+  .logo-container .app-logo-text {
+    font-size: 14pt !important;
+    font-weight: bold !important;
   }
 
   .summary-separator {

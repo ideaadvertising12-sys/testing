@@ -40,7 +40,7 @@ export function AppLogo({ size = "md" }: { size?: "sm" | "md" | "lg" | "iconOnly
       </div>
       <span 
         className={cn(
-            `font-headline font-bold text-primary`,
+            `font-headline font-bold text-primary app-logo-text`,
             size === 'sm' && 'text-xl',
             size === 'md' && 'text-2xl',
             size === 'lg' && 'text-3xl'

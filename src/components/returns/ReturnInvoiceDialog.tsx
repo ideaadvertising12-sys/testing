@@ -1,3 +1,4 @@
+
 "use client";
 
 import React from 'react';
@@ -64,7 +65,7 @@ export function ReturnInvoiceDialog({ isOpen, onOpenChange, returnTransaction }:
     <div id="return-receipt-content" className="p-4 bg-card text-card-foreground">
         <div className="text-center mb-4">
             <div className="flex justify-center mb-1 logo-container">
-            <AppLogo size="sm"/>
+            <AppLogo size="md"/>
             </div>
             <p className="text-xs">4/1 Bujjampala, Dankotuwa</p>
             <p className="text-xs">Hotline: 077-3383721, 077-1066595</p>
