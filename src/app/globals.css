@@ -133,9 +133,9 @@
   #return-receipt-content, 
   #payment-receipt-content {
     position: absolute;
-    left: 0;
+    left: 50%;
     top: 0;
-    margin: 0;
+    transform: translateX(-50%);
     padding: 2mm; /* Give a small printable margin */
     width: 72mm; /* Standard width for 80mm paper */
     font-size: 9pt !important;
