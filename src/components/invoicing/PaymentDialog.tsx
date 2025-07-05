@@ -199,6 +199,7 @@ export function PaymentDialog({ isOpen, onOpenChange, sale, onSuccess }: Payment
             </div>
         </div>
           <p className="text-center text-xs mt-6">Thank you for your payment!</p>
+          <p className="text-center text-[8pt] mt-4">E-business solution by LIMIDORA</p>
     </div>
   );
 

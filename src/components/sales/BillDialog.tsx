@@ -428,6 +428,7 @@ export function BillDialog({
 
       <p className="text-center text-xs mt-6">Thank you for your purchase!</p>
       <p className="text-center text-xs">Please come again.</p>
+      <p className="text-center text-[8pt] mt-4">E-business solution by LIMIDORA</p>
     </div>
   );
 

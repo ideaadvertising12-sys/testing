@@ -65,7 +65,7 @@ export function ReturnInvoiceDialog({ isOpen, onOpenChange, returnTransaction }:
     <div id="return-receipt-content" className="p-4 bg-card text-card-foreground">
         <div className="text-center mb-4">
             <div className="flex justify-center mb-1 logo-container">
-            <AppLogo size="md"/>
+            <AppLogo size="md" />
             </div>
             <p className="text-xs">4/1 Bujjampala, Dankotuwa</p>
             <p className="text-xs">Hotline: 077-3383721, 077-1066595</p>
@@ -154,6 +154,7 @@ export function ReturnInvoiceDialog({ isOpen, onOpenChange, returnTransaction }:
             {(refundAmount && refundAmount > 0) && (<div className="flex justify-between text-green-700"><span className="text-muted-foreground">Credited to Account:</span><span>{formatCurrency(refundAmount)}</span></div>)}
         </div>
         <p className="text-center text-xs mt-4">Thank you!</p>
+        <p className="text-center text-[8pt] mt-4">E-business solution by LIMIDORA</p>
     </div>
   );
 
