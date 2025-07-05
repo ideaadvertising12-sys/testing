@@ -76,23 +76,17 @@ export function BillDialog({
   const [bankTransferReference, setBankTransferReference] = useState<string>("");
   const [creditToApply, setCreditToApply] = useState("0");
   const { toast } = useToast();
-
-  const handlePrintAndClose = useCallback(() => {
-    if (finalSaleData) {
-      window.print();
-      onOpenChange(false);
-      setFinalSaleData(null); // Reset for next time
-    }
-  }, [finalSaleData, onOpenChange]);
   
   useEffect(() => {
     if (finalSaleData) {
         window.print();
         setIsProcessing(false);
-        onOpenChange(false); // Close dialog after successful print command
-        setFinalSaleData(null);
+        // We no longer close the dialog automatically to ensure printing works reliably.
+        // User will close it manually.
+        // onOpenChange(false); 
+        // setFinalSaleData(null);
     }
-  }, [finalSaleData, onOpenChange]);
+  }, [finalSaleData]);
 
   const saleForPrinting = finalSaleData || existingSaleData;
   const isReprintMode = !!existingSaleData;
@@ -137,7 +131,7 @@ export function BillDialog({
   useEffect(() => {
     if (isOpen) {
       setIsProcessing(false);
-      // Do not reset finalSaleData here, wait for useEffect to handle print
+      setFinalSaleData(null); // Reset print data when dialog opens
       setCreditToApply("0");
       if (existingSaleData) {
         setCashTendered("");
@@ -311,7 +305,7 @@ export function BillDialog({
     >
       <div className="text-center mb-4">
         <div className="flex justify-center mb-1 logo-container">
-            <AppLogo size="md"/>
+            <AppLogo size="lg"/>
         </div>
         <p className="text-xs">4/1 Bujjampala, Dankotuwa</p>
         <p className="text-xs">Hotline: 077-3383721, 077-1066595</p>
@@ -396,14 +390,15 @@ export function BillDialog({
       <div className="space-y-1 text-sm mb-4">
         <h4 className="font-semibold text-base mb-2 mt-2">Final Summary:</h4>
         
-        {isReprintMode ? (
+        {saleForPrinting ? (
             <div className="text-xs space-y-1">
-                {(saleForPrinting?.paidAmountCash ?? 0) > 0 && <div className="flex justify-between"><span>Initial Cash:</span><span>{formatCurrency(saleForPrinting!.paidAmountCash!)}</span></div>}
-                {(saleForPrinting?.paidAmountCheque ?? 0) > 0 && <div className="flex justify-between"><span>Initial Cheque:</span><span>{formatCurrency(saleForPrinting!.paidAmountCheque!)} (#{saleForPrinting!.chequeDetails?.number})</span></div>}
-                {(saleForPrinting?.paidAmountBankTransfer ?? 0) > 0 && <div className="flex justify-between"><span>Initial Bank Transfer:</span><span>{formatCurrency(saleForPrinting!.paidAmountBankTransfer!)}</span></div>}
-                {(saleForPrinting?.creditUsed ?? 0) > 0 && <div className="flex justify-between text-green-600"><span>Credit Used:</span><span>{formatCurrency(saleForPrinting!.creditUsed!)}</span></div>}
-                {(saleForPrinting?.changeGiven ?? 0) > 0 && <div className="flex justify-between text-green-600"><span>Initial Change Given:</span><span>{formatCurrency(saleForPrinting!.changeGiven!)}</span></div>}
-                {saleForPrinting?.additionalPayments?.map((p, i) => (
+                {(saleForPrinting.paidAmountCash ?? 0) > 0 && <div className="flex justify-between"><span>Cash Paid:</span><span>{formatCurrency(saleForPrinting.paidAmountCash!)}</span></div>}
+                {(saleForPrinting.paidAmountCheque ?? 0) > 0 && <div className="flex justify-between"><span>Cheque:</span><span>{formatCurrency(saleForPrinting.paidAmountCheque!)} (#{saleForPrinting.chequeDetails?.number})</span></div>}
+                {(saleForPrinting.paidAmountBankTransfer ?? 0) > 0 && <div className="flex justify-between"><span>Bank Transfer:</span><span>{formatCurrency(saleForPrinting.paidAmountBankTransfer!)}</span></div>}
+                {(saleForPrinting.creditUsed ?? 0) > 0 && <div className="flex justify-between text-green-600"><span>Credit Used:</span><span>- {formatCurrency(saleForPrinting.creditUsed!)}</span></div>}
+                {(saleForPrinting.changeGiven ?? 0) > 0 && <div className="flex justify-between text-green-600"><span>Change Given:</span><span>{formatCurrency(saleForPrinting.changeGiven!)}</span></div>}
+                
+                {saleForPrinting.additionalPayments?.map((p, i) => (
                     <div key={i} className="border-t mt-1 pt-1">
                         <p className="font-medium text-muted-foreground">{format(p.date, "PP, p")}</p>
                         <div className="flex justify-between"><span>{p.method} Payment:</span><span>{formatCurrency(p.amount)}</span></div>
@@ -411,7 +406,7 @@ export function BillDialog({
                 ))}
             </div>
         ) : (
-            <div className="text-xs space-y-1">
+             <div className="text-xs space-y-1">
                 {parsedCreditApplied > 0 && <div className="flex justify-between text-green-600"><span>Credit Applied:</span><span>- {formatCurrency(parsedCreditApplied)}</span></div>}
                 {parsedCashTendered > 0 && <div className="flex justify-between"><span>Cash Tendered:</span><span>{formatCurrency(parsedCashTendered)}</span></div>}
                 {parsedChequeAmountPaid > 0 && <div className="flex justify-between"><span>Cheque Paid:</span><span>{formatCurrency(parsedChequeAmountPaid)}</span></div>}
@@ -423,11 +418,11 @@ export function BillDialog({
         <Separator className="my-2 summary-separator"/>
         <div className="flex justify-between font-semibold">
           <span>Total Paid:</span>
-          <span>{formatCurrency(isReprintMode ? (saleForPrinting?.totalAmountPaid || 0) : totalPaymentApplied)}</span>
+          <span>{formatCurrency(saleForPrinting ? saleForPrinting.totalAmountPaid : totalPaymentApplied)}</span>
         </div>
-        <div className={cn("flex justify-between font-bold", (isReprintMode ? (saleForPrinting?.outstandingBalance || 0) : outstandingBalance) > 0 ? "text-destructive" : "text-muted-foreground")}>
+        <div className={cn("flex justify-between font-bold", (saleForPrinting ? (saleForPrinting.outstandingBalance ?? 0) : outstandingBalance) > 0 ? "text-destructive" : "text-muted-foreground")}>
           <span>Outstanding Balance:</span>
-          <span>{formatCurrency(isReprintMode ? (saleForPrinting?.outstandingBalance || 0) : outstandingBalance)}</span>
+          <span>{formatCurrency(saleForPrinting ? (saleForPrinting.outstandingBalance ?? 0) : outstandingBalance)}</span>
         </div>
       </div>
 
