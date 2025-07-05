@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { CartItem, Customer, Sale, ChequeInfo, BankTransferInfo } from "@/lib/types";
@@ -80,10 +81,12 @@ export function BillDialog({
     if (finalSaleData) {
       window.print();
       setIsProcessing(false);
-      onOpenChange(false);
+      // DO NOT close the dialog here. The print command is async.
+      // The user will close it manually after printing.
+      // onOpenChange(false);
       setFinalSaleData(null);
     }
-  }, [finalSaleData, onOpenChange]);
+  }, [finalSaleData]);
 
   const saleForPrinting = finalSaleData || existingSaleData;
   const isReprintMode = !!saleForPrinting;
