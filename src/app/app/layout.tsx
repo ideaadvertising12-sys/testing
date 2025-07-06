@@ -250,9 +250,8 @@ function AppShell({ children }: { children: React.ReactNode }) {
           <div className="flex-1 flex flex-col overflow-x-hidden">
             <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-card/95 px-4 backdrop-blur-sm sm:px-6">
               <div className="flex items-center gap-2">
-                <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setOpenMobile(true)}>
-                  <PanelLeft className="h-5 w-5" />
-                  <span className="sr-only">Open sidebar</span>
+                <Button variant="ghost" className="h-9 px-3 text-sm font-bold" onClick={() => setOpenMobile(true)}>
+                  +MENU
                 </Button>
                 <h1 className="text-xl font-semibold font-headline hidden sm:block">
                   {currentPageLabel}
