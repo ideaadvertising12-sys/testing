@@ -449,16 +449,16 @@ export const saleConverter = {
 
     return firestoreSale;
   },
-  fromFirestore: (snapshot: any): Sale => { 
+  fromFirestore: (snapshot: any): Sale => {
     const data = snapshot.data();
     let chequeDetails;
     if (data.chequeDetails) {
-        chequeDetails = {
-            ...data.chequeDetails,
-            date: data.chequeDetails.date instanceof Timestamp ? data.chequeDetails.date.toDate() : undefined,
-        }
+      chequeDetails = {
+        ...data.chequeDetails,
+        date: data.chequeDetails.date instanceof Timestamp ? data.chequeDetails.date.toDate() : undefined,
+      };
     }
-    
+
     return {
       id: snapshot.id,
       items: Array.isArray(data.items) ? data.items.map((item: FirestoreCartItem): CartItem => {
@@ -473,10 +473,10 @@ export const saleConverter = {
           quantity: item.quantity,
           appliedPrice: item.appliedPrice,
           saleType: item.saleType,
-          name: item.productName || "N/A", 
+          name: item.productName || "N/A",
           category: item.productCategory || "Other",
-          price: typeof item.productPrice === 'number' ? item.productPrice : 0, 
-          sku: item.productSku, 
+          price: typeof item.productPrice === 'number' ? item.productPrice : 0,
+          sku: item.productSku,
           isOfferItem: item.isOfferItem || false,
           returnedQuantity: item.returnedQuantity,
           imageUrl: undefined,
@@ -492,15 +492,29 @@ export const saleConverter = {
       paidAmountBankTransfer: data.paidAmountBankTransfer,
       bankTransferDetails: data.bankTransferDetails,
       creditUsed: data.creditUsed,
-      additionalPayments: Array.isArray(data.additionalPayments) ? data.additionalPayments.map((p: FirestorePayment) => {
-        const payment : Payment = {
-          ...p,
-          date: p.date.toDate()
-        };
-        if (p.details && p.method === "Cheque" && 'date' in p.details && p.details.date) {
-            (payment.details as ChequeInfo).date = p.details.date.toDate();
+      additionalPayments: Array.isArray(data.additionalPayments) ? data.additionalPayments.map((p: FirestorePayment): Payment => {
+        let paymentDetails: ChequeInfo | BankTransferInfo | undefined;
+
+        if (p.details) {
+            if (p.method === 'Cheque') {
+                const firestoreCheque = p.details as FirestoreChequeInfo;
+                paymentDetails = {
+                    ...firestoreCheque,
+                    date: firestoreCheque.date?.toDate(),
+                };
+            } else {
+                paymentDetails = p.details as BankTransferInfo;
+            }
         }
-        return payment;
+
+        return {
+            amount: p.amount,
+            method: p.method,
+            date: p.date.toDate(),
+            staffId: p.staffId,
+            notes: p.notes,
+            details: paymentDetails,
+        };
       }) : undefined,
       totalAmountPaid: data.totalAmountPaid,
       outstandingBalance: data.outstandingBalance,
