@@ -323,19 +323,14 @@ export function BillDialog({
         <table className="w-full text-xs">
           <thead>
             <tr className="border-b">
-              <th className="text-left py-1 font-normal w-[35%]">Item</th>
-              <th className="text-center py-1 font-normal w-[10%]">Qty</th>
-              <th className="text-right py-1 font-normal w-[18%]">Price</th>
-              <th className="text-right py-1 font-normal w-[18%]">Disc. Price</th>
-              <th className="text-right py-1 font-normal w-[19%]">Total</th>
+              <th className="text-left py-1 font-normal w-[45%]">Item</th>
+              <th className="text-center py-1 font-normal w-[15%]">Qty</th>
+              <th className="text-right py-1 font-normal w-[20%]">Price</th>
+              <th className="text-right py-1 font-normal w-[20%]">Total</th>
             </tr>
           </thead>
           <tbody>
-            {itemsToDisplay.map((item, index) => {
-              const originalPrice = item.price;
-              const hasDiscount = !item.isOfferItem && originalPrice > item.appliedPrice;
-
-              return (
+            {itemsToDisplay.map((item, index) => (
                 <tr 
                   key={`${item.id}-${item.saleType}-${item.isOfferItem ? 'offer' : 'paid'}-${index}`} 
                   className="border-b border-dashed"
@@ -345,18 +340,14 @@ export function BillDialog({
                     {item.isOfferItem && <Gift className="inline-block h-3 w-3 ml-1 text-green-600" />}
                   </td>
                   <td className="text-center py-1.5">{item.quantity}</td>
-                  <td className={cn("text-right py-1.5", hasDiscount && "line-through text-muted-foreground")}>
-                    {item.isOfferItem ? "FREE" : `Rs. ${originalPrice.toFixed(2)}`}
-                  </td>
-                  <td className="text-right py-1.5 font-medium">
-                    {item.isOfferItem ? "-" : (hasDiscount ? `Rs. ${item.appliedPrice.toFixed(2)}` : "-")}
+                  <td className="text-right py-1.5">
+                    {item.isOfferItem ? "FREE" : `Rs. ${item.appliedPrice.toFixed(2)}`}
                   </td>
                   <td className="text-right py-1.5 font-semibold">
                     {item.isOfferItem ? "Rs. 0.00" : `Rs. ${(item.appliedPrice * item.quantity).toFixed(2)}`}
                   </td>
                 </tr>
-              );
-            })}
+              ))}
           </tbody>
         </table>
       </div>
@@ -364,14 +355,8 @@ export function BillDialog({
       <div className="space-y-1 text-xs mb-4">
         <div className="flex justify-between">
           <span>Subtotal:</span>
-          <span>Rs. {subtotalToDisplay.toFixed(2)}</span>
+          <span>Rs. {totalAmountDueForDisplay.toFixed(2)}</span>
         </div>
-        {discountAmountToDisplay > 0 && (
-          <div className="flex justify-between text-destructive">
-            <span>Total Discount:</span>
-            <span>- Rs. {discountAmountToDisplay.toFixed(2)}</span>
-          </div>
-        )}
         <Separator className="my-1 summary-separator"/>
         <div className="flex justify-between font-bold text-lg text-primary">
           <span>TOTAL AMOUNT DUE:</span>
@@ -428,8 +413,8 @@ export function BillDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => {
-        if (!isReprintMode && !open) {
-          // Allow closing dialog normally if not printing
+        if (!isReprintMode) {
+            onOpenChange(open);
         } else if (isReprintMode && !open) {
            onOpenChange(false);
         } else {
