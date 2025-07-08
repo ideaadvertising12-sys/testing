@@ -66,6 +66,7 @@ export default function DayEndReportPage() {
 
       // --- Revenue Calculations ---
       const grossSalesToday = salesToday.reduce((sum, s) => sum + s.totalAmount, 0);
+      const totalDiscountsToday = salesToday.reduce((sum, s) => sum + (s.discountAmount || 0), 0);
       
       let refundsForTodaySales = 0;
       let refundsForPastSales = 0;
@@ -135,6 +136,7 @@ export default function DayEndReportPage() {
         reportDate: selectedDate,
         totalTransactions: salesToday.length,
         grossSalesValue: grossSalesToday,
+        totalDiscountsToday: totalDiscountsToday,
         refundsForTodaySales,
         refundsForPastSales,
         netSalesValue: netSalesToday,
@@ -173,6 +175,7 @@ export default function DayEndReportPage() {
 
     const tableBody = [
         ['Gross Sales Today', formatCurrency(reportSummary.grossSalesValue)],
+        ['Total Discounts Today', formatCurrency(reportSummary.totalDiscountsToday ?? 0)],
         ["Refunds for Today's Sales", formatCurrency(reportSummary.refundsForTodaySales)],
         [{ content: 'Net Sales Value', styles: { fontStyle: 'bold' } }, { content: formatCurrency(reportSummary.netSalesValue), styles: { fontStyle: 'bold' } }],
         [' ', ' '],
@@ -369,6 +372,7 @@ export default function DayEndReportPage() {
             <CardContent className="space-y-2 text-md">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
                     <p className="flex justify-between"><span>Gross Sales Value:</span> <strong className="text-right">{formatCurrency(reportSummary.grossSalesValue)}</strong></p>
+                    <p className="flex justify-between text-orange-500"><span>Discounts Given Today:</span> <strong className="text-right">{formatCurrency(reportSummary.totalDiscountsToday ?? 0)}</strong></p>
                     <p className="flex justify-between text-blue-600"><span>Total Collections:</span> <strong className="text-right">{formatCurrency(reportSummary.totalCashIn + reportSummary.totalChequeIn + reportSummary.totalBankTransferIn)}</strong></p>
                     <p className="flex justify-between text-orange-600"><span>Refunds on Today's Sales:</span> <strong className="text-right">{formatCurrency(reportSummary.refundsForTodaySales)}</strong></p>
                     <p className="flex justify-between text-destructive"><span>Total Refunds Paid Out:</span> <strong className="text-right">{formatCurrency(reportSummary.totalRefundsPaidToday)}</strong></p>

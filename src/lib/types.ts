@@ -1,3 +1,4 @@
+
 // location src/lib/types.ts
 import { Timestamp, DocumentReference, doc } from 'firebase/firestore';
 import { db } from './firebase';
@@ -782,6 +783,7 @@ export interface DayEndReportSummary {
   reportDate: Date;
   totalTransactions: number;
   grossSalesValue: number;
+  totalDiscountsToday?: number;
   refundsForTodaySales: number;
   refundsForPastSales: number;
   netSalesValue: number;
