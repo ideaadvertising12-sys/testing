@@ -66,8 +66,14 @@ export function CustomerDataTable() {
   const { toast } = useToast();
   const userRole = currentUser?.role;
 
-  const canManageCustomers = userRole === 'admin';
+  // Granular permissions
   const canAddCustomers = userRole === 'admin' || userRole === 'cashier';
+  const canEditCustomers = userRole === 'admin';
+  const canDeleteCustomers = userRole === 'admin';
+  const canActivateCustomers = userRole === 'admin' || userRole === 'cashier';
+  
+  // Determines if the "Actions" column or dropdown should be visible at all
+  const canPerformAnyAction = canEditCustomers || canDeleteCustomers || canActivateCustomers;
 
   useEffect(() => {
     setIsMounted(true);
@@ -80,7 +86,7 @@ export function CustomerDataTable() {
   };
 
   const handleOpenEditDialog = (customer: Customer) => {
-    if (!canManageCustomers) return;
+    if (!canEditCustomers) return;
     setEditingCustomer(customer);
     setIsCustomerDialogOpen(true);
   };
@@ -90,11 +96,17 @@ export function CustomerDataTable() {
     let action: 'add' | 'update' | null = null;
     
     if (editingCustomer) { // Edit mode
-      if (!canManageCustomers) return;
+      if (!canEditCustomers) {
+        toast({ variant: "destructive", title: "Permission Denied" });
+        return;
+      }
       result = await updateCustomer(customerToSave.id, customerToSave);
       action = 'update';
     } else { // Add mode
-      if (!canAddCustomers) return;
+      if (!canAddCustomers) {
+        toast({ variant: "destructive", title: "Permission Denied" });
+        return;
+      }
       result = await addCustomer({
         name: customerToSave.name,
         phone: customerToSave.phone,
@@ -116,7 +128,10 @@ export function CustomerDataTable() {
   };
   
   const handleActivateCustomer = async (customer: Customer) => {
-    if (!canManageCustomers) return;
+    if (!canActivateCustomers) {
+        toast({ variant: "destructive", title: "Permission Denied", description: "You do not have permission to activate customers." });
+        return;
+    }
     const result = await updateCustomer(customer.id, { status: 'active' });
     if (result) {
         toast({
@@ -127,13 +142,13 @@ export function CustomerDataTable() {
   };
 
   const openDeleteConfirmation = (customer: Customer) => {
-    if (!canManageCustomers) return;
+    if (!canDeleteCustomers) return;
     setCustomerToDelete(customer);
     setIsDeleteAlertOpen(true);
   };
 
   const handleDeleteConfirmed = async () => {
-    if (!canManageCustomers || !customerToDelete) return;
+    if (!canDeleteCustomers || !customerToDelete) return;
     const customerName = customerToDelete.name;
     const success = await deleteCustomer(customerToDelete.id);
     if (success) {
@@ -265,7 +280,7 @@ export function CustomerDataTable() {
                                       <p>Call {customer.name}</p>
                                     </TooltipContent>
                                   </Tooltip>
-                                  {canManageCustomers && (
+                                  {canPerformAnyAction && (
                                     <DropdownMenu>
                                       <DropdownMenuTrigger asChild>
                                         <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -274,20 +289,24 @@ export function CustomerDataTable() {
                                       </DropdownMenuTrigger>
                                       <DropdownMenuContent align="end" className="w-40">
                                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                        {activeTab === 'pending' && (
+                                        {activeTab === 'pending' && canActivateCustomers && (
                                             <DropdownMenuItem onClick={() => handleActivateCustomer(customer)} className="text-green-600 focus:text-green-700">
                                                 <CheckCircle className="mr-2 h-4 w-4" /> Activate
                                             </DropdownMenuItem>
                                         )}
-                                        <DropdownMenuItem onClick={() => handleOpenEditDialog(customer)}>
-                                          <Edit className="mr-2 h-4 w-4" /> Edit
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem
-                                          className="text-destructive focus:text-destructive"
-                                          onClick={() => openDeleteConfirmation(customer)}
-                                        >
-                                          <Trash2 className="mr-2 h-4 w-4" /> Delete
-                                        </DropdownMenuItem>
+                                        {canEditCustomers && (
+                                            <DropdownMenuItem onClick={() => handleOpenEditDialog(customer)}>
+                                                <Edit className="mr-2 h-4 w-4" /> Edit
+                                            </DropdownMenuItem>
+                                        )}
+                                        {canDeleteCustomers && (
+                                            <DropdownMenuItem
+                                            className="text-destructive focus:text-destructive"
+                                            onClick={() => openDeleteConfirmation(customer)}
+                                            >
+                                            <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                            </DropdownMenuItem>
+                                        )}
                                       </DropdownMenuContent>
                                     </DropdownMenu>
                                   )}
@@ -317,7 +336,7 @@ export function CustomerDataTable() {
                         <TableHead>Shop</TableHead>
                         <TableHead>Address</TableHead>
                         <TableHead className="w-[50px] text-center">Call</TableHead>
-                        {canManageCustomers && <TableHead className="w-[50px] text-center">Actions</TableHead>}
+                        {canPerformAnyAction && <TableHead className="w-[50px] text-center">Actions</TableHead>}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -329,12 +348,12 @@ export function CustomerDataTable() {
                             <TableCell><Skeleton className="h-6 w-full" /></TableCell>
                             <TableCell><Skeleton className="h-6 w-full" /></TableCell>
                             <TableCell><Skeleton className="h-6 w-8 mx-auto" /></TableCell>
-                            {canManageCustomers && <TableCell><Skeleton className="h-6 w-8 mx-auto" /></TableCell>}
+                            {canPerformAnyAction && <TableCell><Skeleton className="h-6 w-8 mx-auto" /></TableCell>}
                           </TableRow>
                         ))
                       ) : filteredCustomers.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={canManageCustomers ? 6 : 5} className="h-24 text-center">
+                          <TableCell colSpan={canPerformAnyAction ? 6 : 5} className="h-24 text-center">
                             <div className="flex flex-col items-center justify-center text-muted-foreground py-8">
                               <Users2 className="w-12 h-12 mb-4 opacity-50" />
                               <p className="text-lg font-medium">No {activeTab} customers found</p>
@@ -380,7 +399,7 @@ export function CustomerDataTable() {
                                 </TooltipContent>
                               </Tooltip>
                             </TableCell>
-                            {canManageCustomers && (
+                            {canPerformAnyAction && (
                               <TableCell className="text-center">
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
@@ -390,20 +409,24 @@ export function CustomerDataTable() {
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent align="end" className="w-40">
                                     <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                    {activeTab === 'pending' && (
+                                    {activeTab === 'pending' && canActivateCustomers && (
                                         <DropdownMenuItem onClick={() => handleActivateCustomer(customer)} className="text-green-600 focus:text-green-700">
                                             <CheckCircle className="mr-2 h-4 w-4" /> Activate
                                         </DropdownMenuItem>
                                     )}
-                                    <DropdownMenuItem onClick={() => handleOpenEditDialog(customer)}>
-                                      <Edit className="mr-2 h-4 w-4" /> Edit
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem
-                                      className="text-destructive focus:text-destructive"
-                                      onClick={() => openDeleteConfirmation(customer)}
-                                    >
-                                      <Trash2 className="mr-2 h-4 w-4" /> Delete
-                                    </DropdownMenuItem>
+                                    {canEditCustomers && (
+                                        <DropdownMenuItem onClick={() => handleOpenEditDialog(customer)}>
+                                            <Edit className="mr-2 h-4 w-4" /> Edit
+                                        </DropdownMenuItem>
+                                    )}
+                                    {canDeleteCustomers && (
+                                        <DropdownMenuItem
+                                            className="text-destructive focus:text-destructive"
+                                            onClick={() => openDeleteConfirmation(customer)}
+                                        >
+                                            <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                        </DropdownMenuItem>
+                                    )}
                                   </DropdownMenuContent>
                                 </DropdownMenu>
                               </TableCell>
