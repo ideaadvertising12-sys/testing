@@ -81,10 +81,6 @@ export function BillDialog({
     if (finalSaleData) {
         window.print();
         setIsProcessing(false);
-        // We no longer close the dialog automatically to ensure printing works reliably.
-        // User will close it manually.
-        // onOpenChange(false); 
-        // setFinalSaleData(null);
     }
   }, [finalSaleData]);
 
@@ -308,7 +304,7 @@ export function BillDialog({
             <AppLogo size="lg"/>
         </div>
         <p className="text-xs">4/1 Bujjampala, Dankotuwa</p>
-        <p className="text-xs">Hotline: 077-3383721, 077-1066595</p>
+        <p className="text-xs">Hotline: 077-1066595, 077-6106616</p>
       </div>
 
       <Separator className="my-3 summary-separator"/>
@@ -433,7 +429,12 @@ export function BillDialog({
   );
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+    <Dialog open={isOpen} onOpenChange={(open) => {
+        if (!open) {
+            // Do not reset processing state here, allow the effect to handle it
+        }
+        onOpenChange(open);
+    }}>
       <DialogContent 
         className={cn(
           "sm:max-w-lg flex flex-col p-0 printable-content",

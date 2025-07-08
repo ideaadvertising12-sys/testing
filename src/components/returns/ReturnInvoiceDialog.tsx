@@ -68,7 +68,7 @@ export function ReturnInvoiceDialog({ isOpen, onOpenChange, returnTransaction }:
             <AppLogo size="md" />
             </div>
             <p className="text-xs">4/1 Bujjampala, Dankotuwa</p>
-            <p className="text-xs">Hotline: 077-3383721, 077-1066595</p>
+            <p className="text-xs">Hotline: 077-1066595, 077-6106616</p>
         </div>
         <Separator className="my-3 summary-separator"/>
         <div className="text-xs mb-3 space-y-0.5">
