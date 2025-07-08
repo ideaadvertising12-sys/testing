@@ -80,7 +80,6 @@ export function BillDialog({
   useEffect(() => {
     if (finalSaleData) {
         window.print();
-        setIsProcessing(false);
     }
   }, [finalSaleData]);
 
@@ -301,7 +300,7 @@ export function BillDialog({
     >
       <div className="text-center mb-4">
         <div className="flex justify-center mb-1 logo-container">
-            <AppLogo size="lg"/>
+            <AppLogo size="lg" className="app-logo-text"/>
         </div>
         <p className="text-xs">4/1 Bujjampala, Dankotuwa</p>
         <p className="text-xs">Hotline: 077-1066595, 077-6106616</p>
@@ -315,7 +314,6 @@ export function BillDialog({
         {customerForDisplay && <p>Customer: {customerForDisplay.name} {customerForDisplay.shopName ? `(${customerForDisplay.shopName})` : ''}</p>}
         <p>Served by: {saleForPrinting?.staffName || saleForPrinting?.staffId || 'Staff Member'}</p>
         {invoiceCloseDate && <p className="font-semibold">Invoice Closed: {invoiceCloseDate}</p>}
-        {offerWasApplied && <p className="font-semibold text-green-600">Offer: Buy 12 Get 1 Free Applied!</p>}
       </div>
 
       <Separator className="my-3 summary-separator"/>
@@ -430,10 +428,13 @@ export function BillDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => {
-        if (!open) {
-            // Do not reset processing state here, allow the effect to handle it
+        if (!isReprintMode && !open) {
+          // Allow closing dialog normally if not printing
+        } else if (isReprintMode && !open) {
+           onOpenChange(false);
+        } else {
+           onOpenChange(open);
         }
-        onOpenChange(open);
     }}>
       <DialogContent 
         className={cn(
