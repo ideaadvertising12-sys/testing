@@ -48,7 +48,7 @@ export function SampleIssuingForm() {
   const [vehicleStock, setVehicleStock] = useState<Map<string, number> | null>(null);
   const [isVehicleStockLoading, setIsVehicleStockLoading] = useState(false);
 
-  const pendingCustomers = useMemo(() => customers.filter(c => c.status === 'pending'), [customers]);
+  const selectableCustomers = useMemo(() => customers.filter(c => c.status === 'pending' || c.status === 'active'), [customers]);
   
   const fetchVehicleStock = async (vehicleId: string) => {
     if (!vehicleId) {
@@ -215,14 +215,14 @@ export function SampleIssuingForm() {
       <CardHeader>
         <CardTitle className="font-headline text-2xl">Issue Samples</CardTitle>
         <CardDescription>
-          Record product samples issued to pending customers from a vehicle.
+          Record product samples issued to customers from a vehicle.
         </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label htmlFor="customer">Pending Customer *</Label>
+              <Label htmlFor="customer">Customer *</Label>
               <Popover open={customerPopoverOpen} onOpenChange={setCustomerPopoverOpen}>
                 <PopoverTrigger asChild>
                   <Button
@@ -233,18 +233,18 @@ export function SampleIssuingForm() {
                     disabled={isLoadingCustomers}
                   >
                     <span className="truncate">
-                      {selectedCustomerId ? pendingCustomers.find(c => c.id === selectedCustomerId)?.name : "Select customer..."}
+                      {selectedCustomerId ? selectableCustomers.find(c => c.id === selectedCustomerId)?.name : "Select customer..."}
                     </span>
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
                   <Command>
-                    <CommandInput placeholder="Search pending customers..." />
+                    <CommandInput placeholder="Search customers..." />
                     <CommandList>
-                      <CommandEmpty>No pending customers found.</CommandEmpty>
+                      <CommandEmpty>No customers found.</CommandEmpty>
                       <CommandGroup>
-                        {pendingCustomers.map((customer) => (
+                        {selectableCustomers.map((customer) => (
                           <CommandItem
                             key={customer.id}
                             value={customer.name}
