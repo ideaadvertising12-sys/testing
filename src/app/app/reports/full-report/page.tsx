@@ -67,6 +67,7 @@ function transformTransactionsToFullReportEntries(
       : undefined;
 
     sale.items.forEach(item => {
+      const discountOnItem = item.price - item.appliedPrice;
       reportEntries.push({
         transactionId: sale.id,
         transactionType: 'Sale',
@@ -78,6 +79,7 @@ function transformTransactionsToFullReportEntries(
         productCategory: item.category,
         quantity: item.quantity,
         appliedPrice: item.appliedPrice,
+        discountOnItem: discountOnItem > 0.009 ? discountOnItem : undefined,
         lineTotal: item.quantity * item.appliedPrice,
         saleType: item.saleType,
         paymentSummary: sale.paymentSummary,

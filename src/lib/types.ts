@@ -1,4 +1,3 @@
-
 // location src/lib/types.ts
 import { Timestamp, DocumentReference, doc } from 'firebase/firestore';
 import { db } from './firebase';
@@ -755,6 +754,7 @@ export interface FullReportEntry {
   productCategory: Product["category"];
   quantity: number;
   appliedPrice: number;
+  discountOnItem?: number;
   lineTotal: number;
   saleType?: 'retail' | 'wholesale';
   paymentSummary?: Sale["paymentSummary"];

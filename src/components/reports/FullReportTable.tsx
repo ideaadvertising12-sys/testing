@@ -99,7 +99,7 @@ export function FullReportTable({ data, isLoading }: FullReportTableProps) {
                 </Badge>
               </div>
               
-              <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
+              <div className="mt-2 grid grid-cols-3 gap-2 text-sm">
                 <div>
                   <p className="text-xs text-muted-foreground">Qty</p>
                   <p className={cn(entry.quantity < 0 && 'text-destructive')}>{entry.quantity}</p>
@@ -108,17 +108,25 @@ export function FullReportTable({ data, isLoading }: FullReportTableProps) {
                   <p className="text-xs text-muted-foreground">Price</p>
                   <p>Rs. {entry.appliedPrice.toFixed(2)}</p>
                 </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Total</p>
-                  <p className={cn("font-medium", entry.lineTotal < 0 && 'text-destructive')}>
-                    Rs. {entry.lineTotal.toFixed(2)}
+                 <div>
+                  <p className="text-xs text-muted-foreground">Discount</p>
+                  <p className="font-medium text-destructive">
+                    {entry.discountOnItem ? `Rs. ${entry.discountOnItem.toFixed(2)}` : '-'}
                   </p>
                 </div>
-                 <div>
-                  <p className="text-xs text-muted-foreground">Sale Type</p>
-                  <p>{entry.saleType || "N/A"}</p>
-                </div>
               </div>
+               <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
+                 <div>
+                    <p className="text-xs text-muted-foreground">Total</p>
+                    <p className={cn("font-medium", entry.lineTotal < 0 && 'text-destructive')}>
+                      Rs. {entry.lineTotal.toFixed(2)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Sale Type</p>
+                    <p>{entry.saleType || "N/A"}</p>
+                  </div>
+               </div>
               
               {isExpanded && (
                 <div className="mt-3 pt-3 border-t space-y-2 text-sm">
@@ -172,6 +180,7 @@ export function FullReportTable({ data, isLoading }: FullReportTableProps) {
               <TableHead className="w-[120px]">Category</TableHead>
               <TableHead className="w-[60px] text-right">Qty</TableHead>
               <TableHead className="w-[90px] text-right">Unit Price</TableHead>
+              <TableHead className="w-[90px] text-right">Discount</TableHead>
               <TableHead className="w-[100px] text-right">Total</TableHead>
               <TableHead className="w-[100px]">Sale Type</TableHead>
               <TableHead className="w-[150px]">Payment</TableHead>
@@ -246,6 +255,9 @@ export function FullReportTable({ data, isLoading }: FullReportTableProps) {
                     {entry.quantity}
                   </TableCell>
                   <TableCell className="text-right">Rs. {entry.appliedPrice.toFixed(2)}</TableCell>
+                  <TableCell className="text-right text-destructive">
+                    {entry.discountOnItem ? `Rs. ${entry.discountOnItem.toFixed(2)}` : <span className="text-muted-foreground">-</span>}
+                  </TableCell>
                   <TableCell className={cn("text-right font-medium", entry.lineTotal < 0 && 'text-destructive')}>
                     Rs. {entry.lineTotal.toFixed(2)}
                   </TableCell>
