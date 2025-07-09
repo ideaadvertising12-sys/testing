@@ -134,9 +134,10 @@ async function generateCustomSaleId(): Promise<string> {
         transaction.set(counterRef, { count: 1 });
         return 1;
       } else {
-        const count = counterDoc.data().count + 1;
-        transaction.update(counterRef, { count });
-        return count;
+        const currentCount = counterDoc.data()?.count;
+        const newCount = (typeof currentCount === 'number' ? currentCount : 0) + 1;
+        transaction.update(counterRef, { count: newCount });
+        return newCount;
       }
     });
     return `sale-${datePart}-${newCount}`;
@@ -164,9 +165,9 @@ export const addSale = async (saleData: Omit<Sale, 'id'>): Promise<string> => {
 
 
   // STOCK UPDATE LOGIC
-  if (saleData.vehicleId) {
-    // Vehicle Sale: Create stock transactions to represent stock 'unloading' from vehicle
-    for (const item of saleData.items) {
+  const stockUpdateLogic = async (item: CartItem) => {
+    if (saleData.vehicleId) {
+      // Vehicle Sale: Create stock transactions to represent stock 'unloading' from vehicle
       const productDetails = await getProduct(item.id);
       if (!productDetails) {
           throw new Error(`Product ${item.name} not found for stock transaction.`);
@@ -189,10 +190,9 @@ export const addSale = async (saleData: Omit<Sale, 'id'>): Promise<string> => {
       const transactionDocRef = doc(collection(db, "stockTransactions"));
       const firestoreTx = stockTransactionConverter.toFirestore(transaction);
       batch.set(transactionDocRef, firestoreTx);
-    }
-  } else {
-    // Main Inventory Sale: Decrement stock from the product itself
-    for (const item of saleData.items) {
+
+    } else {
+      // Main Inventory Sale: Decrement stock from the product itself
       const productDocRefToUpdate = doc(db, "products", item.id);
       const productSnap = await getDoc(productDocRefToUpdate.withConverter(productConverter));
       if (productSnap.exists()) {
@@ -206,6 +206,11 @@ export const addSale = async (saleData: Omit<Sale, 'id'>): Promise<string> => {
         throw new Error(`Product ${item.name} (ID: ${item.id}) not found for stock update.`);
       }
     }
+  };
+
+  // Apply stock logic to all items, including offer items
+  for (const item of saleData.items) {
+    await stockUpdateLogic(item);
   }
 
   await batch.commit();
@@ -245,9 +250,10 @@ async function generateCustomReturnId(): Promise<string> {
         transaction.set(counterRef, { count: 1 });
         return 1;
       } else {
-        const count = counterDoc.data().count + 1;
-        transaction.update(counterRef, { count });
-        return count;
+        const currentCount = counterDoc.data()?.count;
+        const newCount = (typeof currentCount === 'number' ? currentCount : 0) + 1;
+        transaction.update(counterRef, { count: newCount });
+        return newCount;
       }
     });
     return `return-${datePart}-${newCount}`;
@@ -395,7 +401,8 @@ export const processReturnTransaction = async ({
             userId: staffId,
           };
           const txDocRef = doc(collection(db, "stockTransactions"));
-          transaction.set(txDocRef, stockTransactionConverter.toFirestore(stockTx));
+          const firestoreTx = stockTransactionConverter.toFirestore(stockTx);
+          transaction.set(txDocRef, firestoreTx);
         } else {
           // Otherwise, return stock to the main inventory
           productInfo.newStock += item.quantity;
@@ -443,7 +450,8 @@ export const processReturnTransaction = async ({
           userId: staffId,
         };
         const txDocRef = doc(collection(db, "stockTransactions"));
-        transaction.set(txDocRef, stockTransactionConverter.toFirestore(stockTx));
+        const firestoreTx = stockTransactionConverter.toFirestore(stockTx);
+        transaction.set(txDocRef, firestoreTx);
       }
     }
     
