@@ -101,7 +101,6 @@
 @media print {
   body {
     background: white;
-    position:relative;
   }
   
   /* --- Universal Print Isolation --- */
@@ -110,48 +109,56 @@
     display: none !important;
   }
 
-  /* By default, hide everything within the body during print */
+  /* Hide everything by default */
   body * {
     visibility: hidden;
   }
-
-  /*
-    Now, ONLY make the specific receipt container and its children visible.
-    This is the key to isolating the print content.
-  */
+  
+  /* Make only the printable content and its children visible */
   .printable-content, .printable-content * {
     visibility: visible !important;
   }
   
-  /*
-    Position the receipt container itself at the top-left of the page.
-    This breaks it out of any parent layout constraints from the dialog.
-    Set margin and padding to 0 to ensure it's flush.
-  */
+  /* Reset the dialog container for printing to allow content to flow across pages */
+  .printable-content {
+    position: static !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    transform: none !important;
+  }
+
+  /* Style the receipt content itself */
   #bill-content, 
   #return-receipt-content, 
   #payment-receipt-content {
-    position: absolute;
-    left: 50%;
-    top: 0;
-    transform: translateX(-50%);
-    z-index: 111;
-    padding: 0 2mm 2mm; /* Give a small printable margin, but not at the top */
-    width: 72mm; /* Standard width for 80mm paper */
-    height: auto;
+    position: static !important;
+    transform: none !important;
+    left: auto !important;
+    top: auto !important;
+    z-index: auto !important;
+    width: 72mm !important; /* Standard width for 80mm paper */
+    margin: 0 auto !important; /* Center the receipt */
+    padding: 0 2mm 2mm !important; /* Give a small printable margin, but not at the top */
+    height: auto !important; /* Let it grow with content */
     font-size: 9pt !important;
     font-family: 'Courier New', Courier, monospace !important;
     background: white !important;
     color: black !important;
-    margin: 0;
   }
 
   .logo-container {
-      margin-bottom: -5px; /* Pull content below slightly closer */
+      margin-bottom: 0px; /* Pull content below slightly closer */
   }
   
   .logo-container .app-logo-text {
-    font-size: 14pt !important;
+    font-size: 16pt !important;
     font-weight: bold !important;
   }
 
