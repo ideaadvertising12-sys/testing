@@ -500,7 +500,7 @@ export const saleConverter = {
                 const firestoreCheque = p.details as FirestoreChequeInfo;
                 paymentDetails = {
                     ...firestoreCheque,
-                    date: firestoreCheque.date?.toDate(),
+                    date: firestoreCheque.date instanceof Timestamp ? firestoreCheque.date.toDate() : undefined,
                 };
             } else {
                 paymentDetails = p.details as BankTransferInfo;
@@ -535,7 +535,7 @@ export const saleConverter = {
 };
 
 export const stockTransactionConverter = {
-  toFirestore: (transaction: StockTransaction): Partial<FirestoreStockTransaction> => {
+  toFirestore: (transaction: Omit<StockTransaction, 'id'>): Partial<FirestoreStockTransaction> => {
     const firestoreTransaction: Partial<FirestoreStockTransaction> = {
       productId: transaction.productId,
       productName: transaction.productName,

@@ -319,7 +319,7 @@ export const processReturnTransaction = async ({
     const productDataMap = new Map<string, { doc: Product, newStock: number }>();
     productDocs.forEach(docSnap => {
       if (docSnap.exists()) {
-        const data = docSnap.data();
+        const data = productConverter.fromFirestore(docSnap);
         productDataMap.set(docSnap.id, { doc: data, newStock: data.stock });
       } else {
         const failedId = Array.from(productRefs.entries()).find(([, ref]) => ref.path === docSnap.ref.path)?.[0];
