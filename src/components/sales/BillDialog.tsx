@@ -302,7 +302,8 @@ export function BillDialog({
         <div className="flex justify-center mb-1 logo-container">
             <AppLogo size="lg" className="app-logo-text"/>
         </div>
-        <p className="text-xs">077-1066595, 077-6106616</p>
+        <p className="text-xs">4/1 Bujjampala, Dankotuwa</p>
+        <p className="text-xs">Hotline: 077-1066595, 077-6106616</p>
       </div>
 
       <Separator className="my-3 summary-separator"/>
