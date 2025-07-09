@@ -60,6 +60,7 @@ export async function POST(request: NextRequest) {
     // Add optional fields ONLY if they exist and are not undefined
     if (saleDataFromClient.customerId !== undefined) payload.customerId = saleDataFromClient.customerId;
     if (saleDataFromClient.customerName !== undefined) payload.customerName = saleDataFromClient.customerName;
+    if (saleDataFromClient.customerShopName !== undefined) payload.customerShopName = saleDataFromClient.customerShopName;
     if (saleDataFromClient.staffName !== undefined) payload.staffName = saleDataFromClient.staffName;
     if (saleDataFromClient.vehicleId !== undefined) payload.vehicleId = saleDataFromClient.vehicleId;
     if (saleDataFromClient.paidAmountCash !== undefined) payload.paidAmountCash = saleDataFromClient.paidAmountCash;

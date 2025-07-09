@@ -43,6 +43,7 @@ interface PaymentDialogProps {
 interface PaymentReceiptData {
   saleId: string;
   customerName?: string;
+  customerShopName?: string;
   paymentAmount: number;
   paymentDate: Date;
   paymentMethod: string;
@@ -139,6 +140,7 @@ export function PaymentDialog({ isOpen, onOpenChange, sale, onSuccess }: Payment
       setPaymentReceiptData({
         saleId: sale.id,
         customerName: sale.customerName,
+        customerShopName: sale.customerShopName,
         paymentAmount: amount,
         paymentDate: new Date(),
         paymentMethod: paymentMethod,
@@ -164,6 +166,7 @@ export function PaymentDialog({ isOpen, onOpenChange, sale, onSuccess }: Payment
   const receipt = paymentReceiptData || {
       saleId: sale?.id,
       customerName: sale?.customerName,
+      customerShopName: sale?.customerShopName,
       paymentAmount: parseFloat(paymentAmount) || 0,
       paymentDate: new Date(),
       paymentMethod: paymentMethod,
@@ -184,7 +187,7 @@ export function PaymentDialog({ isOpen, onOpenChange, sale, onSuccess }: Payment
           <Separator className="my-2 summary-separator"/>
         <div className="text-xs space-y-0.5">
             <p><strong>Original Invoice ID:</strong> {receipt.saleId}</p>
-            <p><strong>Customer:</strong> {receipt.customerName || 'N/A'}</p>
+            <p><strong>Customer:</strong> {receipt.customerShopName || receipt.customerName || 'N/A'}</p>
             <p><strong>Payment Date:</strong> {format(receipt.paymentDate, "PP, p")}</p>
             <p><strong>Received by:</strong> {receipt.staffId}</p>
         </div>

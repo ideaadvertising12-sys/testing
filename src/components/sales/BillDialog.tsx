@@ -107,7 +107,12 @@ export function BillDialog({
   const customerForDisplay = useMemo(() => {
     const saleData = finalSaleData || existingSaleData;
     if (saleData) {
-        return saleData.customerName ? { id: saleData.customerId || '', name: saleData.customerName, phone: '', shopName: '' } as Customer : null;
+        return saleData.customerName ? { 
+            id: saleData.customerId || '', 
+            name: saleData.customerName, 
+            phone: '', // Not needed for display
+            shopName: saleData.customerShopName
+          } as Partial<Customer> : null;
     }
     return newCustomer;
   }, [finalSaleData, existingSaleData, newCustomer]);
@@ -243,6 +248,7 @@ export function BillDialog({
       const saleData: Omit<Sale, 'id' | 'saleDate' | 'staffId' | 'items'> = {
         customerId: customerForDisplay?.id,
         customerName: customerForDisplay?.name,
+        customerShopName: customerForDisplay?.shopName,
         subTotal: subtotalToDisplay,
         discountPercentage: 0,
         discountAmount: discountAmountToDisplay,
@@ -311,7 +317,7 @@ export function BillDialog({
       <div className="text-xs mb-3 space-y-0.5">
         <p>Date: {transactionDate.toLocaleDateString()} {transactionDate.toLocaleTimeString()}</p>
         {displaySaleId && <p>Transaction ID: {displaySaleId}</p>}
-        {customerForDisplay && <p>Customer: {customerForDisplay.name} {customerForDisplay.shopName ? `(${customerForDisplay.shopName})` : ''}</p>}
+        {customerForDisplay && <p>Customer: {customerForDisplay.shopName || customerForDisplay.name}</p>}
         <p>Served by: {saleForPrinting?.staffName || saleForPrinting?.staffId || 'Staff Member'}</p>
         {invoiceCloseDate && <p className="font-semibold">Invoice Closed: {invoiceCloseDate}</p>}
       </div>
@@ -353,7 +359,7 @@ export function BillDialog({
       </div>
 
       <div className="space-y-1 text-sm mb-4">
-        <div className="flex justify-between">
+         <div className="flex justify-between">
           <span>Subtotal:</span>
           <span>{formatCurrency(totalAmountDueForDisplay)}</span>
         </div>

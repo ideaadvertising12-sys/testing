@@ -420,6 +420,7 @@ export default function SalesPage() {
     const salePayload = {
       customerId: selectedCustomer?.id,
       customerName: selectedCustomer?.name,
+      customerShopName: selectedCustomer?.shopName,
       items: cartItems.map(item => ({ 
         id: item.id,
         name: item.name, 

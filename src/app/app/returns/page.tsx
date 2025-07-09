@@ -464,6 +464,7 @@ export default function ReturnsPage() {
             staffId: currentUser.username,
             customerId: selectedSale.customerId,
             customerName: selectedSale.customerName,
+            customerShopName: selectedSale.customerShopName,
             settleOutstandingAmount: outstandingToSettle > 0 ? outstandingToSettle : undefined,
             refundAmount: creditToAccount > 0 ? creditToAccount : undefined,
             cashPaidOut: parsedCashPaidOut > 0 ? parsedCashPaidOut : undefined,

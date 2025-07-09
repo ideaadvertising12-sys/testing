@@ -34,6 +34,7 @@ export function ReturnInvoiceDialog({ isOpen, onOpenChange, returnTransaction }:
     originalSaleId,
     returnDate,
     customerName,
+    customerShopName,
     staffId,
     returnedItems,
     exchangedItems,
@@ -75,7 +76,7 @@ export function ReturnInvoiceDialog({ isOpen, onOpenChange, returnTransaction }:
             <p><strong>Return ID:</strong> <span className="font-mono">{returnId || 'N/A'}</span></p>
             <p><strong>Return Date:</strong> {format(returnDate, "PP, p")}</p>
             <p><strong>Original Sale ID:</strong> {originalSaleId}</p>
-            <p><strong>Customer:</strong> {customerName || "N/A"}</p>
+            <p><strong>Customer:</strong> {customerShopName || customerName || "N/A"}</p>
             <p><strong>Served by:</strong> {staffId}</p>
         </div>
         <Separator className="my-3 summary-separator"/>

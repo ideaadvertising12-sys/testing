@@ -31,6 +31,7 @@ interface ReturnRequestBody {
   staffId: string;
   customerId?: string;
   customerName?: string;
+  customerShopName?: string;
   settleOutstandingAmount?: number;
   refundAmount?: number; // Credit added to account
   cashPaidOut?: number; // Cash given to customer
@@ -52,6 +53,7 @@ export async function POST(request: NextRequest) {
         staffId,
         customerId,
         customerName,
+        customerShopName,
         settleOutstandingAmount,
         refundAmount,
         cashPaidOut,
@@ -77,6 +79,7 @@ export async function POST(request: NextRequest) {
         staffId,
         customerId,
         customerName,
+        customerShopName,
         settleOutstandingAmount,
         refundAmount,
         cashPaidOut,

@@ -265,6 +265,7 @@ interface ProcessReturnArgs {
   staffId: string;
   customerId?: string;
   customerName?: string;
+  customerShopName?: string;
   settleOutstandingAmount?: number;
   refundAmount?: number;
   cashPaidOut?: number;
@@ -285,6 +286,7 @@ export const processReturnTransaction = async ({
   staffId,
   customerId,
   customerName,
+  customerShopName,
   settleOutstandingAmount,
   refundAmount,
   cashPaidOut,
@@ -474,6 +476,7 @@ export const processReturnTransaction = async ({
     const returnDataForTx: ReturnTransaction = {
       id: returnId,
       originalSaleId: saleId, returnDate: new Date(), staffId, customerId, customerName,
+      customerShopName,
       returnedItems: returnedItems,
       exchangedItems: exchangedItems,
       settleOutstandingAmount, 
