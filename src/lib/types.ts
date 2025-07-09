@@ -3,6 +3,28 @@
 import { Timestamp, DocumentReference, doc } from 'firebase/firestore';
 import { db } from './firebase';
 
+// Helper function to safely convert Firestore Timestamps or other date representations to a JS Date.
+const safeTimestampToDate = (field: any): Date | undefined => {
+  if (!field) {
+    return undefined;
+  }
+  // If it has a toDate method (like a Firestore Timestamp)
+  if (typeof field.toDate === 'function') {
+    return field.toDate();
+  }
+  // If it's already a Date object
+  if (field instanceof Date) {
+    return field;
+  }
+  // Try to parse from string/number (which is what JSON.stringify(new Date()) becomes)
+  const d = new Date(field);
+  if (!isNaN(d.getTime())) {
+    return d;
+  }
+  return undefined;
+};
+
+
 // Base Interfaces
 export interface Product {
   id: string;
@@ -225,20 +247,8 @@ export interface FirestoreSale extends Omit<Sale, 'id' | 'saleDate' | 'createdAt
   customerShopName?: string;
 }
 
-export interface FirestoreStockTransaction {
-  productId: string;
-  productName: string;
-  productSku?: string;
-  type: StockTransactionType;
-  quantity: number;
-  previousStock: number;
-  newStock: number;
+export interface FirestoreStockTransaction extends Omit<StockTransaction, 'id' | 'transactionDate'> {
   transactionDate: Timestamp;
-  notes?: string;
-  vehicleId?: string;
-  userId?: string;
-  startMeter?: number;
-  endMeter?: number;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 }
@@ -294,8 +304,8 @@ export const productConverter = {
       sku: data.sku,
       reorderLevel: data.reorderLevel,
       aiHint: data.aiHint,
-      createdAt: data.createdAt?.toDate(),
-      updatedAt: data.updatedAt?.toDate(),
+      createdAt: safeTimestampToDate(data.createdAt),
+      updatedAt: safeTimestampToDate(data.updatedAt),
     };
   }
 };
@@ -326,8 +336,8 @@ export const customerConverter = {
       address: data.address,
       shopName: data.shopName,
       status: data.status || 'active',
-      createdAt: data.createdAt?.toDate(),
-      updatedAt: data.updatedAt?.toDate(),
+      createdAt: safeTimestampToDate(data.createdAt),
+      updatedAt: safeTimestampToDate(data.updatedAt),
     };
   }
 };
@@ -350,8 +360,8 @@ export const vehicleConverter = {
             vehicleNumber: data.vehicleNumber,
             driverName: data.driverName,
             notes: data.notes,
-            createdAt: data.createdAt?.toDate(),
-            updatedAt: data.updatedAt?.toDate(),
+            createdAt: safeTimestampToDate(data.createdAt),
+            updatedAt: safeTimestampToDate(data.updatedAt),
         };
     }
 };
@@ -460,7 +470,7 @@ export const saleConverter = {
     if (data.chequeDetails) {
       chequeDetails = {
         ...data.chequeDetails,
-        date: data.chequeDetails.date instanceof Timestamp ? data.chequeDetails.date.toDate() : undefined,
+        date: safeTimestampToDate(data.chequeDetails.date),
       };
     }
 
@@ -503,7 +513,7 @@ export const saleConverter = {
             if (p.method === 'Cheque' && 'date' in p.details && p.details.date) {
                 paymentDetails = {
                     ...(p.details as ChequeInfo),
-                    date: (p.details.date as Timestamp).toDate(),
+                    date: safeTimestampToDate(p.details.date),
                 };
             } else {
                 paymentDetails = p.details as BankTransferInfo;
@@ -512,7 +522,7 @@ export const saleConverter = {
         return {
             amount: p.amount,
             method: p.method,
-            date: p.date.toDate(),
+            date: safeTimestampToDate(p.date) || new Date(),
             staffId: p.staffId,
             notes: p.notes,
             details: paymentDetails,
@@ -523,7 +533,7 @@ export const saleConverter = {
       initialOutstandingBalance: data.initialOutstandingBalance,
       changeGiven: data.changeGiven,
       paymentSummary: data.paymentSummary || "N/A",
-      saleDate: data.saleDate.toDate(),
+      saleDate: safeTimestampToDate(data.saleDate) || new Date(),
       staffId: data.staffId,
       staffName: data.staffName,
       customerId: data.customerId,
@@ -531,8 +541,8 @@ export const saleConverter = {
       customerShopName: data.customerShopName,
       offerApplied: data.offerApplied || false,
       vehicleId: data.vehicleId,
-      createdAt: data.createdAt?.toDate(),
-      updatedAt: data.updatedAt?.toDate(),
+      createdAt: safeTimestampToDate(data.createdAt),
+      updatedAt: safeTimestampToDate(data.updatedAt),
     };
   }
 };
@@ -571,7 +581,7 @@ export const stockTransactionConverter = {
       quantity: data.quantity,
       previousStock: data.previousStock,
       newStock: data.newStock,
-      transactionDate: data.transactionDate.toDate(),
+      transactionDate: safeTimestampToDate(data.transactionDate) || new Date(),
       notes: data.notes,
       vehicleId: data.vehicleId,
       userId: data.userId,
@@ -655,7 +665,7 @@ export const returnTransactionConverter = {
     if (data.chequeDetails) {
         chequeDetails = {
             ...data.chequeDetails,
-            date: data.chequeDetails.date instanceof Timestamp ? data.chequeDetails.date.toDate() : undefined,
+            date: safeTimestampToDate(data.chequeDetails.date),
         }
     }
     
@@ -684,7 +694,7 @@ export const returnTransactionConverter = {
     return {
       id: snapshot.id,
       originalSaleId: data.originalSaleId,
-      returnDate: data.returnDate.toDate(),
+      returnDate: safeTimestampToDate(data.returnDate) || new Date(),
       staffId: data.staffId,
       customerId: data.customerId,
       customerName: data.customerName,
@@ -700,7 +710,7 @@ export const returnTransactionConverter = {
       settleOutstandingAmount: data.settleOutstandingAmount,
       refundAmount: data.refundAmount,
       cashPaidOut: data.cashPaidOut,
-      createdAt: data.createdAt?.toDate(),
+      createdAt: safeTimestampToDate(data.createdAt),
     };
   }
 };
