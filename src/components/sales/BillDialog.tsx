@@ -302,8 +302,7 @@ export function BillDialog({
         <div className="flex justify-center mb-1 logo-container">
             <AppLogo size="lg" className="app-logo-text"/>
         </div>
-        <p className="text-xs">4/1 Bujjampala, Dankotuwa</p>
-        <p className="text-xs">Hotline: 077-1066595, 077-6106616</p>
+        <p className="text-xs">077-1066595, 077-6106616</p>
       </div>
 
       <Separator className="my-3 summary-separator"/>
@@ -325,8 +324,8 @@ export function BillDialog({
             <tr className="border-b">
               <th className="text-left py-1 font-normal w-[45%]">Item</th>
               <th className="text-center py-1 font-normal w-[15%]">Qty</th>
-              <th className="text-right py-1 font-normal w-[20%]">Price</th>
-              <th className="text-right py-1 font-normal w-[20%]">Total</th>
+              <th className="text-right py-1 font-normal w-[20%]">Price (Rs.)</th>
+              <th className="text-right py-1 font-normal w-[20%]">Total (Rs.)</th>
             </tr>
           </thead>
           <tbody>
@@ -341,10 +340,10 @@ export function BillDialog({
                   </td>
                   <td className="text-center py-1.5">{item.quantity}</td>
                   <td className="text-right py-1.5">
-                    {item.isOfferItem ? "FREE" : `Rs. ${item.appliedPrice.toFixed(2)}`}
+                    {item.isOfferItem ? "FREE" : item.appliedPrice.toFixed(2)}
                   </td>
                   <td className="text-right py-1.5 font-semibold">
-                    {item.isOfferItem ? "Rs. 0.00" : `Rs. ${(item.appliedPrice * item.quantity).toFixed(2)}`}
+                    {item.isOfferItem ? "0.00" : (item.appliedPrice * item.quantity).toFixed(2)}
                   </td>
                 </tr>
               ))}
@@ -352,15 +351,15 @@ export function BillDialog({
         </table>
       </div>
 
-      <div className="space-y-1 text-xs mb-4">
+      <div className="space-y-1 text-sm mb-4">
         <div className="flex justify-between">
           <span>Subtotal:</span>
-          <span>Rs. {totalAmountDueForDisplay.toFixed(2)}</span>
+          <span>{formatCurrency(totalAmountDueForDisplay)}</span>
         </div>
         <Separator className="my-1 summary-separator"/>
         <div className="flex justify-between font-bold text-lg text-primary">
           <span>TOTAL AMOUNT DUE:</span>
-          <span>Rs. {totalAmountDueForDisplay.toFixed(2)}</span>
+          <span>{formatCurrency(totalAmountDueForDisplay)}</span>
         </div>
       </div>
       
@@ -405,9 +404,8 @@ export function BillDialog({
         </div>
       </div>
 
-      <p className="text-center text-xs mt-6">Thank you for your purchase!</p>
-      <p className="text-center text-xs">Please come again.</p>
-      <p className="text-center text-[8pt] mt-4">E-business solution by LIMIDORA</p>
+      <p className="text-center text-xs mt-6 footer-thanks">Thank you for your purchase!</p>
+      <p className="text-center text-[8pt] mt-4 footer-limidora">E-business solution by LIMIDORA</p>
     </div>
   );
 

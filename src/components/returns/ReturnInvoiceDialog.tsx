@@ -67,8 +67,7 @@ export function ReturnInvoiceDialog({ isOpen, onOpenChange, returnTransaction }:
             <div className="flex justify-center mb-1 logo-container">
             <AppLogo size="md" />
             </div>
-            <p className="text-xs">4/1 Bujjampala, Dankotuwa</p>
-            <p className="text-xs">Hotline: 077-1066595, 077-6106616</p>
+            <p className="text-xs">077-1066595, 077-6106616</p>
         </div>
         <Separator className="my-3 summary-separator"/>
         <div className="text-xs mb-3 space-y-0.5">
@@ -87,8 +86,8 @@ export function ReturnInvoiceDialog({ isOpen, onOpenChange, returnTransaction }:
                 <tr className="border-b">
                     <th className="text-left py-1 font-normal w-[40%]">Item</th>
                     <th className="text-center py-1 font-normal w-[15%]">Qty</th>
-                    <th className="text-right py-1 font-normal w-[20%]">Credit Each</th>
-                    <th className="text-right py-1 font-normal w-[25%]">Total Credit</th>
+                    <th className="text-right py-1 font-normal w-[20%]">Credit Each (Rs.)</th>
+                    <th className="text-right py-1 font-normal w-[25%]">Total Credit (Rs.)</th>
                 </tr>
                 </thead>
                 <tbody>
@@ -96,8 +95,8 @@ export function ReturnInvoiceDialog({ isOpen, onOpenChange, returnTransaction }:
                     <tr key={`${item.id}-${index}`} className="border-b border-dashed">
                     <td className="py-1 break-words">{item.name}</td>
                     <td className="text-center py-1">{item.quantity}</td>
-                    <td className="text-right py-1">{formatCurrency(item.appliedPrice)}</td>
-                    <td className="text-right py-1 font-semibold">{formatCurrency(item.appliedPrice * item.quantity)}</td>
+                    <td className="text-right py-1">{item.appliedPrice.toFixed(2)}</td>
+                    <td className="text-right py-1 font-semibold">{(item.appliedPrice * item.quantity).toFixed(2)}</td>
                     </tr>
                 ))}
                 </tbody>
@@ -117,8 +116,8 @@ export function ReturnInvoiceDialog({ isOpen, onOpenChange, returnTransaction }:
                 <tr className="border-b">
                     <th className="text-left py-1 font-normal w-[40%]">Item</th>
                     <th className="text-center py-1 font-normal w-[15%]">Qty</th>
-                    <th className="text-right py-1 font-normal w-[20%]">Price Each</th>
-                    <th className="text-right py-1 font-normal w-[25%]">Total Cost</th>
+                    <th className="text-right py-1 font-normal w-[20%]">Price Each (Rs.)</th>
+                    <th className="text-right py-1 font-normal w-[25%]">Total Cost (Rs.)</th>
                 </tr>
                 </thead>
                 <tbody>
@@ -126,8 +125,8 @@ export function ReturnInvoiceDialog({ isOpen, onOpenChange, returnTransaction }:
                     <tr key={`${item.id}-${index}`} className="border-b border-dashed">
                     <td className="py-1 break-words">{item.name}</td>
                     <td className="text-center py-1">{item.quantity}</td>
-                    <td className="text-right py-1">{formatCurrency(item.appliedPrice)}</td>
-                    <td className="text-right py-1 font-semibold">{formatCurrency(item.appliedPrice * item.quantity)}</td>
+                    <td className="text-right py-1">{item.appliedPrice.toFixed(2)}</td>
+                    <td className="text-right py-1 font-semibold">{(item.appliedPrice * item.quantity).toFixed(2)}</td>
                     </tr>
                 ))}
                 </tbody>
@@ -153,8 +152,8 @@ export function ReturnInvoiceDialog({ isOpen, onOpenChange, returnTransaction }:
             {(cashPaidOut && cashPaidOut > 0) && (<div className="flex justify-between text-green-700"><span className="text-muted-foreground">Cash Paid Out:</span><span>{formatCurrency(cashPaidOut)}</span></div>)}
             {(refundAmount && refundAmount > 0) && (<div className="flex justify-between text-green-700"><span className="text-muted-foreground">Credited to Account:</span><span>{formatCurrency(refundAmount)}</span></div>)}
         </div>
-        <p className="text-center text-xs mt-4">Thank you!</p>
-        <p className="text-center text-[8pt] mt-4">E-business solution by LIMIDORA</p>
+        <p className="text-center text-xs mt-4 footer-thanks">Thank you!</p>
+        <p className="text-center text-[8pt] mt-4 footer-limidora">E-business solution by LIMIDORA</p>
     </div>
   );
 
