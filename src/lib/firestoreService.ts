@@ -163,22 +163,33 @@ export const addSale = async (saleData: Omit<Sale, 'id'>): Promise<string> => {
   
   batch.set(saleDocRef, firestoreSaleData);
 
+  // --- START: New Robust Stock Update Logic ---
+  
+  // 1. Aggregate total quantity sold for each product ID
+  const productQuantities = new Map<string, number>();
+  for (const item of saleData.items) {
+    const currentQuantity = productQuantities.get(item.id) || 0;
+    productQuantities.set(item.id, currentQuantity + item.quantity);
+  }
 
-  // STOCK UPDATE LOGIC
-  const stockUpdateLogic = async (item: CartItem) => {
+  // 2. Process stock updates for each unique product
+  for (const [productId, totalQuantitySold] of productQuantities.entries()) {
+    const productInfo = saleData.items.find(i => i.id === productId); // Get any item instance for details
+    if (!productInfo) continue; // Should not happen
+
     if (saleData.vehicleId) {
-      // Vehicle Sale: Create stock transactions to represent stock 'unloading' from vehicle
-      const productDetails = await getProduct(item.id);
+      // Vehicle Sale: Create a single stock transaction for the total quantity unloaded
+      const productDetails = await getProduct(productId);
       if (!productDetails) {
-          throw new Error(`Product ${item.name} not found for stock transaction.`);
+          throw new Error(`Product ${productInfo.name} not found for stock transaction.`);
       }
       
       const transaction: Omit<StockTransaction, 'id'> = {
-        productId: item.id,
-        productName: item.name,
-        productSku: item.sku,
+        productId: productId,
+        productName: productInfo.name,
+        productSku: productInfo.sku,
         type: 'UNLOAD_FROM_VEHICLE',
-        quantity: item.quantity,
+        quantity: totalQuantitySold,
         previousStock: productDetails.stock, // Main inventory stock is unchanged
         newStock: productDetails.stock,
         transactionDate: saleData.saleDate,
@@ -193,25 +204,21 @@ export const addSale = async (saleData: Omit<Sale, 'id'>): Promise<string> => {
 
     } else {
       // Main Inventory Sale: Decrement stock from the product itself
-      const productDocRefToUpdate = doc(db, "products", item.id);
+      const productDocRefToUpdate = doc(db, "products", productId);
       const productSnap = await getDoc(productDocRefToUpdate.withConverter(productConverter));
       if (productSnap.exists()) {
         const currentProduct = productSnap.data();
-        const newStock = currentProduct.stock - item.quantity;
+        const newStock = currentProduct.stock - totalQuantitySold;
         if (newStock < 0) {
-          throw new Error(`Insufficient stock for ${item.name} (ID: ${item.id}). Available: ${currentProduct.stock}, Tried to sell: ${item.quantity}`);
+          throw new Error(`Insufficient stock for ${productInfo.name} (ID: ${productId}). Available: ${currentProduct.stock}, Tried to sell: ${totalQuantitySold}`);
         }
         batch.update(productDocRefToUpdate, { stock: newStock, updatedAt: Timestamp.now() });
       } else {
-        throw new Error(`Product ${item.name} (ID: ${item.id}) not found for stock update.`);
+        throw new Error(`Product ${productInfo.name} (ID: ${productId}) not found for stock update.`);
       }
     }
-  };
-
-  // Apply stock logic to all items, including offer items
-  for (const item of saleData.items) {
-    await stockUpdateLogic(item);
   }
+  // --- END: New Robust Stock Update Logic ---
 
   await batch.commit();
   return saleDocRef.id;
