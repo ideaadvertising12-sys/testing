@@ -130,7 +130,7 @@ async function generateCustomSaleId(): Promise<string> {
   try {
     const newCount = await runTransaction(db, async (transaction) => {
       const counterDoc = await transaction.get(counterRef);
-      if (!counterDoc.exists()) {
+      if (!counterDoc.exists() || counterDoc.data()?.count === undefined) {
         transaction.set(counterRef, { count: 1 });
         return 1;
       } else {
@@ -246,7 +246,7 @@ async function generateCustomReturnId(): Promise<string> {
   try {
     const newCount = await runTransaction(db, async (transaction) => {
       const counterDoc = await transaction.get(counterRef);
-      if (!counterDoc.exists()) {
+      if (!counterDoc.exists() || counterDoc.data()?.count === undefined) {
         transaction.set(counterRef, { count: 1 });
         return 1;
       } else {
