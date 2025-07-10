@@ -1,4 +1,3 @@
-
 import { db, checkFirebase } from "./firebase";
 import { 
   collection, 
@@ -16,7 +15,7 @@ import {
   setDoc
 } from "firebase/firestore";
 import { format } from 'date-fns';
-import { productConverter, FirestoreProduct, Product } from "./types";
+import { productConverter, type FirestoreProduct, type Product } from "./types";
 
 async function generateCustomProductId(): Promise<string> {
   checkFirebase();
@@ -66,16 +65,13 @@ export const ProductService = {
     checkFirebase();
     const newCustomId = await generateCustomProductId();
     const productDocRef = doc(db, 'products', newCustomId);
-
-    // Create a temporary full Product object to satisfy the converter's type requirement.
-    // The ID is not written to the document fields but is needed for the type.
+    
     const productForConverter: Product = {
         id: newCustomId,
         ...productData,
     };
-    const dataToCreate = productConverter.toFirestore(productForConverter); 
     
-    await setDoc(productDocRef, dataToCreate);
+    await setDoc(productDocRef.withConverter(productConverter), productForConverter);
 
     return { id: newCustomId, ...productData }; 
   },
@@ -85,7 +81,6 @@ export const ProductService = {
     try {
       const docRef = doc(db, 'products', id);
       
-      // Filter out undefined values from productData
       const cleanProductData: Partial<Omit<Product, 'id'>> = {};
       for (const key in productData) {
         if (Object.prototype.hasOwnProperty.call(productData, key)) {
@@ -97,14 +92,10 @@ export const ProductService = {
       }
       
       const dataToUpdate: Partial<FirestoreProduct> = {
-        ...(cleanProductData as Partial<FirestoreProduct>), // Cast after cleaning
+        ...(cleanProductData as Partial<FirestoreProduct>),
         updatedAt: Timestamp.now(),
       };
       
-      // If cleanProductData is empty (e.g. only undefined values were passed), 
-      // we still update `updatedAt`. updateDoc handles empty updates gracefully.
-      // Firestore's updateDoc will only update fields present in dataToUpdate.
-
       console.log("Updating product with ID:", id);
       console.log("Update data for Firestore:", dataToUpdate);
       

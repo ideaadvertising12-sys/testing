@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
@@ -20,13 +19,13 @@ import { cn } from "@/lib/utils";
 import { useSalesData } from "@/hooks/useSalesData"; 
 import { useReturns } from "@/hooks/useReturns";
 import { useStockTransactions } from "@/hooks/useStockTransactions";
-import { useExpenses } from "@/hooks/useExpenses"; // Import useExpenses
+import { useExpenses } from "@/hooks/useExpenses";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 
 const formatCurrency = (amount: number | undefined): string => {
   if (amount === undefined || isNaN(amount)) return "Rs. 0.00";
-  const rounded = Math.round((amount + Number.EPSILON) * 100) / 100; // Proper rounding
+  const rounded = Math.round((amount + Number.EPSILON) * 100) / 100;
   return new Intl.NumberFormat('en-LK', { 
     style: 'currency', 
     currency: 'LKR',
@@ -48,7 +47,7 @@ export default function DayEndReportPage() {
   const { sales: allSales, isLoading: isLoadingSales, error: salesError } = useSalesData(true); 
   const { returns, isLoading: isLoadingReturns, error: returnsError } = useReturns();
   const { transactions: allTransactions, isLoading: isLoadingTransactions, error: transactionsError } = useStockTransactions();
-  const { expenses, isLoading: isLoadingExpenses, error: expensesError } = useExpenses(); // Fetch expenses
+  const { expenses, isLoading: isLoadingExpenses, error: expensesError } = useExpenses();
 
   useEffect(() => {
     if (!currentUser) {
@@ -82,7 +81,7 @@ export default function DayEndReportPage() {
         }
       });
       const totalRefundsToday = refundsForTodaySales + refundsForPastSales;
-      const netSalesToday = grossSalesToday - refundsForTodaySales;
+      const netSalesToday = grossSalesToday - totalDiscountsToday - refundsForTodaySales;
 
       // --- Collections (Cash/Cheque/Transfer IN) ---
       let totalCashIn = 0;
@@ -151,8 +150,8 @@ export default function DayEndReportPage() {
         totalBankTransferIn,
         totalChangeGiven,
         totalRefundsPaidToday: totalRefundsToday,
-        totalExpensesToday: totalExpensesToday, // Add expenses to summary
-        netCashInHand: totalCashIn - totalChangeGiven - totalRefundsToday - totalExpensesToday, // Deduct expenses from cash
+        totalExpensesToday: totalExpensesToday,
+        netCashInHand: totalCashIn - totalChangeGiven - totalRefundsToday - totalExpensesToday,
         newCreditIssued: totalInitialCreditIssuedToday,
         paidAgainstNewCredit: totalPaidAgainstCreditToday,
         netOutstandingFromToday: totalOutstandingFromToday,

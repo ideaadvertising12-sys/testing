@@ -1,4 +1,3 @@
-
 import { db, checkFirebase } from "./firebase";
 import {
   collection,
@@ -12,27 +11,27 @@ import {
   getDoc,
   Timestamp
 } from "firebase/firestore";
-import { userConverter, FirestoreUser, User } from "./types";
+import { userConverter, type FirestoreUser, type User } from "./types";
 
 export const UserService = {
-  async getAllUsers(): Promise<(User & { id: string })[]> {
+  async getAllUsers(): Promise<User[]> {
     checkFirebase();
-    const q = query(collection(db, 'users')).withConverter(userConverter as any);
+    const q = query(collection(db, 'users')).withConverter(userConverter);
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => doc.data());
   },
 
-  async getUserById(id: string): Promise<(User & { id: string }) | null> {
+  async getUserById(id: string): Promise<User | null> {
     checkFirebase();
-    const docRef = doc(db, 'users', id).withConverter(userConverter as any);
+    const docRef = doc(db, 'users', id).withConverter(userConverter);
     const snapshot = await getDoc(docRef);
     return snapshot.exists() ? snapshot.data() : null;
   },
 
-  async getUserByUsername(username: string): Promise<(User & { id: string }) | null> {
+  async getUserByUsername(username: string): Promise<User | null> {
     checkFirebase();
     const q = query(
-      collection(db, 'users').withConverter(userConverter as any),
+      collection(db, 'users').withConverter(userConverter),
       where('username', '==', username)
     );
     const snapshot = await getDocs(q);
@@ -48,13 +47,15 @@ export const UserService = {
     if (existingUser) {
         throw new Error("Username already exists.");
     }
-
-    const dataWithTimestamp: FirestoreUser = {
-        ...userData,
-        createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now()
+    
+    // Create a temporary full user object for the converter
+    const tempUserForConversion: User = {
+        id: 'temp', // This won't be saved
+        ...userData
     };
-
+    
+    const dataWithTimestamp = userConverter.toFirestore(tempUserForConversion);
+    
     const usersCollection = collection(db, 'users');
     const docRef = await addDoc(usersCollection, dataWithTimestamp);
     return docRef.id;

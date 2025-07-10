@@ -1,5 +1,3 @@
-
-
 import { db, checkFirebase } from "./firebase";
 import { 
   collection, 
@@ -59,7 +57,8 @@ export const getProduct = async (id: string): Promise<Product | null> => {
 
 export const addProduct = async (productData: Omit<Product, 'id'>): Promise<string> => {
   checkFirebase();
-  const docRef = await addDoc(collection(db, "products").withConverter(productConverter), productData);
+  const tempProductForConversion: Product = { id: 'temp', ...productData };
+  const docRef = await addDoc(collection(db, "products").withConverter(productConverter), tempProductForConversion);
   return docRef.id;
 };
 
@@ -96,7 +95,8 @@ export const getCustomer = async (id: string): Promise<Customer | null> => {
 
 export const addCustomer = async (customerData: Omit<Customer, 'id'>): Promise<string> => {
   checkFirebase();
-  const docRef = await addDoc(collection(db, "customers").withConverter(customerConverter), customerData);
+  const tempCustomerForConversion: Customer = { id: 'temp', ...customerData };
+  const docRef = await addDoc(collection(db, "customers").withConverter(customerConverter), tempCustomerForConversion);
   return docRef.id;
 };
 
@@ -199,7 +199,7 @@ export const addSale = async (saleData: Omit<Sale, 'id'>): Promise<string> => {
       };
 
       const transactionDocRef = doc(collection(db, "stockTransactions"));
-      const firestoreTx = stockTransactionConverter.toFirestore(transaction);
+      const firestoreTx = stockTransactionConverter.toFirestore({ id: 'temp', ...transaction });
       batch.set(transactionDocRef, firestoreTx);
 
     } else {
@@ -334,7 +334,7 @@ export const processReturnTransaction = async ({
     const productDataMap = new Map<string, { doc: Product, newStock: number }>();
     productDocs.forEach(docSnap => {
       if (docSnap.exists()) {
-        const data = productConverter.fromFirestore(docSnap);
+        const data = docSnap.data();
         productDataMap.set(docSnap.id, { doc: data, newStock: data.stock });
       } else {
         const failedId = Array.from(productRefs.entries()).find(([, ref]) => ref.path === docSnap.ref.path)?.[0];
@@ -408,7 +408,7 @@ export const processReturnTransaction = async ({
             userId: staffId,
           };
           const txDocRef = doc(collection(db, "stockTransactions"));
-          const firestoreTx = stockTransactionConverter.toFirestore(stockTx);
+          const firestoreTx = stockTransactionConverter.toFirestore({id: 'temp', ...stockTx});
           transaction.set(txDocRef, firestoreTx);
         } else {
           // Otherwise, return stock to the main inventory
@@ -457,7 +457,7 @@ export const processReturnTransaction = async ({
           userId: staffId,
         };
         const txDocRef = doc(collection(db, "stockTransactions"));
-        const firestoreTx = stockTransactionConverter.toFirestore(stockTx);
+        const firestoreTx = stockTransactionConverter.toFirestore({ id: 'temp', ...stockTx });
         transaction.set(txDocRef, firestoreTx);
       }
     }
