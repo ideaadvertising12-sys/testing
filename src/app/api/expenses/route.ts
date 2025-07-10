@@ -24,8 +24,8 @@ export async function POST(request: NextRequest) {
   try {
     const expenseData = (await request.json()) as Omit<Expense, 'id' | 'createdAt'>;
     
-    if (!expenseData || !expenseData.category || !expenseData.amount || expenseData.amount <= 0) {
-      return NextResponse.json({ error: 'Missing required fields (category, amount)' }, { status: 400 });
+    if (!expenseData || !expenseData.category || !expenseData.amount || expenseData.amount <= 0 || !expenseData.staffId) {
+      return NextResponse.json({ error: 'Missing required fields (category, amount, staffId)' }, { status: 400 });
     }
     
     // Ensure date is handled correctly and include optional vehicleId

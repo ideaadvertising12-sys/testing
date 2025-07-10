@@ -14,7 +14,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import { GlobalPreloaderScreen } from "@/components/GlobalPreloaderScreen";
 import { AccessDenied } from "@/components/AccessDenied";
-import { PlusCircle, Wallet, Loader2, Trash2, Truck } from "lucide-react";
+import { PlusCircle, Wallet, Loader2, Trash2, Truck, UserCircle } from "lucide-react";
 import { useExpenses } from "@/hooks/useExpenses";
 import { useVehicles } from "@/hooks/useVehicles";
 import { format, isWithinInterval, startOfDay, endOfDay } from "date-fns";
@@ -264,6 +264,12 @@ export default function ExpensesPage() {
                                     {vehicleMap.get(expense.vehicleId) || expense.vehicleId}
                                   </p>
                                 )}
+                                {expense.staffId && (
+                                    <p className="text-xs text-purple-600 font-medium flex items-center gap-1 mt-1">
+                                        <UserCircle className="h-3 w-3"/>
+                                        {expense.staffId}
+                                    </p>
+                                )}
                             </div>
                             <div className="text-right">
                                 <p className="font-semibold">{formatCurrency(expense.amount)}</p>
@@ -283,6 +289,7 @@ export default function ExpensesPage() {
                     <TableRow>
                       <TableHead>Date</TableHead>
                       <TableHead>Category</TableHead>
+                      <TableHead>Added By</TableHead>
                       <TableHead>Vehicle</TableHead>
                       <TableHead className="text-right">Amount</TableHead>
                       {currentUser?.role === 'admin' && <TableHead className="text-center">Action</TableHead>}
@@ -293,6 +300,14 @@ export default function ExpensesPage() {
                       <TableRow key={expense.id}>
                         <TableCell>{format(expense.expenseDate, "yyyy-MM-dd")}</TableCell>
                         <TableCell className="capitalize">{expense.category}</TableCell>
+                        <TableCell>
+                            {expense.staffId ? (
+                                <span className="flex items-center gap-1 text-sm">
+                                    <UserCircle className="h-3.5 w-3.5 text-muted-foreground"/>
+                                    {expense.staffId}
+                                </span>
+                            ) : 'N/A'}
+                        </TableCell>
                         <TableCell>
                           {expense.vehicleId ? (
                             <span className="flex items-center gap-1 text-sm">
