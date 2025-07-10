@@ -47,35 +47,38 @@ function reconcileOfferItems(
 
   paidItems.forEach(item => {
     const key = `${item.id}-${item.saleType}`; // Group by product ID and sale type
+    const baseProduct = allProductsForLookup.find(p => p.id === item.id);
+    if (!baseProduct) return;
+    
     if (!productGroupCounts[key]) {
-      const baseProduct = allProductsForLookup.find(p => p.id === item.id);
-      if (!baseProduct) return; 
       productGroupCounts[key] = { count: 0, productDetails: baseProduct, saleType: item.saleType };
     }
     productGroupCounts[key].count += item.quantity;
   });
 
   Object.values(productGroupCounts).forEach(group => {
-    // Check if this product's offer should be excluded
     if (excludedProductIds.has(group.productDetails.id)) {
         return; // Skip generating offer for this item
     }
     
     const numberOfFreeUnits = Math.floor(group.count / 12);
     if (numberOfFreeUnits > 0) {
-      newOfferItems.push({
-        ...group.productDetails, // Spread all product details for consistency
-        id: group.productDetails.id,
-        name: group.productDetails.name,
-        category: group.productDetails.category,
-        price: group.productDetails.price, // Original price for reference (though appliedPrice is 0)
-        sku: group.productDetails.sku,
-        imageUrl: group.productDetails.imageUrl,
-        quantity: numberOfFreeUnits,
-        appliedPrice: 0, // Free item
-        saleType: group.saleType,
-        isOfferItem: true,
-      });
+      // Stock check: Ensure adding free items doesn't exceed stock
+      if ((group.count + numberOfFreeUnits) <= group.productDetails.stock) {
+        newOfferItems.push({
+          ...group.productDetails,
+          id: group.productDetails.id,
+          name: group.productDetails.name,
+          category: group.productDetails.category,
+          price: group.productDetails.price,
+          sku: group.productDetails.sku,
+          imageUrl: group.productDetails.imageUrl,
+          quantity: numberOfFreeUnits,
+          appliedPrice: 0,
+          saleType: group.saleType,
+          isOfferItem: true,
+        });
+      }
     }
   });
   return [...paidItems, ...newOfferItems];
