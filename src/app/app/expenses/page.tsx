@@ -17,7 +17,7 @@ import { AccessDenied } from "@/components/AccessDenied";
 import { PlusCircle, Wallet, Loader2, Trash2, Truck } from "lucide-react";
 import { useExpenses } from "@/hooks/useExpenses";
 import { useVehicles } from "@/hooks/useVehicles";
-import { format } from "date-fns";
+import { format, isWithinInterval, startOfDay, endOfDay } from "date-fns";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,6 +31,8 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
+import type { DateRange } from "react-day-picker";
 
 const formatCurrency = (amount: number) => new Intl.NumberFormat('en-LK', { style: 'currency', currency: 'LKR' }).format(amount).replace("LKR", "Rs.");
 
@@ -48,6 +50,7 @@ export default function ExpensesPage() {
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [expenseToDelete, setExpenseToDelete] = useState<Expense | null>(null);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
   const canAccessPage = currentUser?.role === 'admin' || currentUser?.role === 'cashier';
 
@@ -60,6 +63,16 @@ export default function ExpensesPage() {
       router.replace("/app/dashboard");
     }
   }, [currentUser, router, canAccessPage]);
+
+  const filteredExpenses = useMemo(() => {
+    if (!dateRange || !dateRange.from) return expenses;
+    const from = startOfDay(dateRange.from);
+    const to = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from);
+    return expenses.filter(expense => {
+        const expenseDate = new Date(expense.expenseDate);
+        return isWithinInterval(expenseDate, { start: from, end: to });
+    });
+  }, [expenses, dateRange]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -112,8 +125,8 @@ export default function ExpensesPage() {
   };
 
   const totalExpenses = useMemo(() => {
-    return expenses.reduce((sum, expense) => sum + expense.amount, 0);
-  }, [expenses]);
+    return filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+  }, [filteredExpenses]);
 
   const isLoading = isLoadingExpenses || isLoadingVehicles;
 
@@ -214,25 +227,32 @@ export default function ExpensesPage() {
 
         <Card className="lg:col-span-2 shadow-lg">
           <CardHeader>
-            <CardTitle className="font-headline">Expense History</CardTitle>
-            <CardDescription>
-              Total Expenses:{" "}
-              <span className="font-bold text-primary">{formatCurrency(totalExpenses)}</span>
-            </CardDescription>
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
+                <div>
+                    <CardTitle className="font-headline">Expense History</CardTitle>
+                    <CardDescription>
+                      Total For Period:{" "}
+                      <span className="font-bold text-primary">{formatCurrency(totalExpenses)}</span>
+                    </CardDescription>
+                </div>
+                <div className="w-full sm:w-auto">
+                    <DateRangePicker dateRange={dateRange} onDateRangeChange={setDateRange} />
+                </div>
+            </div>
           </CardHeader>
           <CardContent>
-            <ScrollArea className="h-[calc(100vh-25rem)]">
+            <ScrollArea className="h-[calc(100vh-27rem)]">
               {isLoading && expenses.length === 0 ? (
                 <div className="flex justify-center items-center h-48">
                   <Loader2 className="h-8 w-8 animate-spin" />
                 </div>
-              ) : expenses.length === 0 ? (
+              ) : filteredExpenses.length === 0 ? (
                  <div className="text-center py-10 text-muted-foreground">
-                    <p>No expenses recorded yet.</p>
+                    <p>No expenses recorded for the selected period.</p>
                 </div>
               ) : isMobile ? (
                   <div className="space-y-2">
-                    {expenses.map(expense => (
+                    {filteredExpenses.map(expense => (
                       <Card key={expense.id} className="p-3">
                          <div className="flex justify-between items-start">
                             <div>
@@ -269,7 +289,7 @@ export default function ExpensesPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {expenses.map((expense) => (
+                    {filteredExpenses.map((expense) => (
                       <TableRow key={expense.id}>
                         <TableCell>{format(expense.expenseDate, "yyyy-MM-dd")}</TableCell>
                         <TableCell className="capitalize">{expense.category}</TableCell>
