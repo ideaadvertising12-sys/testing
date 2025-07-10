@@ -260,13 +260,13 @@ export default function SalesPage() {
   const productsForDisplay = viewMode === 'vehicle' ? vehicleStock : filteredProducts;
   
   const handleAddToCart = (productToAdd: Product) => {
-    // Calculate total quantity of this specific product already in the cart, regardless of sale type.
-    const totalQuantityInCart = cartItems
-      .filter(item => item.id === productToAdd.id && !item.isOfferItem)
+    // Corrected stock check: Count ALL items of this product in cart (paid and free)
+    const totalQuantityOfProductInCart = cartItems
+      .filter(item => item.id === productToAdd.id)
       .reduce((sum, item) => sum + item.quantity, 0);
 
     // Check against available stock
-    if (totalQuantityInCart >= productToAdd.stock) {
+    if (totalQuantityOfProductInCart >= productToAdd.stock) {
       toast({
         variant: "destructive",
         title: "Out of Stock",
@@ -445,6 +445,7 @@ export default function SalesPage() {
       creditUsed: salePaymentDetails.creditUsed,
       totalAmountPaid: salePaymentDetails.totalAmountPaid,
       outstandingBalance: salePaymentDetails.outstandingBalance,
+      initialOutstandingBalance: salePaymentDetails.initialOutstandingBalance,
       changeGiven: salePaymentDetails.changeGiven,
       paymentSummary: salePaymentDetails.paymentSummary,
 
