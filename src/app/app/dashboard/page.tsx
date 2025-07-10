@@ -1,7 +1,7 @@
 
 "use client";
 
-import { Banknote, Users, TrendingUp, Activity, AlertTriangle, Loader2, ShoppingBag, BarChart2, Package, type LucideIcon } from "lucide-react";
+import { Banknote, Users, TrendingUp, Activity, AlertTriangle, Loader2, ShoppingBag, BarChart2, Package, type LucideIcon, Wallet } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { SalesChart } from "@/components/dashboard/SalesChart";
@@ -25,6 +25,7 @@ import { useCustomers } from "@/hooks/useCustomers";
 import { useSalesData } from "@/hooks/useSalesData";
 import { useProducts } from "@/hooks/useProducts";
 import { useReturns } from "@/hooks/useReturns";
+import { useExpenses } from "@/hooks/useExpenses";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -47,10 +48,10 @@ export default function DashboardPage() {
     error: productsError 
   } = useProducts();
   const { returns, isLoading: isLoadingReturns, error: returnsError } = useReturns();
+  const { expenses, isLoading: isLoadingExpenses, error: expensesError } = useExpenses();
 
-  // Calculate revenue for today, accounting for same-day returns
-  const { revenueToday, salesCountToday } = useMemo(() => {
-    if (isLoadingSales || isLoadingReturns || !sales || !returns) return { revenueToday: 0, salesCountToday: 0 };
+  const { revenueToday, salesCountToday, expensesToday } = useMemo(() => {
+    if (isLoadingSales || isLoadingReturns || isLoadingExpenses || !sales || !returns || !expenses) return { revenueToday: 0, salesCountToday: 0, expensesToday: 0 };
     
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -66,11 +67,9 @@ export default function DashboardPage() {
 
     const returnedValueForTodaySales = returns
       .filter(ret => {
-        // Return must have happened today
         const returnDate = ret.returnDate instanceof Date ? ret.returnDate : new Date(ret.returnDate);
         if (returnDate < today || returnDate > endOfToday) return false;
         
-        // Original sale must have also happened today
         const originalSale = sales.find(s => s.id === ret.originalSaleId);
         if (!originalSale) return false; 
 
@@ -78,34 +77,42 @@ export default function DashboardPage() {
         return originalSaleDate >= today && originalSaleDate <= endOfToday;
       })
       .reduce((sum, ret) => {
-          // Sum the value of the returned items
           const returnedValue = ret.returnedItems.reduce((itemSum, item) => itemSum + (item.quantity * item.appliedPrice), 0);
           return sum + returnedValue;
       }, 0);
+    
+    const todayExpenses = expenses
+      .filter(exp => {
+        const expenseDate = exp.expenseDate instanceof Date ? exp.expenseDate : new Date(exp.expenseDate);
+        return expenseDate >= today && expenseDate <= endOfToday;
+      })
+      .reduce((sum, exp) => sum + exp.amount, 0);
       
     return {
-      revenueToday: salesRevenueToday - returnedValueForTodaySales,
-      salesCountToday: todaySales.length
+      revenueToday: salesRevenueToday - returnedValueForTodaySales - todayExpenses,
+      salesCountToday: todaySales.length,
+      expensesToday: todayExpenses
     };
-  }, [sales, returns, isLoadingSales, isLoadingReturns]);
+  }, [sales, returns, expenses, isLoadingSales, isLoadingReturns, isLoadingExpenses]);
 
-  // Calculate net revenue, accounting for all returns across all time
-  const { netTotalRevenue, totalRefundsAllTime } = useMemo(() => {
-    if (isLoadingSales || isLoadingReturns || !returns || grossTotalRevenue === undefined) {
-      return { netTotalRevenue: 0, totalRefundsAllTime: 0 };
+  const { netTotalRevenue, totalRefundsAllTime, totalExpensesAllTime } = useMemo(() => {
+    if (isLoadingSales || isLoadingReturns || isLoadingExpenses || !returns || !expenses || grossTotalRevenue === undefined) {
+      return { netTotalRevenue: 0, totalRefundsAllTime: 0, totalExpensesAllTime: 0 };
     }
     const totalReturnedValue = returns.reduce((sum, ret) => {
         const returnedValue = ret.returnedItems.reduce((itemSum, item) => itemSum + (item.quantity * item.appliedPrice), 0);
         return sum + returnedValue;
     }, 0);
 
-    return {
-      netTotalRevenue: grossTotalRevenue - totalReturnedValue,
-      totalRefundsAllTime: totalReturnedValue
-    };
-  }, [grossTotalRevenue, returns, isLoadingSales, isLoadingReturns]);
+    const totalExp = expenses.reduce((sum, exp) => sum + exp.amount, 0);
 
-  // Calculate low stock items with threshold
+    return {
+      netTotalRevenue: grossTotalRevenue - totalReturnedValue - totalExp,
+      totalRefundsAllTime: totalReturnedValue,
+      totalExpensesAllTime: totalExp
+    };
+  }, [grossTotalRevenue, returns, expenses, isLoadingSales, isLoadingReturns, isLoadingExpenses]);
+
   const { liveLowStockItemsCount, criticalStockItemsCount } = useMemo(() => {
     if (isLoadingProducts || !allProducts || allProducts.length === 0) {
       return { liveLowStockItemsCount: 0, criticalStockItemsCount: 0 };
@@ -120,7 +127,6 @@ export default function DashboardPage() {
     };
   }, [allProducts, isLoadingProducts]);
 
-  // Enhanced top selling products with revenue calculation
   const topSellingProducts = useMemo(() => {
     if (isLoadingSales || isLoadingProducts || !sales || !allProducts) {
       return [];
@@ -164,7 +170,6 @@ export default function DashboardPage() {
 
   }, [sales, allProducts, isLoadingSales, isLoadingProducts]);
 
-  // Enhanced monthly sales data with comparison to previous year
   const { monthlySalesData, monthlyComparison } = useMemo(() => {
     if (!sales || sales.length === 0) {
       const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -207,7 +212,6 @@ export default function DashboardPage() {
     };
   }, [sales]);
 
-  // Calculate customer growth
   const customerGrowth = useMemo(() => {
     if (isLoadingCustomers || !customers) return 0;
     
@@ -346,26 +350,44 @@ export default function DashboardPage() {
           <AlertDescription>{returnsError}</AlertDescription>
         </Alert>
       )}
+      {expensesError && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Expenses Data Error</AlertTitle>
+          <AlertDescription>{expensesError}</AlertDescription>
+        </Alert>
+      )}
 
-      {/* Stats Grid */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        {/* Total Revenue */}
-        {isLoadingSales || isLoadingReturns ? (
-          renderLoadingCard("Total Revenue", Banknote, "text-green-600")
-        ) : salesError || returnsError ? (
-          renderErrorCard("Total Revenue", Banknote, "text-green-600")
+        {isLoadingSales || isLoadingReturns || isLoadingExpenses ? (
+          renderLoadingCard("Total Net Revenue", Banknote, "text-green-600")
+        ) : salesError || returnsError || expensesError ? (
+          renderErrorCard("Total Net Revenue", Banknote, "text-green-600")
         ) : (
           renderStatsCard(
-            "Total Revenue",
+            "Total Net Revenue",
             formatCurrency(netTotalRevenue),
             Banknote,
             "text-green-600",
-            `Net revenue after all refunds`,
+            `After all refunds & expenses`,
             monthlyComparison[new Date().getMonth()]
           )
         )}
 
-        {/* Total Customers */}
+        {isLoadingSales || isLoadingReturns || isLoadingExpenses ? (
+          renderLoadingCard("Today's Net Revenue", TrendingUp, "text-purple-600")
+        ) : salesError || returnsError || expensesError ? (
+          renderErrorCard("Today's Net Revenue", TrendingUp, "text-purple-600")
+        ) : (
+          renderStatsCard(
+            "Today's Net Revenue",
+            formatCurrency(revenueToday),
+            TrendingUp,
+            "text-purple-600",
+            `${salesCountToday} sales, ${formatCurrency(expensesToday)} expenses`
+          )
+        )}
+
         {isLoadingCustomers ? (
           renderLoadingCard("Total Customers", Users, "text-blue-600")
         ) : customersError ? (
@@ -381,7 +403,6 @@ export default function DashboardPage() {
           )
         )}
 
-        {/* Inventory Status */}
         {isLoadingProducts ? (
           renderLoadingCard("Inventory Status", Package, "text-orange-600")
         ) : productsError ? (
@@ -397,26 +418,9 @@ export default function DashboardPage() {
             allProducts ? `${allProducts.length} total products` : undefined
           )
         )}
-
-        {/* Today's Performance */}
-        {isLoadingSales || isLoadingReturns ? (
-          renderLoadingCard("Today's Performance", TrendingUp, "text-purple-600")
-        ) : salesError || returnsError ? (
-          renderErrorCard("Today's Performance", TrendingUp, "text-purple-600")
-        ) : (
-          renderStatsCard(
-            "Today's Performance",
-            formatCurrency(revenueToday),
-            TrendingUp,
-            "text-purple-600",
-            `${salesCountToday} transactions today`
-          )
-        )}
       </div>
 
-      {/* Charts and Tables */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Sales Chart */}
         <div className="lg:col-span-2 space-y-6">
           <SalesChart
             data={monthlySalesData} 
@@ -472,8 +476,8 @@ export default function DashboardPage() {
                         <TableCell className="font-medium">#{sale.id}</TableCell>
                         <TableCell>
                           {sale.customerName || "Walk-in Customer"}
-                          {sale.customerPhone && (
-                            <div className="text-xs text-muted-foreground">{sale.customerPhone}</div>
+                          {sale.customerShopName && (
+                            <div className="text-xs text-muted-foreground">{sale.customerShopName}</div>
                           )}
                         </TableCell>
                         <TableCell className="text-right">{formatCurrency(sale.totalAmount)}</TableCell>
@@ -494,9 +498,7 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        {/* Right Sidebar */}
         <div className="space-y-6">
-          {/* Top Selling Products */}
           <Card className="shadow-lg">
             <CardHeader>
               <CardTitle className="font-headline flex items-center gap-2">
@@ -547,7 +549,6 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
-          {/* Inventory Alerts */}
           <AlertQuantityTable />
 
         </div>

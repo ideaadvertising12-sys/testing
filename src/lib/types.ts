@@ -3,20 +3,16 @@
 import { Timestamp, DocumentReference, doc } from 'firebase/firestore';
 import { db } from './firebase';
 
-// Helper function to safely convert Firestore Timestamps or other date representations to a JS Date.
 const safeTimestampToDate = (field: any): Date | undefined => {
   if (!field) {
     return undefined;
   }
-  // If it has a toDate method (like a Firestore Timestamp)
-  if (typeof field.toDate === 'function') {
-    return field.toDate();
-  }
-  // If it's already a Date object
   if (field instanceof Date) {
     return field;
   }
-  // Try to parse from string/number (which is what JSON.stringify(new Date()) becomes)
+  if (typeof field.toDate === 'function') {
+    return field.toDate();
+  }
   const d = new Date(field);
   if (!isNaN(d.getTime())) {
     return d;
@@ -24,8 +20,6 @@ const safeTimestampToDate = (field: any): Date | undefined => {
   return undefined;
 };
 
-
-// Base Interfaces
 export interface Product {
   id: string;
   name: string;
@@ -143,7 +137,6 @@ export interface Sale {
   updatedAt?: Date;
 }
 
-// Stock Transaction Types
 export type StockTransactionType =
   | "ADD_STOCK_INVENTORY"
   | "LOAD_TO_VEHICLE"
@@ -179,7 +172,7 @@ export interface Vehicle {
 }
 
 export interface ReturnTransaction {
-  id: string; // The generated ID like "return-06.25-1"
+  id: string;
   originalSaleId: string;
   returnDate: Date;
   staffId: string;
@@ -189,20 +182,27 @@ export interface ReturnTransaction {
   returnedItems: CartItem[];
   exchangedItems: CartItem[];
   notes?: string;
-  // Fields for payment made during exchange
   amountPaid?: number;
   paymentSummary?: string;
   chequeDetails?: ChequeInfo;
   bankTransferDetails?: BankTransferInfo;
   changeGiven?: number;
-  // New fields for credit settlement
   settleOutstandingAmount?: number;
   refundAmount?: number; // Credit added to customer account
   cashPaidOut?: number; // Cash given back to customer
   createdAt?: Date;
 }
 
-// Firestore-specific types
+export interface Expense {
+    id: string;
+    category: string;
+    description?: string;
+    amount: number;
+    expenseDate: Date;
+    staffId?: string;
+    createdAt?: Date;
+}
+
 export interface FirestoreProduct extends Omit<Product, 'id' | 'createdAt' | 'updatedAt'> {
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
@@ -219,18 +219,16 @@ export interface FirestoreVehicle extends Omit<Vehicle, 'id' | 'createdAt' | 'up
     updatedAt?: Timestamp;
 }
 
-// Stored in Firestore for each item in a sale
 export interface FirestoreCartItem {
-  productRef: string | DocumentReference; // Can accept a string path or a DocumentReference
+  productRef: string | DocumentReference;
   quantity: number;
   appliedPrice: number;
   saleType: 'retail' | 'wholesale';
   
-  // Denormalized fields stored at the time of sale for historical accuracy
   productName: string; 
   productCategory: Product["category"];
-  productPrice: number; // Original retail price of the product at time of sale
-  productSku?: string; // Original SKU at time of sale
+  productPrice: number;
+  productSku?: string;
   
   isOfferItem?: boolean;
   returnedQuantity?: number;
@@ -268,8 +266,11 @@ export interface FirestoreReturnTransaction extends Omit<ReturnTransaction, 'id'
   customerShopName?: string;
 }
 
+export interface FirestoreExpense extends Omit<Expense, 'id' | 'expenseDate' | 'createdAt'> {
+    expenseDate: Timestamp;
+    createdAt?: Timestamp;
+}
 
-// Data Converters
 export const productConverter = {
   toFirestore: (product: Omit<Product, 'id'>): Partial<FirestoreProduct> => {
     const firestoreProduct: Partial<FirestoreProduct> = {
@@ -366,6 +367,32 @@ export const vehicleConverter = {
     }
 };
 
+export const expenseConverter = {
+    toFirestore: (expense: Omit<Expense, 'id'>): Partial<FirestoreExpense> => {
+        const firestoreExpense: Partial<FirestoreExpense> = {
+            category: expense.category,
+            amount: expense.amount,
+            expenseDate: Timestamp.fromDate(expense.expenseDate),
+            createdAt: expense.createdAt ? Timestamp.fromDate(expense.createdAt) : Timestamp.now(),
+        };
+        if (expense.description) firestoreExpense.description = expense.description;
+        if (expense.staffId) firestoreExpense.staffId = expense.staffId;
+        return firestoreExpense;
+    },
+    fromFirestore: (snapshot: any): Expense => {
+        const data = snapshot.data();
+        return {
+            id: snapshot.id,
+            category: data.category,
+            description: data.description,
+            amount: data.amount,
+            expenseDate: safeTimestampToDate(data.expenseDate) || new Date(),
+            staffId: data.staffId,
+            createdAt: safeTimestampToDate(data.createdAt),
+        };
+    }
+};
+
 export const saleConverter = {
   toFirestore: (sale: Sale): Partial<FirestoreSale> => {
     const firestoreSaleItems: FirestoreCartItem[] = sale.items.map(item => {
@@ -443,8 +470,8 @@ export const saleConverter = {
       updatedAt: Timestamp.now(),
       additionalPayments: sale.additionalPayments?.map(p => {
           const firestorePayment: FirestorePayment = { ...p, date: Timestamp.fromDate(p.date) };
-          if (firestorePayment.details && 'date' in firestorePayment.details && firestorePayment.details.date) {
-              (firestorePayment.details as FirestoreChequeInfo).date = Timestamp.fromDate(p.details!.date!);
+          if (firestorePayment.details && 'date' in firestorePayment.details && firestorePayment.details.date && p.details?.date) {
+              (firestorePayment.details as FirestoreChequeInfo).date = Timestamp.fromDate(p.details.date);
           }
           return firestorePayment;
       }),
@@ -454,7 +481,6 @@ export const saleConverter = {
       firestoreSale.createdAt = Timestamp.now();
     }
 
-    // Clean up undefined fields at the top level
     Object.keys(firestoreSale).forEach(keyStr => {
         const key = keyStr as keyof typeof firestoreSale;
         if (firestoreSale[key] === undefined) {
@@ -513,7 +539,7 @@ export const saleConverter = {
             if (p.method === 'Cheque' && 'date' in p.details && p.details.date) {
                 paymentDetails = {
                     ...(p.details as ChequeInfo),
-                    date: safeTimestampToDate(p.details.date),
+                    date: safeTimestampToDate((p.details as FirestoreChequeInfo).date),
                 };
             } else {
                 paymentDetails = p.details as BankTransferInfo;
@@ -724,8 +750,6 @@ export const userConverter = {
         password_hashed_or_plain: user.password_hashed_or_plain,
         updatedAt: Timestamp.now(),
       };
-      // Note: We don't set createdAt here as this converter could be used for updates.
-      // The creation logic should handle setting the initial createdAt timestamp.
       return firestoreUser;
     },
     fromFirestore: (snapshot: any): User & { id: string } => {
@@ -740,7 +764,6 @@ export const userConverter = {
     }
 };
 
-// Rest of interfaces remain unchanged
 export interface StatsData {
   totalSales: number;
   totalCustomers: number;

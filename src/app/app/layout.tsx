@@ -28,6 +28,7 @@ import {
   UserCog,
   Undo2, 
   Beaker,
+  Wallet,
 } from "lucide-react";
 
 import {
@@ -96,6 +97,7 @@ const ALL_NAV_ITEMS: NavItemConfig[] = [
       { id: "manage-stock", href: "/app/inventory/manage-stock", label: "Manage Stock", icon: PlusSquare, allowedRoles: ["admin"] },
     ]
   },
+  { id: "expenses", href: "/app/expenses", label: "Expenses", icon: Wallet, allowedRoles: ["admin"] },
   {
     id: "vehicles",
     label: "Vehicles",
@@ -142,40 +144,28 @@ function calculateCurrentPageLabel(pathname: string, userRole: UserRole | undefi
     let label = findLabel(currentNavItems, pathname);
     if (label) return label;
 
-    // Handle cases where the path might be deeper, e.g., /app/reports/day-end-report
-    // This part needs to correctly identify the active parent and then the child.
     for (const item of currentNavItems) {
         if (item.children) {
             for (const child of item.children) {
                 if (child.href && pathname.startsWith(child.href)) {
-                    // Found a child that matches the start of the path
-                    // Check if it's an exact match for the child or a sub-route of the child (if any)
                     if (pathname === child.href) return child.label;
-                    // If we want to handle deeper paths like /app/reports/day-end-report/details,
-                    // we might need more sophisticated logic or ensure hrefs are exact.
-                    // For now, if it starts with child.href, we assume child.label is correct.
-                    // This works if direct children are the final segment for label calculation.
-                    const specificChildLabel = findLabel(item.children, pathname); // Re-check for exact match
+                    const specificChildLabel = findLabel(item.children, pathname);
                     if (specificChildLabel) return specificChildLabel;
-                    return child.label; // Fallback to the child label if prefix matches
+                    return child.label;
                 }
             }
         }
-        // This part handles top-level items if the path is a sub-path of a top-level item
-        // e.g. if item.href is /app/products and path is /app/products/edit/123
         if (item.href && pathname.startsWith(item.href) && pathname !== item.href) {
              const segments = pathname.split('/');
              const itemSegments = item.href.split('/');
-             // Ensure we are in the correct section
              if (segments.length > itemSegments.length && segments[2] === itemSegments[2]) {
-                // Potentially return item.label or a more specific label if known
                 return item.label;
              }
         }
     }
     
-    const primarySegment = pathname.split('/')[2]; // e.g., 'reports' from '/app/reports/day-end-report'
-    const secondarySegment = pathname.split('/')[3]; // e.g., 'day-end-report'
+    const primarySegment = pathname.split('/')[2];
+    const secondarySegment = pathname.split('/')[3];
 
     if (primarySegment && secondarySegment) {
       const parentItem = currentNavItems.find(item => item.id === primarySegment);
@@ -187,7 +177,6 @@ function calculateCurrentPageLabel(pathname: string, userRole: UserRole | undefi
     
     const fallbackItem = currentNavItems.find(item => item.id === primarySegment);
     if (fallbackItem) return fallbackItem.label;
-
 
     return "N Group Products";
 }
@@ -280,7 +269,6 @@ function AppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Desktop Layout
   return (
     <div id="app-shell-root" className="flex h-full bg-background">
       <AppNewSidebar
@@ -359,13 +347,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     ? ALL_NAV_ITEMS.filter(item => {
         const hasAllowedRole = item.allowedRoles.includes(userRole);
         if (item.children) {
-          // Important: Create a new children array for filtering, don't mutate original
           const filteredChildren = item.children.filter(child => child.allowedRoles.includes(userRole));
-          // Return the item if it has allowed role AND has filtered children
           return hasAllowedRole && filteredChildren.length > 0;
         }
         return hasAllowedRole;
-      }).map(item => { // Map to new objects to ensure children are the filtered ones
+      }).map(item => {
         if (item.children) {
           return {
             ...item,
