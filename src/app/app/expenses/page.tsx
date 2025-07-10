@@ -80,7 +80,7 @@ export default function ExpensesPage() {
       expenseDate: new Date(),
       description: finalCategory,
       staffId: currentUser?.username,
-      vehicleId: selectedVehicleId || undefined,
+      vehicleId: selectedVehicleId && selectedVehicleId !== "none" ? selectedVehicleId : undefined,
     };
 
     const result = await addExpense(newExpense);
@@ -181,7 +181,7 @@ export default function ExpensesPage() {
                     <SelectValue placeholder="Select a vehicle" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="none">None</SelectItem>
                     {vehicles.map(v => (
                       <SelectItem key={v.id} value={v.id}>{v.vehicleNumber}</SelectItem>
                     ))}
