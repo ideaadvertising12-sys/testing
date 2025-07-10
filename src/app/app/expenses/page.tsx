@@ -49,15 +49,17 @@ export default function ExpensesPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [expenseToDelete, setExpenseToDelete] = useState<Expense | null>(null);
 
+  const canAccessPage = currentUser?.role === 'admin' || currentUser?.role === 'cashier';
+
   React.useEffect(() => {
     if (!currentUser) {
       router.replace("/");
       return;
     }
-    if (currentUser.role !== "admin") {
+    if (!canAccessPage) {
       router.replace("/app/dashboard");
     }
-  }, [currentUser, router]);
+  }, [currentUser, router, canAccessPage]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -95,6 +97,10 @@ export default function ExpensesPage() {
   };
 
   const handleDelete = (expense: Expense) => {
+    if (currentUser?.role !== 'admin') {
+      toast({ variant: "destructive", title: "Permission Denied", description: "Only admins can delete expenses." });
+      return;
+    }
     setExpenseToDelete(expense);
   };
 
@@ -117,7 +123,7 @@ export default function ExpensesPage() {
 
 
   if (!currentUser) return <GlobalPreloaderScreen message="Loading expenses page..." />;
-  if (currentUser.role !== "admin") return <AccessDenied message="You do not have permission to access this page." />;
+  if (!canAccessPage) return <AccessDenied message="You do not have permission to access this page." />;
 
   return (
     <>
@@ -241,9 +247,11 @@ export default function ExpensesPage() {
                             </div>
                             <div className="text-right">
                                 <p className="font-semibold">{formatCurrency(expense.amount)}</p>
-                                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDelete(expense)}>
-                                    <Trash2 className="h-4 w-4" />
-                                </Button>
+                                {currentUser?.role === 'admin' && (
+                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDelete(expense)}>
+                                      <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                )}
                             </div>
                          </div>
                       </Card>
@@ -257,7 +265,7 @@ export default function ExpensesPage() {
                       <TableHead>Category</TableHead>
                       <TableHead>Vehicle</TableHead>
                       <TableHead className="text-right">Amount</TableHead>
-                      <TableHead className="text-center">Action</TableHead>
+                      {currentUser?.role === 'admin' && <TableHead className="text-center">Action</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -274,11 +282,13 @@ export default function ExpensesPage() {
                           ) : 'N/A'}
                         </TableCell>
                         <TableCell className="text-right font-medium">{formatCurrency(expense.amount)}</TableCell>
-                        <TableCell className="text-center">
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDelete(expense)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
+                        {currentUser?.role === 'admin' && (
+                          <TableCell className="text-center">
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDelete(expense)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        )}
                       </TableRow>
                     ))}
                   </TableBody>

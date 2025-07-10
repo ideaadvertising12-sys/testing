@@ -97,7 +97,7 @@ const ALL_NAV_ITEMS: NavItemConfig[] = [
       { id: "manage-stock", href: "/app/inventory/manage-stock", label: "Manage Stock", icon: PlusSquare, allowedRoles: ["admin"] },
     ]
   },
-  { id: "expenses", href: "/app/expenses", label: "Expenses", icon: Wallet, allowedRoles: ["admin"] },
+  { id: "expenses", href: "/app/expenses", label: "Expenses", icon: Wallet, allowedRoles: ["admin", "cashier"] },
   {
     id: "vehicles",
     label: "Vehicles",
