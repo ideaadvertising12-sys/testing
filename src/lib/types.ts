@@ -200,6 +200,7 @@ export interface Expense {
     amount: number;
     expenseDate: Date;
     staffId?: string;
+    vehicleId?: string;
     createdAt?: Date;
 }
 
@@ -268,6 +269,7 @@ export interface FirestoreReturnTransaction extends Omit<ReturnTransaction, 'id'
 
 export interface FirestoreExpense extends Omit<Expense, 'id' | 'expenseDate' | 'createdAt'> {
     expenseDate: Timestamp;
+    vehicleId?: string;
     createdAt?: Timestamp;
 }
 
@@ -377,6 +379,7 @@ export const expenseConverter = {
         };
         if (expense.description) firestoreExpense.description = expense.description;
         if (expense.staffId) firestoreExpense.staffId = expense.staffId;
+        if (expense.vehicleId) firestoreExpense.vehicleId = expense.vehicleId;
         return firestoreExpense;
     },
     fromFirestore: (snapshot: any): Expense => {
@@ -388,6 +391,7 @@ export const expenseConverter = {
             amount: data.amount,
             expenseDate: safeTimestampToDate(data.expenseDate) || new Date(),
             staffId: data.staffId,
+            vehicleId: data.vehicleId,
             createdAt: safeTimestampToDate(data.createdAt),
         };
     }

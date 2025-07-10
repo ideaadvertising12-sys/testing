@@ -14,8 +14,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import { GlobalPreloaderScreen } from "@/components/GlobalPreloaderScreen";
 import { AccessDenied } from "@/components/AccessDenied";
-import { PlusCircle, Wallet, Loader2, Trash2 } from "lucide-react";
+import { PlusCircle, Wallet, Loader2, Trash2, Truck } from "lucide-react";
 import { useExpenses } from "@/hooks/useExpenses";
+import { useVehicles } from "@/hooks/useVehicles";
 import { format } from "date-fns";
 import {
   AlertDialog,
@@ -36,13 +37,15 @@ const formatCurrency = (amount: number) => new Intl.NumberFormat('en-LK', { styl
 export default function ExpensesPage() {
   const { currentUser } = useAuth();
   const router = useRouter();
-  const { expenses, isLoading, addExpense, deleteExpense } = useExpenses();
+  const { expenses, isLoading: isLoadingExpenses, addExpense, deleteExpense } = useExpenses();
+  const { vehicles, isLoading: isLoadingVehicles } = useVehicles();
   const { toast } = useToast();
   const isMobile = useMediaQuery("(max-width: 768px)");
 
   const [category, setCategory] = useState("Fuel");
   const [customCategory, setCustomCategory] = useState("");
   const [amount, setAmount] = useState("");
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [expenseToDelete, setExpenseToDelete] = useState<Expense | null>(null);
 
@@ -77,6 +80,7 @@ export default function ExpensesPage() {
       expenseDate: new Date(),
       description: finalCategory,
       staffId: currentUser?.username,
+      vehicleId: selectedVehicleId || undefined,
     };
 
     const result = await addExpense(newExpense);
@@ -85,6 +89,7 @@ export default function ExpensesPage() {
       setCategory("Fuel");
       setCustomCategory("");
       setAmount("");
+      setSelectedVehicleId("");
     }
     setIsSubmitting(false);
   };
@@ -103,6 +108,12 @@ export default function ExpensesPage() {
   const totalExpenses = useMemo(() => {
     return expenses.reduce((sum, expense) => sum + expense.amount, 0);
   }, [expenses]);
+
+  const isLoading = isLoadingExpenses || isLoadingVehicles;
+
+  const vehicleMap = useMemo(() => {
+    return new Map(vehicles.map(v => [v.id, v.vehicleNumber]));
+  }, [vehicles]);
 
 
   if (!currentUser) return <GlobalPreloaderScreen message="Loading expenses page..." />;
@@ -163,6 +174,21 @@ export default function ExpensesPage() {
                 />
               </div>
 
+              <div>
+                <Label htmlFor="vehicle">Vehicle (Optional)</Label>
+                <Select value={selectedVehicleId} onValueChange={setSelectedVehicleId} disabled={isLoadingVehicles}>
+                  <SelectTrigger id="vehicle">
+                    <SelectValue placeholder="Select a vehicle" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">None</SelectItem>
+                    {vehicles.map(v => (
+                      <SelectItem key={v.id} value={v.id}>{v.vehicleNumber}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               <Button type="submit" disabled={isSubmitting} className="w-full">
                 {isSubmitting ? (
                   <>
@@ -206,6 +232,12 @@ export default function ExpensesPage() {
                             <div>
                                 <p className="font-medium capitalize">{expense.category}</p>
                                 <p className="text-xs text-muted-foreground">{format(expense.expenseDate, "PP")}</p>
+                                {expense.vehicleId && (
+                                  <p className="text-xs text-blue-600 font-medium flex items-center gap-1 mt-1">
+                                    <Truck className="h-3 w-3"/>
+                                    {vehicleMap.get(expense.vehicleId) || expense.vehicleId}
+                                  </p>
+                                )}
                             </div>
                             <div className="text-right">
                                 <p className="font-semibold">{formatCurrency(expense.amount)}</p>
@@ -223,6 +255,7 @@ export default function ExpensesPage() {
                     <TableRow>
                       <TableHead>Date</TableHead>
                       <TableHead>Category</TableHead>
+                      <TableHead>Vehicle</TableHead>
                       <TableHead className="text-right">Amount</TableHead>
                       <TableHead className="text-center">Action</TableHead>
                     </TableRow>
@@ -232,6 +265,14 @@ export default function ExpensesPage() {
                       <TableRow key={expense.id}>
                         <TableCell>{format(expense.expenseDate, "yyyy-MM-dd")}</TableCell>
                         <TableCell className="capitalize">{expense.category}</TableCell>
+                        <TableCell>
+                          {expense.vehicleId ? (
+                            <span className="flex items-center gap-1 text-sm">
+                              <Truck className="h-3.5 w-3.5 text-muted-foreground"/>
+                              {vehicleMap.get(expense.vehicleId) || expense.vehicleId}
+                            </span>
+                          ) : 'N/A'}
+                        </TableCell>
                         <TableCell className="text-right font-medium">{formatCurrency(expense.amount)}</TableCell>
                         <TableCell className="text-center">
                           <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDelete(expense)}>

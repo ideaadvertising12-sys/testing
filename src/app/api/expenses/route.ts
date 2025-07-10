@@ -28,10 +28,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields (category, amount)' }, { status: 400 });
     }
     
-    // Ensure date is handled correctly
+    // Ensure date is handled correctly and include optional vehicleId
     const finalExpenseData = {
         ...expenseData,
         expenseDate: expenseData.expenseDate ? new Date(expenseData.expenseDate) : new Date(),
+        vehicleId: expenseData.vehicleId || undefined,
     };
 
     const docRef = await addDoc(collection(db, "expenses").withConverter(expenseConverter), finalExpenseData);
