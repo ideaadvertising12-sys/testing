@@ -848,6 +848,7 @@ export interface DayEndReportSummary {
   totalBankTransferIn: number;
   totalChangeGiven: number;
   totalRefundsPaidToday: number;
+  totalExpensesToday: number; // Added expenses
   netCashInHand: number;
   newCreditIssued: number;
   paidAgainstNewCredit: number;

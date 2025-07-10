@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { CalendarClock, FileText, DownloadCloud, ReceiptText, Banknote, Building, Newspaper, CreditCard, AlertTriangle, ArrowDown, ArrowUp, Beaker } from "lucide-react";
+import { CalendarClock, FileText, DownloadCloud, ReceiptText, Banknote, Building, Newspaper, CreditCard, AlertTriangle, ArrowDown, ArrowUp, Beaker, Wallet } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { AccessDenied } from "@/components/AccessDenied";
 import { useRouter } from "next/navigation";
 import { GlobalPreloaderScreen } from "@/components/GlobalPreloaderScreen";
-import type { Sale, DayEndReportSummary, ReturnTransaction, StockTransaction } from "@/lib/types";
+import type { Sale, DayEndReportSummary, ReturnTransaction, StockTransaction, Expense } from "@/lib/types";
 import { format, startOfDay, endOfDay, isSameDay } from "date-fns";
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 import { useSalesData } from "@/hooks/useSalesData"; 
 import { useReturns } from "@/hooks/useReturns";
 import { useStockTransactions } from "@/hooks/useStockTransactions";
+import { useExpenses } from "@/hooks/useExpenses"; // Import useExpenses
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 
@@ -47,6 +48,7 @@ export default function DayEndReportPage() {
   const { sales: allSales, isLoading: isLoadingSales, error: salesError } = useSalesData(true); 
   const { returns, isLoading: isLoadingReturns, error: returnsError } = useReturns();
   const { transactions: allTransactions, isLoading: isLoadingTransactions, error: transactionsError } = useStockTransactions();
+  const { expenses, isLoading: isLoadingExpenses, error: expensesError } = useExpenses(); // Fetch expenses
 
   useEffect(() => {
     if (!currentUser) {
@@ -59,10 +61,11 @@ export default function DayEndReportPage() {
   }, [currentUser, router]);
 
   useEffect(() => {
-    if (selectedDate && !isLoadingSales && allSales && !isLoadingReturns && returns && !isLoadingTransactions && allTransactions) {
+    if (selectedDate && !isLoadingSales && allSales && !isLoadingReturns && returns && !isLoadingTransactions && allTransactions && !isLoadingExpenses && expenses) {
       const salesToday = allSales.filter(s => isSameDay(s.saleDate, selectedDate));
       const returnsToday = returns.filter(r => isSameDay(r.returnDate, selectedDate));
       const salesBeforeToday = allSales.filter(s => !isSameDay(s.saleDate, selectedDate));
+      const expensesTodayList = expenses.filter(e => isSameDay(e.expenseDate, selectedDate));
 
       // --- Revenue Calculations ---
       const grossSalesToday = salesToday.reduce((sum, s) => sum + s.totalAmount, 0);
@@ -118,6 +121,9 @@ export default function DayEndReportPage() {
           });
       });
 
+      // --- Expense Calculations ---
+      const totalExpensesToday = expensesTodayList.reduce((sum, e) => sum + e.amount, 0);
+
       // --- New, more robust credit calculation ---
       const totalOutstandingFromToday = salesToday.reduce((sum, s) => sum + (s.outstandingBalance || 0), 0);
       const totalInitialCreditIssuedToday = salesToday.reduce((sum, s) => sum + (s.initialOutstandingBalance || 0), 0);
@@ -145,7 +151,8 @@ export default function DayEndReportPage() {
         totalBankTransferIn,
         totalChangeGiven,
         totalRefundsPaidToday: totalRefundsToday,
-        netCashInHand: totalCashIn - totalChangeGiven - totalRefundsToday, // Assumes refunds paid in cash
+        totalExpensesToday: totalExpensesToday, // Add expenses to summary
+        netCashInHand: totalCashIn - totalChangeGiven - totalRefundsToday - totalExpensesToday, // Deduct expenses from cash
         newCreditIssued: totalInitialCreditIssuedToday,
         paidAgainstNewCredit: totalPaidAgainstCreditToday,
         netOutstandingFromToday: totalOutstandingFromToday,
@@ -159,7 +166,7 @@ export default function DayEndReportPage() {
     } else {
       setReportSummary(null);
     }
-  }, [selectedDate, allSales, isLoadingSales, returns, isLoadingReturns, allTransactions, isLoadingTransactions]);
+  }, [selectedDate, allSales, isLoadingSales, returns, isLoadingReturns, allTransactions, isLoadingTransactions, expenses, isLoadingExpenses]);
 
   const handleExportPDF = () => {
     if (!reportSummary || !selectedDate) return;
@@ -184,6 +191,7 @@ export default function DayEndReportPage() {
         ['Total Bank Transfer In', formatCurrency(reportSummary.totalBankTransferIn)],
         ['Less: Change Given', formatCurrency(reportSummary.totalChangeGiven)],
         ['Less: Total Refunds Paid', formatCurrency(reportSummary.totalRefundsPaidToday)],
+        ['Less: Total Expenses', formatCurrency(reportSummary.totalExpensesToday)], // Add expenses to PDF
         [{ content: 'Net Cash In Hand', styles: { fontStyle: 'bold' } }, { content: formatCurrency(reportSummary.netCashInHand), styles: { fontStyle: 'bold' } }],
         [' ', ' '],
         ['New Credit Issued Today', formatCurrency(reportSummary.newCreditIssued)],
@@ -272,7 +280,7 @@ export default function DayEndReportPage() {
     return <AccessDenied message="Day End reports are not available for your role. Redirecting..." />;
   }
   
-  const pageIsLoading = (isLoadingSales || isLoadingReturns || isLoadingTransactions) && !reportSummary;
+  const pageIsLoading = (isLoadingSales || isLoadingReturns || isLoadingTransactions || isLoadingExpenses) && !reportSummary;
 
   if (pageIsLoading) {
     return <GlobalPreloaderScreen message="Fetching report data..." />
@@ -287,11 +295,11 @@ export default function DayEndReportPage() {
         action={reportActions}
       />
 
-      {(salesError || returnsError || transactionsError) && (
+      {(salesError || returnsError || transactionsError || expensesError) && (
         <Alert variant="destructive" className="mb-4">
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle>Error Loading Data</AlertTitle>
-          <AlertDescription>{salesError || returnsError || transactionsError}</AlertDescription>
+          <AlertDescription>{salesError || returnsError || transactionsError || expensesError}</AlertDescription>
         </Alert>
       )}
 
@@ -317,6 +325,7 @@ export default function DayEndReportPage() {
                 <p className="flex justify-between"><span>Total Cash In:</span> <span className="font-semibold text-green-600 flex items-center gap-1"><ArrowUp className="h-3 w-3"/>{formatCurrency(reportSummary.totalCashIn)}</span></p>
                 <p className="flex justify-between"><span>Change Given:</span> <span className="font-semibold text-destructive flex items-center gap-1"><ArrowDown className="h-3 w-3"/>{formatCurrency(reportSummary.totalChangeGiven)}</span></p>
                 <p className="flex justify-between"><span>Refunds Paid:</span> <span className="font-semibold text-destructive flex items-center gap-1"><ArrowDown className="h-3 w-3"/>{formatCurrency(reportSummary.totalRefundsPaidToday)}</span></p>
+                <p className="flex justify-between"><span>Expenses Paid:</span> <span className="font-semibold text-destructive flex items-center gap-1"><ArrowDown className="h-3 w-3"/>{formatCurrency(reportSummary.totalExpensesToday)}</span></p>
                 <Separator className="my-2"/>
                 <p className="flex justify-between font-bold text-base"><span>Net Cash:</span> <span>{formatCurrency(reportSummary.netCashInHand)}</span></p>
               </CardContent>
@@ -376,6 +385,7 @@ export default function DayEndReportPage() {
                     <p className="flex justify-between text-blue-600"><span>Total Collections:</span> <strong className="text-right">{formatCurrency(reportSummary.totalCashIn + reportSummary.totalChequeIn + reportSummary.totalBankTransferIn)}</strong></p>
                     <p className="flex justify-between text-orange-600"><span>Refunds on Today's Sales:</span> <strong className="text-right">{formatCurrency(reportSummary.refundsForTodaySales)}</strong></p>
                     <p className="flex justify-between text-destructive"><span>Total Refunds Paid Out:</span> <strong className="text-right">{formatCurrency(reportSummary.totalRefundsPaidToday)}</strong></p>
+                    <p className="flex justify-between text-destructive"><span>Total Expenses Today:</span> <strong className="text-right">{formatCurrency(reportSummary.totalExpensesToday)}</strong></p>
                     <p className="flex justify-between font-bold text-primary text-lg border-t pt-2 mt-2"><span>Net Sales Value:</span> <strong className="text-right">{formatCurrency(reportSummary.netSalesValue)}</strong></p>
                     <p className="flex justify-between font-bold text-primary text-lg border-t pt-2 mt-2"><span>Net Cash In Hand:</span> <strong className="text-right">{formatCurrency(reportSummary.netCashInHand)}</strong></p>
                 </div>
