@@ -1,8 +1,8 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { db } from '@/lib/firebase';
-import { doc, runTransaction, Timestamp, arrayUnion } from 'firebase/firestore';
-import { saleConverter, type Sale, type Payment, type FirestorePayment, type ChequeInfo, type BankTransferInfo } from '@/lib/types';
+import { doc, runTransaction, Timestamp, arrayUnion, collection } from 'firebase/firestore';
+import { saleConverter, type Sale, type Payment, type FirestorePayment, type ChequeInfo, type BankTransferInfo, stockTransactionConverter, productConverter } from '@/lib/types';
 import { getAuth } from "firebase-admin/auth";
 import { adminApp } from '@/lib/firebase-admin'; // Ensure you have this
 
@@ -139,5 +139,87 @@ export async function PATCH(
     console.error(`Error adding payment to sale ${saleId}:`, error);
     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
     return NextResponse.json({ error: 'Failed to add payment', details: errorMessage }, { status: 500 });
+  }
+}
+
+// DELETE /api/sales/{id} - Cancel an invoice
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const saleId = params.id;
+  if (!saleId) {
+    return NextResponse.json({ error: 'Sale ID is required' }, { status: 400 });
+  }
+
+  // TODO: Add authorization check here to ensure only admins can cancel
+
+  try {
+    await runTransaction(db, async (transaction) => {
+      const saleRef = doc(db, 'sales', saleId).withConverter(saleConverter);
+      const saleDoc = await transaction.get(saleRef);
+
+      if (!saleDoc.exists()) {
+        throw new Error('Sale not found.');
+      }
+
+      const saleData = saleDoc.data();
+      if (saleData.status === 'cancelled') {
+        throw new Error('This invoice has already been cancelled.');
+      }
+
+      // Reverse stock changes
+      for (const item of saleData.items) {
+        if (saleData.vehicleId) {
+          // If it was a vehicle sale, we need to create a "LOAD_TO_VEHICLE" transaction
+          // to put the stock back on the vehicle. The main inventory was not touched.
+           const productSnap = await transaction.get(doc(db, "products", item.id).withConverter(productConverter));
+           if (!productSnap.exists()) {
+             throw new Error(`Product with ID ${item.id} not found.`);
+           }
+
+          const stockTx = {
+            productId: item.id,
+            productName: item.name,
+            productSku: item.sku,
+            type: 'LOAD_TO_VEHICLE' as const,
+            quantity: item.quantity,
+            previousStock: productSnap.data().stock, // main stock is unchanged
+            newStock: productSnap.data().stock, // main stock is unchanged
+            transactionDate: new Date(),
+            notes: `Cancellation of Sale ID: ${saleId}`,
+            vehicleId: saleData.vehicleId,
+            userId: saleData.staffId, // Or a dedicated 'system' user
+          };
+          const txDocRef = doc(collection(db, "stockTransactions"));
+          const firestoreTx = stockTransactionConverter.toFirestore({ id: 'temp', ...stockTx });
+          transaction.set(txDocRef, firestoreTx);
+
+        } else {
+          // If it was a main inventory sale, add the stock back to the product.
+          const productRef = doc(db, 'products', item.id);
+          const productDoc = await transaction.get(productRef);
+          if (!productDoc.exists()) {
+            throw new Error(`Product ${item.name} not found for stock reversal.`);
+          }
+          const currentStock = productDoc.data().stock;
+          transaction.update(productRef, { stock: currentStock + item.quantity });
+        }
+      }
+
+      // Update the sale status to 'cancelled'
+      transaction.update(saleRef, {
+        status: 'cancelled',
+        outstandingBalance: 0, // Nullify outstanding balance
+        updatedAt: Timestamp.now(),
+      });
+    });
+
+    return NextResponse.json({ message: 'Invoice cancelled successfully and stock restored.' });
+
+  } catch (error) {
+    console.error(`Error cancelling sale ${saleId}:`, error);
+    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+    return NextResponse.json({ error: 'Failed to cancel invoice', details: errorMessage }, { status: 500 });
   }
 }

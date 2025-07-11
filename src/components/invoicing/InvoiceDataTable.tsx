@@ -17,7 +17,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { CalendarIcon, FilterX, Search, ReceiptText, Printer, Eye, ChevronDown, ChevronUp, Loader2, AlertTriangle, Info, WalletCards } from "lucide-react";
+import { CalendarIcon, FilterX, Search, ReceiptText, Printer, Eye, ChevronDown, ChevronUp, Loader2, AlertTriangle, Info, WalletCards, XCircle } from "lucide-react";
 import { format, isValid, parseISO, isWithinInterval, startOfDay, endOfDay } from "date-fns";
 import type { Sale } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -25,6 +25,9 @@ import { BillDialog } from "@/components/sales/BillDialog";
 import { PaymentDialog } from "@/components/invoicing/PaymentDialog";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 
 interface InvoiceDataTableProps {
@@ -46,6 +49,15 @@ export function InvoiceDataTable({ sales: initialSales, isLoading, error, refetc
 
   const [saleForPayment, setSaleForPayment] = useState<Sale | null>(null);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
+  
+  const [isCancelAlertOpen, setIsCancelAlertOpen] = useState(false);
+  const [saleToCancel, setSaleToCancel] = useState<Sale | null>(null);
+  const [isCancelling, setIsCancelling] = useState(false);
+  
+  const { toast } = useToast();
+  const { currentUser } = useAuth();
+  const isAdmin = currentUser?.role === 'admin';
+
 
   useEffect(() => {
     setLocalSales(initialSales);
@@ -105,6 +117,31 @@ export function InvoiceDataTable({ sales: initialSales, isLoading, error, refetc
     setIsPaymentDialogOpen(true);
   };
 
+  const handleOpenCancelDialog = (sale: Sale) => {
+    setSaleToCancel(sale);
+    setIsCancelAlertOpen(true);
+  };
+
+  const handleConfirmCancel = async () => {
+    if (!saleToCancel || !isAdmin) return;
+    setIsCancelling(true);
+    try {
+      const response = await fetch(`/api/sales/${saleToCancel.id}`, { method: 'DELETE' });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.details || "Failed to cancel invoice.");
+      }
+      toast({ title: "Success", description: "Invoice cancelled and stock restored." });
+      refetchSales(); // Refetch all sales data to get the updated state
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Cancellation Failed", description: error.message });
+    } finally {
+      setIsCancelling(false);
+      setIsCancelAlertOpen(false);
+      setSaleToCancel(null);
+    }
+  };
+
   const toggleExpandInvoice = (invoiceId: string) => {
     setExpandedInvoice(expandedInvoice === invoiceId ? null : invoiceId);
   };
@@ -124,10 +161,13 @@ export function InvoiceDataTable({ sales: initialSales, isLoading, error, refetc
   }, [localSales]);
 
   const getPaymentStatusBadge = (sale: Sale) => {
+    if (sale.status === 'cancelled') {
+        return <Badge variant="destructive" className="bg-gray-500 hover:bg-gray-600 text-white text-xs">Cancelled</Badge>;
+    }
     const isComplete = sale.outstandingBalance !== undefined ? sale.outstandingBalance <= 0 : sale.totalAmountPaid >= sale.totalAmount;
 
     if (isComplete) {
-      return <Badge variant="default" className="bg-green-600 hover:bg-green-700 text-white text-xs">Complete</Badge>;
+      return <Badge variant="default" className="bg-green-600 hover:bg-green-700 text-white text-xs">Completed</Badge>;
     } else {
       return <Badge variant="default" className="bg-yellow-500 hover:bg-yellow-600 text-black text-xs">Pending</Badge>;
     }
@@ -291,15 +331,21 @@ export function InvoiceDataTable({ sales: initialSales, isLoading, error, refetc
                           </div>
                           
                           <div className="flex gap-2 pt-2 mt-2 border-t">
-                              {(sale.outstandingBalance ?? 0) > 0 && (
+                              {sale.status !== 'cancelled' && (sale.outstandingBalance ?? 0) > 0 && (
                                   <Button variant="default" size="sm" className="flex-1 h-8 text-xs" onClick={() => handleAddPayment(sale)}>
                                       <WalletCards className="h-3.5 w-3.5 mr-1.5" />
                                       Add Payment
                                   </Button>
                               )}
+                              {sale.status !== 'cancelled' && isAdmin && (
+                                  <Button variant="destructive" size="sm" className="flex-1 h-8 text-xs" onClick={() => handleOpenCancelDialog(sale)}>
+                                      <XCircle className="h-3.5 w-3.5 mr-1.5" />
+                                      Cancel
+                                  </Button>
+                              )}
                               <Button variant="outline" size="sm" className="flex-1 h-8 text-xs" onClick={() => handleReprintInvoice(sale)}>
                                   <Printer className="h-3.5 w-3.5 mr-1.5" />
-                                  Print Invoice
+                                  Print
                               </Button>
                           </div>
                         </div>
@@ -324,13 +370,13 @@ export function InvoiceDataTable({ sales: initialSales, isLoading, error, refetc
                   </TableHeader>
                   <TableBody>
                     {filteredSales.map((sale) => (
-                      <TableRow key={sale.id}>
+                      <TableRow key={sale.id} className={cn(sale.status === 'cancelled' && 'bg-muted/40 text-muted-foreground hover:bg-muted/50')}>
                         <TableCell className="font-mono text-xs">{sale.id}</TableCell>
                         <TableCell className="text-xs">{format(typeof sale.saleDate === 'string' ? parseISO(sale.saleDate) : sale.saleDate, "PP, p")}</TableCell>
                         <TableCell className="text-sm">{sale.customerName || "Walk-in"}</TableCell>
                         <TableCell className="text-right font-medium text-sm">{formatCurrency(sale.totalAmount)}</TableCell>
                         <TableCell className="text-right text-sm">{formatCurrency(sale.totalAmountPaid)}</TableCell>
-                        <TableCell className={cn("text-right text-sm", (sale.outstandingBalance ?? 0) > 0 && "text-destructive font-semibold")}>{formatCurrency(sale.outstandingBalance)}</TableCell>
+                        <TableCell className={cn("text-right text-sm", (sale.outstandingBalance ?? 0) > 0 && sale.status !== 'cancelled' && "text-destructive font-semibold")}>{formatCurrency(sale.outstandingBalance)}</TableCell>
                         <TableCell className="text-xs">
                            <Tooltip>
                               <TooltipTrigger asChild>
@@ -376,12 +422,18 @@ export function InvoiceDataTable({ sales: initialSales, isLoading, error, refetc
                         </TableCell>
                         <TableCell className="text-center">{getPaymentStatusBadge(sale)}</TableCell>
                         <TableCell className="text-center">
-                          {(sale.outstandingBalance ?? 0) > 0 && (
+                          {sale.status !== 'cancelled' && (sale.outstandingBalance ?? 0) > 0 && (
                             <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => handleAddPayment(sale)}>
                                 <WalletCards className="h-4 w-4 mr-1"/>
                                 Pay
                             </Button>
                           )}
+                           {sale.status !== 'cancelled' && isAdmin && (
+                            <Button variant="destructive" size="sm" className="h-8 text-xs ml-1" onClick={() => handleOpenCancelDialog(sale)}>
+                                <XCircle className="h-4 w-4 mr-1"/>
+                                Cancel
+                            </Button>
+                           )}
                           <Button variant="ghost" size="icon" onClick={() => handleReprintInvoice(sale)} title="View / Print Invoice" className="h-8 w-8 ml-1">
                             <Printer className="h-4 w-4" />
                           </Button>
@@ -400,6 +452,24 @@ export function InvoiceDataTable({ sales: initialSales, isLoading, error, refetc
           )}
         </CardContent>
       </Card>
+      
+       <AlertDialog open={isCancelAlertOpen} onOpenChange={setIsCancelAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel Invoice: {saleToCancel?.id}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently cancel the invoice. Stock levels will be restored to their state before this sale. This action cannot be undone. Are you sure?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>No, Keep Invoice</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmCancel} className="bg-destructive hover:bg-destructive/90" disabled={isCancelling}>
+              {isCancelling ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
+              Yes, Cancel Invoice
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {selectedInvoiceForReprint && isBillDialogOpen && (
         <BillDialog
@@ -409,7 +479,7 @@ export function InvoiceDataTable({ sales: initialSales, isLoading, error, refetc
             setIsBillDialogOpen(open);
           }}
           existingSaleData={selectedInvoiceForReprint}
-          onConfirmSale={() => { /* No confirm action needed for reprint */ }}
+          onConfirmSale={() => { /* No confirm action needed for reprint */ return Promise.resolve(null); }}
         />
       )}
 

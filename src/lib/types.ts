@@ -149,6 +149,7 @@ export interface Sale {
   vehicleId?: string;
   createdAt?: Date;
   updatedAt?: Date;
+  status?: 'completed' | 'pending' | 'cancelled';
 }
 
 export type StockTransactionType =
@@ -258,6 +259,7 @@ export interface FirestoreSale extends Omit<Sale, 'id' | 'saleDate' | 'createdAt
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
   customerShopName?: string;
+  status?: 'completed' | 'pending' | 'cancelled';
 }
 
 export interface FirestoreStockTransaction extends Omit<StockTransaction, 'id' | 'transactionDate'> {
@@ -487,6 +489,7 @@ export const saleConverter = {
       customerName: data.customerName,
       customerShopName: data.customerShopName,
       updatedAt: Timestamp.now(),
+      status: data.status,
       additionalPayments: data.additionalPayments?.map(p => {
           const firestorePayment: FirestorePayment = { ...p, date: Timestamp.fromDate(p.date) };
           if (firestorePayment.details && 'date' in firestorePayment.details && firestorePayment.details.date && p.details?.date) {
@@ -586,6 +589,7 @@ export const saleConverter = {
       customerShopName: data.customerShopName,
       offerApplied: data.offerApplied || false,
       vehicleId: data.vehicleId,
+      status: data.status || 'completed',
       createdAt: safeTimestampToDate(data.createdAt),
       updatedAt: safeTimestampToDate(data.updatedAt),
     };
