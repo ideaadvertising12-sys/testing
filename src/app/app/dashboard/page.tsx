@@ -80,6 +80,7 @@ export default function DashboardPage() {
 
     // Calculate gross sales for today
     const salesTodayList = sales.filter(sale => {
+      if (sale.status === 'cancelled') return false;
       const saleDate = sale.saleDate instanceof Date ? sale.saleDate : new Date(sale.saleDate);
       return saleDate >= todayStart && saleDate < todayEnd;
     });
@@ -132,8 +133,10 @@ export default function DashboardPage() {
       };
     }
 
-    // Calculate gross revenue from all sales
-    const gross = sales.reduce((sum, sale) => sum + (Number(sale.totalAmount) || 0), 0);
+    // Calculate gross revenue from all sales, excluding cancelled ones
+    const gross = sales
+        .filter(sale => sale.status !== 'cancelled')
+        .reduce((sum, sale) => sum + (Number(sale.totalAmount) || 0), 0);
 
     // Calculate total returns impact: all cash out and credit given
     const returnsImpact = returns.reduce((sum, ret) => {
@@ -181,6 +184,7 @@ export default function DashboardPage() {
     }> = {};
 
     sales.forEach(sale => {
+      if (sale.status === 'cancelled') return;
       sale.items.forEach(item => {
         if (!item.isOfferItem) {
           if (!productSales[item.id]) {
@@ -211,7 +215,8 @@ export default function DashboardPage() {
   }, [sales, allProducts, isLoadingSales, isLoadingProducts]);
 
   const { monthlySalesData, monthlyComparison } = useMemo(() => {
-    if (!sales || sales.length === 0) {
+    const activeSales = sales ? sales.filter(s => s.status !== 'cancelled') : [];
+    if (!activeSales || activeSales.length === 0) {
       const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
       return {
         monthlySalesData: monthNames.map(name => ({ name, sales: 0 })),
@@ -223,7 +228,7 @@ export default function DashboardPage() {
     const monthlyTotalsPrevYear: Record<number, number> = {};
     const currentYear = new Date().getFullYear();
 
-    sales.forEach(sale => {
+    activeSales.forEach(sale => {
       const saleDate = sale.saleDate instanceof Date ? sale.saleDate : new Date(sale.saleDate);
       const month = saleDate.getMonth();
       const year = saleDate.getFullYear();
@@ -522,7 +527,7 @@ export default function DashboardPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {sales.slice(0, 5).map((sale) => (
+                    {sales.filter(s => s.status !== 'cancelled').slice(0, 5).map((sale) => (
                       <TableRow key={sale.id}>
                         <TableCell className="font-medium">#{sale.id}</TableCell>
                         <TableCell>
