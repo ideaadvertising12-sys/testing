@@ -1,3 +1,4 @@
+
 // location src/lib/types.ts
 import { Timestamp, DocumentReference, doc } from 'firebase/firestore';
 import { db } from './firebase';
@@ -150,6 +151,7 @@ export interface Sale {
   createdAt?: Date;
   updatedAt?: Date;
   status?: 'completed' | 'pending' | 'cancelled';
+  cancellationReason?: string;
 }
 
 export type StockTransactionType =
@@ -260,6 +262,7 @@ export interface FirestoreSale extends Omit<Sale, 'id' | 'saleDate' | 'createdAt
   updatedAt?: Timestamp;
   customerShopName?: string;
   status?: 'completed' | 'pending' | 'cancelled';
+  cancellationReason?: string;
 }
 
 export interface FirestoreStockTransaction extends Omit<StockTransaction, 'id' | 'transactionDate'> {
@@ -490,6 +493,7 @@ export const saleConverter = {
       customerShopName: data.customerShopName,
       updatedAt: Timestamp.now(),
       status: data.status,
+      cancellationReason: data.cancellationReason,
       additionalPayments: data.additionalPayments?.map(p => {
           const firestorePayment: FirestorePayment = { ...p, date: Timestamp.fromDate(p.date) };
           if (firestorePayment.details && 'date' in firestorePayment.details && firestorePayment.details.date && p.details?.date) {
@@ -590,6 +594,7 @@ export const saleConverter = {
       offerApplied: data.offerApplied || false,
       vehicleId: data.vehicleId,
       status: data.status || 'completed',
+      cancellationReason: data.cancellationReason,
       createdAt: safeTimestampToDate(data.createdAt),
       updatedAt: safeTimestampToDate(data.updatedAt),
     };

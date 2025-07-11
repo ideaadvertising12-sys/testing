@@ -28,6 +28,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { Textarea } from "../ui/textarea";
+import { Label } from "../ui/label";
 
 
 interface InvoiceDataTableProps {
@@ -53,6 +55,7 @@ export function InvoiceDataTable({ sales: initialSales, isLoading, error, refetc
   const [isCancelAlertOpen, setIsCancelAlertOpen] = useState(false);
   const [saleToCancel, setSaleToCancel] = useState<Sale | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [cancellationReason, setCancellationReason] = useState("");
   
   const { toast } = useToast();
   const { currentUser } = useAuth();
@@ -123,10 +126,18 @@ export function InvoiceDataTable({ sales: initialSales, isLoading, error, refetc
   };
 
   const handleConfirmCancel = async () => {
-    if (!saleToCancel || !isAdmin) return;
+    if (!saleToCancel || !isAdmin || !cancellationReason.trim()) {
+      toast({ variant: "destructive", title: "Reason Required", description: "Please provide a reason for cancelling the invoice." });
+      return;
+    }
+
     setIsCancelling(true);
     try {
-      const response = await fetch(`/api/sales/${saleToCancel.id}`, { method: 'DELETE' });
+      const response = await fetch(`/api/sales/${saleToCancel.id}`, { 
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ cancellationReason: cancellationReason.trim() }),
+      });
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.details || "Failed to cancel invoice.");
@@ -139,6 +150,7 @@ export function InvoiceDataTable({ sales: initialSales, isLoading, error, refetc
       setIsCancelling(false);
       setIsCancelAlertOpen(false);
       setSaleToCancel(null);
+      setCancellationReason("");
     }
   };
 
@@ -305,6 +317,7 @@ export function InvoiceDataTable({ sales: initialSales, isLoading, error, refetc
                         <div className="mt-2 space-y-1 text-xs border-t pt-2">
                           <div className="flex justify-between font-semibold"><span className="text-muted-foreground">Total Paid:</span><span>{formatCurrency(sale.totalAmountPaid)}</span></div>
                           {sale.outstandingBalance > 0 && <div className="flex justify-between font-semibold text-destructive"><span className="text-muted-foreground">Outstanding:</span><span>{formatCurrency(sale.outstandingBalance)}</span></div>}
+                          {sale.status === 'cancelled' && sale.cancellationReason && <div className="text-destructive"><span className="text-muted-foreground">Reason:</span><span> {sale.cancellationReason}</span></div>}
 
                           <div className="pt-2">
                               <p className="font-bold text-xs mb-1">Payment History:</p>
@@ -416,6 +429,13 @@ export function InvoiceDataTable({ sales: initialSales, isLoading, error, refetc
                                   {!(sale.paidAmountCash || sale.paidAmountCheque || sale.paidAmountBankTransfer) && (!sale.additionalPayments || sale.additionalPayments.length === 0) && (
                                     <p className="text-muted-foreground">No payments recorded for this invoice.</p>
                                   )}
+                                  
+                                  {sale.status === 'cancelled' && sale.cancellationReason && (
+                                    <div className="border-t pt-2 mt-2 text-destructive">
+                                      <p className="font-semibold">Cancellation Reason:</p>
+                                      <p>{sale.cancellationReason}</p>
+                                    </div>
+                                  )}
                                 </div>
                               </TooltipContent>
                             </Tooltip>
@@ -458,12 +478,22 @@ export function InvoiceDataTable({ sales: initialSales, isLoading, error, refetc
           <AlertDialogHeader>
             <AlertDialogTitle>Cancel Invoice: {saleToCancel?.id}?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently cancel the invoice. Stock levels will be restored to their state before this sale. This action cannot be undone. Are you sure?
+              Stock levels will be restored. This action cannot be undone. Please provide a reason for the cancellation.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <div className="py-2">
+            <Label htmlFor="cancellationReason" className="mb-2 block">Reason for Cancellation *</Label>
+            <Textarea
+              id="cancellationReason"
+              placeholder="e.g., Customer returned items, wrong order..."
+              value={cancellationReason}
+              onChange={(e) => setCancellationReason(e.target.value)}
+              className="min-h-[80px]"
+            />
+          </div>
           <AlertDialogFooter>
             <AlertDialogCancel>No, Keep Invoice</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmCancel} className="bg-destructive hover:bg-destructive/90" disabled={isCancelling}>
+            <AlertDialogAction onClick={handleConfirmCancel} className="bg-destructive hover:bg-destructive/90" disabled={isCancelling || !cancellationReason.trim()}>
               {isCancelling ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
               Yes, Cancel Invoice
             </AlertDialogAction>

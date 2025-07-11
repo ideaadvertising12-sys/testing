@@ -155,6 +155,12 @@ export async function DELETE(
   // TODO: Add authorization check here to ensure only admins can cancel
 
   try {
+    const { cancellationReason } = await request.json();
+    if (!cancellationReason || typeof cancellationReason !== 'string' || cancellationReason.trim() === '') {
+      return NextResponse.json({ error: 'Cancellation reason is required' }, { status: 400 });
+    }
+
+
     await runTransaction(db, async (transaction) => {
       const saleRef = doc(db, 'sales', saleId).withConverter(saleConverter);
       
@@ -229,6 +235,7 @@ export async function DELETE(
         status: 'cancelled',
         outstandingBalance: 0, // Nullify outstanding balance
         updatedAt: Timestamp.now(),
+        cancellationReason: cancellationReason,
       });
     });
 
