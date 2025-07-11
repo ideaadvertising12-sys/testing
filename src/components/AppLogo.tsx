@@ -4,15 +4,25 @@
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 
-export function AppLogo({ size = "md" }: { size?: "sm" | "md" | "lg" | "iconOnly" }) {
+interface AppLogoProps {
+  size?: "sm" | "md" | "lg" | "iconOnly";
+  className?: string; // Allow custom classes to be passed
+}
+
+export function AppLogo({ size = "md", className }: AppLogoProps) {
   const sizeMap = {
-    sm: { class: "h-6 w-6", width: 24, height: 24 },
-    md: { class: "h-8 w-8", width: 32, height: 32 },
-    lg: { class: "h-10 w-10", width: 40, height: 40 },
-    iconOnly: { class: "h-7 w-7", width: 28, height: 28 },
+    sm: { class: "h-6 w-6", textClass: "text-xl", width: 24, height: 24 },
+    md: { class: "h-8 w-8", textClass: "text-2xl", width: 32, height: 32 },
+    lg: { class: "h-10 w-10", textClass: "text-3xl", width: 40, height: 40 },
+    iconOnly: { class: "h-7 w-7", textClass: "hidden", width: 28, height: 28 },
   };
 
-  const { class: sizeClass, width, height } = sizeMap[size];
+  const { 
+    class: sizeClass, 
+    textClass, 
+    width, 
+    height 
+  } = sizeMap[size];
 
   const logoImage = (
     <Image
@@ -25,29 +35,21 @@ export function AppLogo({ size = "md" }: { size?: "sm" | "md" | "lg" | "iconOnly
     />
   );
 
-  if (size === "iconOnly") {
-    return (
-      <div className={cn(sizeClass, "flex items-center justify-center")}>
-        {logoImage}
-      </div>
-    );
-  }
-
   return (
-    <div className="flex items-center space-x-2">
+    <div className={cn("flex items-center space-x-2", className)}>
       <div className={cn(sizeClass)}>
         {logoImage}
       </div>
-      <span 
-        className={cn(
-            `font-headline font-bold text-primary app-logo-text`,
-            size === 'sm' && 'text-xl',
-            size === 'md' && 'text-2xl',
-            size === 'lg' && 'text-3xl'
-        )}
-      >
-        N Group Products
-      </span>
+      {size !== 'iconOnly' && (
+        <span 
+          className={cn(
+              `font-headline font-bold text-primary app-logo-text`,
+              textClass
+          )}
+        >
+          N Group Products
+        </span>
+      )}
     </div>
   );
 }
