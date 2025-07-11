@@ -50,7 +50,6 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"; 
 import { Button } from "@/components/ui/button";
 import { useFullscreen } from "@/contexts/FullscreenContext";
-import { AppLogo } from "@/components/AppLogo";
 
 const CustomInventoryIcon = ({ className: propClassName }: { className?: string }) => (
   <svg
@@ -205,13 +204,18 @@ function AppShell({ children }: { children: React.ReactNode }) {
   const sidebarActualContent = (
     <React.Fragment>
       <AppNewSidebarHeader>
-        <AppLogo size={isCollapsed && !isMobile ? "iconOnly" : "md"}/>
+        <span className={cn(
+          "font-headline font-bold",
+          isCollapsed && !isMobile ? "hidden" : "text-xl text-primary"
+        )}>
+          N Group Products
+        </span>
       </AppNewSidebarHeader>
       <AppNewSidebarContent />
       <AppNewSidebarFooter>
       {(!isCollapsed || isMobile) && (
           <p className="text-xs text-sidebar-foreground/70">
-            Design &amp; Development by Limidora
+            Design, Development & Hosting by Limidora
           </p>
       )}
       </AppNewSidebarFooter>
@@ -325,16 +329,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (currentUser === undefined) return;
 
-    if (!currentUser) {
+    if (!currentUser && !pathname.startsWith('/_next/')) {
       router.replace("/");
     }
-  }, [currentUser, router]);
+  }, [currentUser, router, pathname]);
 
   if (currentUser === undefined || isMobileView === undefined) {
     return <GlobalPreloaderScreen message="Initializing..." />;
   }
 
-  if (!currentUser) {
+  if (!currentUser && !pathname.startsWith('/_next/')) {
     return <GlobalPreloaderScreen message="Redirecting to login..." />;
   }
 

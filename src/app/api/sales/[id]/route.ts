@@ -157,35 +157,54 @@ export async function DELETE(
   try {
     await runTransaction(db, async (transaction) => {
       const saleRef = doc(db, 'sales', saleId).withConverter(saleConverter);
+      
+      // --- READ PHASE ---
+      // Read the sale document first.
       const saleDoc = await transaction.get(saleRef);
-
       if (!saleDoc.exists()) {
         throw new Error('Sale not found.');
       }
-
       const saleData = saleDoc.data();
+
+      // Check if it's already cancelled before proceeding.
       if (saleData.status === 'cancelled') {
         throw new Error('This invoice has already been cancelled.');
       }
 
-      // Reverse stock changes
-      for (const item of saleData.items) {
-        if (saleData.vehicleId) {
-          // If it was a vehicle sale, we need to create a "LOAD_TO_VEHICLE" transaction
-          // to put the stock back on the vehicle. The main inventory was not touched.
-           const productSnap = await transaction.get(doc(db, "products", item.id).withConverter(productConverter));
-           if (!productSnap.exists()) {
-             throw new Error(`Product with ID ${item.id} not found.`);
-           }
+      // Prepare to read all necessary product documents.
+      const productReads: Promise<any>[] = [];
+      const productRefs: { ref: any, item: any }[] = [];
 
+      for (const item of saleData.items) {
+        const productRef = doc(db, 'products', item.id).withConverter(productConverter);
+        productRefs.push({ ref: productRef, item });
+        productReads.push(transaction.get(productRef));
+      }
+      
+      // Execute all product document reads.
+      const productDocs = await Promise.all(productReads);
+
+      // --- WRITE PHASE ---
+      // Now that all reads are done, we can proceed with writes.
+
+      // 1. Reverse stock changes
+      for (let i = 0; i < productDocs.length; i++) {
+        const productDoc = productDocs[i];
+        const { ref: productRef, item } = productRefs[i];
+        
+        if (saleData.vehicleId) {
+          // If it was a vehicle sale, create a stock transaction to "LOAD" stock back.
+          if (!productDoc.exists()) {
+             throw new Error(`Product with ID ${item.id} not found.`);
+          }
           const stockTx = {
             productId: item.id,
             productName: item.name,
             productSku: item.sku,
             type: 'LOAD_TO_VEHICLE' as const,
             quantity: item.quantity,
-            previousStock: productSnap.data().stock, // main stock is unchanged
-            newStock: productSnap.data().stock, // main stock is unchanged
+            previousStock: productDoc.data().stock, // main stock is unchanged
+            newStock: productDoc.data().stock, // main stock is unchanged
             transactionDate: new Date(),
             notes: `Cancellation of Sale ID: ${saleId}`,
             vehicleId: saleData.vehicleId,
@@ -197,8 +216,6 @@ export async function DELETE(
 
         } else {
           // If it was a main inventory sale, add the stock back to the product.
-          const productRef = doc(db, 'products', item.id);
-          const productDoc = await transaction.get(productRef);
           if (!productDoc.exists()) {
             throw new Error(`Product ${item.name} not found for stock reversal.`);
           }
@@ -207,7 +224,7 @@ export async function DELETE(
         }
       }
 
-      // Update the sale status to 'cancelled'
+      // 2. Update the sale status to 'cancelled'
       transaction.update(saleRef, {
         status: 'cancelled',
         outstandingBalance: 0, // Nullify outstanding balance
