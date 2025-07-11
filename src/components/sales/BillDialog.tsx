@@ -80,8 +80,10 @@ export function BillDialog({
   useEffect(() => {
     if (finalSaleData) {
         window.print();
+        // After printing, close the dialog.
+        onOpenChange(false);
     }
-  }, [finalSaleData]);
+  }, [finalSaleData, onOpenChange]);
 
   const saleForPrinting = finalSaleData || existingSaleData;
   const isReprintMode = !!existingSaleData;
@@ -306,7 +308,7 @@ export function BillDialog({
     >
       <div className="text-center mb-4">
         <div className="flex justify-center mb-1 logo-container">
-            <AppLogo size="lg" className="app-logo-text"/>
+            <AppLogo size="lg" />
         </div>
         <p className="text-xs">4/1 Bujjampala, Dankotuwa</p>
         <p className="text-xs">Hotline: 077-1066595, 077-6106616</p>
