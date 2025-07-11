@@ -79,18 +79,26 @@ export function BillDialog({
   
   useEffect(() => {
     if (finalSaleData) {
-        window.print();
-        // After printing, close the dialog.
+      const handleAfterPrint = () => {
         onOpenChange(false);
+      };
+      
+      window.addEventListener('afterprint', handleAfterPrint);
+      window.print();
+      
+      return () => {
+        window.removeEventListener('afterprint', handleAfterPrint);
+      };
     }
   }, [finalSaleData, onOpenChange]);
 
   const saleForPrinting = finalSaleData || existingSaleData;
   const isReprintMode = !!existingSaleData;
-
+  
+  // This is where the error was. Now it safely handles undefined.
   const transactionDate = saleForPrinting ? new Date(saleForPrinting.saleDate) : new Date();
   const displaySaleId = saleForPrinting ? saleForPrinting.id : null;
-  const offerWasApplied = isReprintMode ? (saleForPrinting.offerApplied || false) : (newOfferApplied || false);
+  const offerWasApplied = isReprintMode ? (saleForPrinting?.offerApplied || false) : (newOfferApplied || false);
 
   const itemsToDisplay: CartItem[] = useMemo(() => {
     const saleData = finalSaleData || existingSaleData;
@@ -213,7 +221,12 @@ export function BillDialog({
 
   const handlePrimaryAction = async () => {
     if (isReprintMode) {
-      window.print();
+      const printPromise = new Promise<void>(resolve => {
+        window.addEventListener('afterprint', () => resolve(), { once: true });
+        window.print();
+      });
+      
+      await printPromise;
       return;
     }
 
@@ -301,122 +314,127 @@ export function BillDialog({
     isProcessing
   );
   
-  const receiptContent = (
-    <div 
-      id="bill-content" 
-      className="p-4 bg-card text-card-foreground"
-    >
-      <div className="text-center mb-4">
-        <div className="flex justify-center mb-1 logo-container">
-            <AppLogo size="lg" />
+  const receiptContent = (saleForPrinting: Sale | undefined) => {
+    if (!saleForPrinting) {
+      return null;
+    }
+    return (
+      <div 
+        id="bill-content" 
+        className="p-4 bg-card text-card-foreground"
+      >
+        <div className="text-center mb-4">
+          <div className="flex justify-center mb-1 logo-container">
+              <AppLogo size="lg" />
+          </div>
+          <p className="text-xs">4/1 Bujjampala, Dankotuwa</p>
+          <p className="text-xs">Hotline: 077-1066595, 077-6106616</p>
         </div>
-        <p className="text-xs">4/1 Bujjampala, Dankotuwa</p>
-        <p className="text-xs">Hotline: 077-1066595, 077-6106616</p>
-      </div>
 
-      <Separator className="my-3 summary-separator"/>
+        <Separator className="my-3 summary-separator"/>
 
-      <div className="text-xs mb-3 space-y-0.5">
-        <p>Date: {transactionDate.toLocaleDateString()} {transactionDate.toLocaleTimeString()}</p>
-        {displaySaleId && <p>Transaction ID: {displaySaleId}</p>}
-        {customerForDisplay && <p>Customer: {customerForDisplay.shopName || customerForDisplay.name}</p>}
-        <p>Served by: {saleForPrinting?.staffName || saleForPrinting?.staffId || 'Staff Member'}</p>
-        {invoiceCloseDate && <p className="font-semibold">Invoice Closed: {invoiceCloseDate}</p>}
-      </div>
-
-      <Separator className="my-3 summary-separator"/>
-      
-      <h3 className="font-semibold mb-2 text-sm">Order Summary:</h3>
-      <div className="mb-4">
-        <table className="w-full text-xs">
-          <thead>
-            <tr className="border-b">
-              <th className="text-left py-1 font-normal w-[45%]">Item</th>
-              <th className="text-center py-1 font-normal w-[15%]">Qty</th>
-              <th className="text-right py-1 font-normal w-[20%]">Price (Rs.)</th>
-              <th className="text-right py-1 font-normal w-[20%]">Total (Rs.)</th>
-            </tr>
-          </thead>
-          <tbody>
-            {itemsToDisplay.map((item, index) => (
-                <tr 
-                  key={`${item.id}-${item.saleType}-${item.isOfferItem ? 'offer' : 'paid'}-${index}`} 
-                  className="border-b border-dashed"
-                >
-                  <td className="py-1.5 break-words">
-                    {item.name}
-                    {item.isOfferItem && <Gift className="inline-block h-3 w-3 ml-1 text-green-600" />}
-                  </td>
-                  <td className="text-center py-1.5">{item.quantity}</td>
-                  <td className="text-right py-1.5">
-                    {item.isOfferItem ? "FREE" : item.appliedPrice.toFixed(2)}
-                  </td>
-                  <td className="text-right py-1.5 font-semibold">
-                    {item.isOfferItem ? "0.00" : (item.appliedPrice * item.quantity).toFixed(2)}
-                  </td>
-                </tr>
-              ))}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="space-y-1 text-sm mb-4">
-         <div className="flex justify-between">
-          <span>Subtotal:</span>
-          <span>{formatCurrency(totalAmountDueForDisplay)}</span>
+        <div className="text-xs mb-3 space-y-0.5">
+          <p>Date: {transactionDate.toLocaleDateString()} {transactionDate.toLocaleTimeString()}</p>
+          {displaySaleId && <p>Transaction ID: {displaySaleId}</p>}
+          {customerForDisplay && <p>Customer: {customerForDisplay.shopName || customerForDisplay.name}</p>}
+          <p>Served by: {saleForPrinting?.staffName || saleForPrinting?.staffId || 'Staff Member'}</p>
+          {invoiceCloseDate && <p className="font-semibold">Invoice Closed: {invoiceCloseDate}</p>}
         </div>
-        <Separator className="my-1 summary-separator"/>
-        <div className="flex justify-between font-bold text-lg text-primary">
-          <span>TOTAL AMOUNT DUE:</span>
-          <span>{formatCurrency(totalAmountDueForDisplay)}</span>
-        </div>
-      </div>
-      
-      <Separator className="my-4 summary-separator"/>
 
-      <div className="space-y-1 text-sm mb-4">
-        <h4 className="font-semibold text-base mb-2 mt-2">Final Summary:</h4>
+        <Separator className="my-3 summary-separator"/>
         
-        {saleForPrinting ? (
-            <div className="text-xs space-y-1">
-                {(saleForPrinting.paidAmountCash ?? 0) > 0 && <div className="flex justify-between"><span>Cash Paid:</span><span>{formatCurrency(saleForPrinting.paidAmountCash!)}</span></div>}
-                {(saleForPrinting.paidAmountCheque ?? 0) > 0 && <div className="flex justify-between"><span>Cheque:</span><span>{formatCurrency(saleForPrinting.paidAmountCheque!)} (#{saleForPrinting.chequeDetails?.number})</span></div>}
-                {(saleForPrinting.paidAmountBankTransfer ?? 0) > 0 && <div className="flex justify-between"><span>Bank Transfer:</span><span>{formatCurrency(saleForPrinting.paidAmountBankTransfer!)}</span></div>}
-                {(saleForPrinting.creditUsed ?? 0) > 0 && <div className="flex justify-between text-green-600"><span>Credit Used:</span><span>- {formatCurrency(saleForPrinting.creditUsed!)}</span></div>}
-                {(saleForPrinting.changeGiven ?? 0) > 0 && <div className="flex justify-between text-green-600"><span>Change Given:</span><span>{formatCurrency(saleForPrinting.changeGiven!)}</span></div>}
-                
-                {saleForPrinting.additionalPayments?.map((p, i) => (
-                    <div key={i} className="border-t mt-1 pt-1">
-                        <p className="font-medium text-muted-foreground">{format(p.date, "PP, p")}</p>
-                        <div className="flex justify-between"><span>{p.method} Payment:</span><span>{formatCurrency(p.amount)}</span></div>
-                    </div>
+        <h3 className="font-semibold mb-2 text-sm">Order Summary:</h3>
+        <div className="mb-4">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="border-b">
+                <th className="text-left py-1 font-normal w-[45%]">Item</th>
+                <th className="text-center py-1 font-normal w-[15%]">Qty</th>
+                <th className="text-right py-1 font-normal w-[20%]">Price (Rs.)</th>
+                <th className="text-right py-1 font-normal w-[20%]">Total (Rs.)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {itemsToDisplay.map((item, index) => (
+                  <tr 
+                    key={`${item.id}-${item.saleType}-${item.isOfferItem ? 'offer' : 'paid'}-${index}`} 
+                    className="border-b border-dashed"
+                  >
+                    <td className="py-1.5 break-words">
+                      {item.name}
+                      {item.isOfferItem && <Gift className="inline-block h-3 w-3 ml-1 text-green-600" />}
+                    </td>
+                    <td className="text-center py-1.5">{item.quantity}</td>
+                    <td className="text-right py-1.5">
+                      {item.isOfferItem ? "FREE" : item.appliedPrice.toFixed(2)}
+                    </td>
+                    <td className="text-right py-1.5 font-semibold">
+                      {item.isOfferItem ? "0.00" : (item.appliedPrice * item.quantity).toFixed(2)}
+                    </td>
+                  </tr>
                 ))}
-            </div>
-        ) : (
-             <div className="text-xs space-y-1">
-                {parsedCreditApplied > 0 && <div className="flex justify-between text-green-600"><span>Credit Applied:</span><span>- {formatCurrency(parsedCreditApplied)}</span></div>}
-                {parsedCashTendered > 0 && <div className="flex justify-between"><span>Cash Tendered:</span><span>{formatCurrency(parsedCashTendered)}</span></div>}
-                {parsedChequeAmountPaid > 0 && <div className="flex justify-between"><span>Cheque Paid:</span><span>{formatCurrency(parsedChequeAmountPaid)}</span></div>}
-                {parsedBankTransferAmountPaid > 0 && <div className="flex justify-between"><span>Bank Transfer Paid:</span><span>{formatCurrency(parsedBankTransferAmountPaid)}</span></div>}
-                {changeGiven > 0 && <div className="flex justify-between text-green-600"><span>Change Given:</span><span>{formatCurrency(changeGiven)}</span></div>}
-            </div>
-        )}
+            </tbody>
+          </table>
+        </div>
 
-        <Separator className="my-2 summary-separator"/>
-        <div className="flex justify-between font-semibold">
-          <span>Total Paid:</span>
-          <span>{formatCurrency(saleForPrinting ? saleForPrinting.totalAmountPaid : totalPaymentApplied)}</span>
+        <div className="space-y-1 text-sm mb-4">
+          <div className="flex justify-between">
+            <span>Subtotal:</span>
+            <span>{formatCurrency(totalAmountDueForDisplay)}</span>
+          </div>
+          <Separator className="my-1 summary-separator"/>
+          <div className="flex justify-between font-bold text-lg text-primary">
+            <span>TOTAL AMOUNT DUE:</span>
+            <span>{formatCurrency(totalAmountDueForDisplay)}</span>
+          </div>
         </div>
-        <div className={cn("flex justify-between font-bold", (saleForPrinting ? (saleForPrinting.outstandingBalance ?? 0) : outstandingBalance) > 0 ? "text-destructive" : "text-muted-foreground")}>
-          <span>Outstanding Balance:</span>
-          <span>{formatCurrency(saleForPrinting ? (saleForPrinting.outstandingBalance ?? 0) : outstandingBalance)}</span>
+        
+        <Separator className="my-4 summary-separator"/>
+
+        <div className="space-y-1 text-sm mb-4">
+          <h4 className="font-semibold text-base mb-2 mt-2">Final Summary:</h4>
+          
+          {saleForPrinting ? (
+              <div className="text-xs space-y-1">
+                  {(saleForPrinting.paidAmountCash ?? 0) > 0 && <div className="flex justify-between"><span>Cash Paid:</span><span>{formatCurrency(saleForPrinting.paidAmountCash!)}</span></div>}
+                  {(saleForPrinting.paidAmountCheque ?? 0) > 0 && <div className="flex justify-between"><span>Cheque:</span><span>{formatCurrency(saleForPrinting.paidAmountCheque!)} (#{saleForPrinting.chequeDetails?.number})</span></div>}
+                  {(saleForPrinting.paidAmountBankTransfer ?? 0) > 0 && <div className="flex justify-between"><span>Bank Transfer:</span><span>{formatCurrency(saleForPrinting.paidAmountBankTransfer!)}</span></div>}
+                  {(saleForPrinting.creditUsed ?? 0) > 0 && <div className="flex justify-between text-green-600"><span>Credit Used:</span><span>- {formatCurrency(saleForPrinting.creditUsed!)}</span></div>}
+                  {(saleForPrinting.changeGiven ?? 0) > 0 && <div className="flex justify-between text-green-600"><span>Change Given:</span><span>{formatCurrency(saleForPrinting.changeGiven!)}</span></div>}
+                  
+                  {saleForPrinting.additionalPayments?.map((p, i) => (
+                      <div key={i} className="border-t mt-1 pt-1">
+                          <p className="font-medium text-muted-foreground">{format(p.date, "PP, p")}</p>
+                          <div className="flex justify-between"><span>{p.method} Payment:</span><span>{formatCurrency(p.amount)}</span></div>
+                      </div>
+                  ))}
+              </div>
+          ) : (
+              <div className="text-xs space-y-1">
+                  {parsedCreditApplied > 0 && <div className="flex justify-between text-green-600"><span>Credit Applied:</span><span>- {formatCurrency(parsedCreditApplied)}</span></div>}
+                  {parsedCashTendered > 0 && <div className="flex justify-between"><span>Cash Tendered:</span><span>{formatCurrency(parsedCashTendered)}</span></div>}
+                  {parsedChequeAmountPaid > 0 && <div className="flex justify-between"><span>Cheque Paid:</span><span>{formatCurrency(parsedChequeAmountPaid)}</span></div>}
+                  {parsedBankTransferAmountPaid > 0 && <div className="flex justify-between"><span>Bank Transfer Paid:</span><span>{formatCurrency(parsedBankTransferAmountPaid)}</span></div>}
+                  {changeGiven > 0 && <div className="flex justify-between text-green-600"><span>Change Given:</span><span>{formatCurrency(changeGiven)}</span></div>}
+              </div>
+          )}
+
+          <Separator className="my-2 summary-separator"/>
+          <div className="flex justify-between font-semibold">
+            <span>Total Paid:</span>
+            <span>{formatCurrency(saleForPrinting ? saleForPrinting.totalAmountPaid : totalPaymentApplied)}</span>
+          </div>
+          <div className={cn("flex justify-between font-bold", (saleForPrinting ? (saleForPrinting.outstandingBalance ?? 0) : outstandingBalance) > 0 ? "text-destructive" : "text-muted-foreground")}>
+            <span>Outstanding Balance:</span>
+            <span>{formatCurrency(saleForPrinting ? (saleForPrinting.outstandingBalance ?? 0) : outstandingBalance)}</span>
+          </div>
         </div>
+
+        <p className="text-center text-xs mt-6 footer-thanks">Thank you for your purchase!</p>
+        <p className="text-center text-[8pt] mt-4 footer-limidora">E-business solution by LIMIDORA</p>
       </div>
-
-      <p className="text-center text-xs mt-6 footer-thanks">Thank you for your purchase!</p>
-      <p className="text-center text-[8pt] mt-4 footer-limidora">E-business solution by LIMIDORA</p>
-    </div>
-  );
+    );
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => {
@@ -435,7 +453,7 @@ export function BillDialog({
         )}
       >
         <div className="hidden print:block">
-            {receiptContent}
+            {receiptContent(saleForPrinting)}
         </div>
         <div className="print:hidden flex flex-col flex-grow min-h-0">
           <DialogHeader className="px-6 pt-6">
@@ -448,7 +466,7 @@ export function BillDialog({
           </DialogHeader>
           
           <ScrollArea className="flex-grow px-6">
-              {receiptContent}
+              {receiptContent(saleForPrinting)}
               {!isReprintMode && (
                   <div className="mb-4 space-y-4">
                       <h3 className="font-semibold text-sm">Payment Details:</h3>
