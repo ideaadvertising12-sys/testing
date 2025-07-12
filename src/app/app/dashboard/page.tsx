@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { SalesChart } from "@/components/dashboard/SalesChart";
 import { AlertQuantityTable } from "@/components/dashboard/AlertQuantityTable";
-import type { Sale } from "@/lib/types";
+import type { Sale, ReturnTransaction } from "@/lib/types";
 import {
   Table,
   TableBody,
@@ -31,6 +31,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
 
+// Utility function for consistent date handling
 const getTodayRange = () => {
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -47,7 +48,7 @@ export default function DashboardPage() {
   const { 
     sales, 
     isLoading: isLoadingSales, 
-    error: salesError
+    error: salesError, 
   } = useSalesData(true);
   const { 
     products: allProducts, 
@@ -57,109 +58,94 @@ export default function DashboardPage() {
   const { returns, isLoading: isLoadingReturns, error: returnsError } = useReturns();
   const { expenses, isLoading: isLoadingExpenses, error: expensesError } = useExpenses();
 
-  // Corrected revenue calculations with accurate return handling
-  const { 
-    revenueToday, 
-    salesCountToday, 
+  const {
+    revenueToday,
+    salesCountToday,
     expensesToday,
     grossRevenueToday,
-    netReturnsToday,
-    totalCashReceivedToday
+    netReturnsValueToday,
   } = useMemo(() => {
-    if (isLoadingSales || isLoadingReturns || isLoadingExpenses || !sales || !returns || !expenses) {
-      return { 
-        revenueToday: 0, 
-        salesCountToday: 0, 
-        expensesToday: 0,
-        grossRevenueToday: 0,
-        netReturnsToday: 0,
-        totalCashReceivedToday: 0
-      };
+    if (isLoadingSales || isLoadingReturns || isLoadingExpenses) {
+      return { revenueToday: 0, salesCountToday: 0, expensesToday: 0, grossRevenueToday: 0, netReturnsValueToday: 0 };
     }
 
     const { start: todayStart, end: todayEnd } = getTodayRange();
-
-    // Process today's sales
-    const salesToday = sales.filter(sale => {
-      if (sale.status === 'cancelled') return false;
+    
+    const salesTodayList = sales.filter(sale => {
       const saleDate = sale.saleDate instanceof Date ? sale.saleDate : new Date(sale.saleDate);
       return saleDate >= todayStart && saleDate < todayEnd;
     });
 
-    const grossRevenueToday = salesToday.reduce((sum, sale) => sum + (Number(sale.totalAmount) || 0), 0);
-    const totalCashReceivedToday = salesToday.reduce((sum, sale) => sum + (Number(sale.totalAmountPaid) || 0), 0);
+    const grossRevenueToday = salesTodayList.reduce((sum, sale) => sum + sale.totalAmount, 0);
 
-    // Process today's returns
-    const returnsToday = returns.filter(ret => {
+    let netRevenueFromSalesToday = grossRevenueToday;
+    let netReturnsValueToday = 0;
+
+    returns.forEach(ret => {
       const returnDate = ret.returnDate instanceof Date ? ret.returnDate : new Date(ret.returnDate);
-      return returnDate >= todayStart && returnDate < todayEnd;
+      const isReturnToday = returnDate >= todayStart && returnDate < todayEnd;
+      
+      const originalSale = sales.find(s => s.id === ret.originalSaleId);
+      if (!originalSale) return;
+
+      const originalSaleDate = originalSale.saleDate instanceof Date ? originalSale.saleDate : new Date(originalSale.saleDate);
+      const isOriginalSaleToday = originalSaleDate >= todayStart && originalSaleDate < todayEnd;
+      
+      const returnedValue = ret.returnedItems.reduce((sum, item) => sum + item.appliedPrice * item.quantity, 0);
+
+      // If the original sale was today, subtract the return value from today's sales revenue
+      if (isOriginalSaleToday) {
+        netRevenueFromSalesToday -= returnedValue;
+      }
+      
+      // For the "Returns" display metric, we want to show the total value of all returns processed today
+      if (isReturnToday) {
+        netReturnsValueToday += returnedValue;
+      }
     });
 
-    // The net impact of returns is the sum of cash paid out and credit given to the customer.
-    // It's a negative value for revenue calculations.
-    const netReturnsToday = returnsToday.reduce((sum, ret) => {
-        return sum - (ret.cashPaidOut || 0) - (ret.refundAmount || 0);
-    }, 0);
-
-    // Process today's expenses
     const expensesTodayTotal = expenses
       .filter(exp => {
         const expenseDate = exp.expenseDate instanceof Date ? exp.expenseDate : new Date(exp.expenseDate);
         return expenseDate >= todayStart && expenseDate < todayEnd;
       })
-      .reduce((sum, exp) => sum + (exp.amount || 0), 0);
+      .reduce((sum, exp) => sum + exp.amount, 0);
 
     return {
-      grossRevenueToday,
-      netReturnsToday,
+      revenueToday: netRevenueFromSalesToday - expensesTodayTotal,
+      salesCountToday: salesTodayList.length,
       expensesToday: expensesTodayTotal,
-      salesCountToday: salesToday.length,
-      totalCashReceivedToday,
-      revenueToday: totalCashReceivedToday + netReturnsToday - expensesTodayTotal
+      grossRevenueToday: grossRevenueToday,
+      netReturnsValueToday: netReturnsValueToday,
     };
   }, [sales, returns, expenses, isLoadingSales, isLoadingReturns, isLoadingExpenses]);
+  
   
   const { 
     netTotalRevenue, 
     grossTotalRevenue, 
-    totalReturnsImpact,
-    totalExpensesAllTime,
-    totalCashReceivedAllTime
+    totalReturnsValue, 
+    totalExpensesAllTime 
   } = useMemo(() => {
-    if (isLoadingSales || isLoadingReturns || isLoadingExpenses || !sales || !returns || !expenses) {
-      return { 
-        netTotalRevenue: 0, 
-        grossTotalRevenue: 0,
-        totalReturnsImpact: 0,
-        totalExpensesAllTime: 0,
-        totalCashReceivedAllTime: 0
-      };
+    if (isLoadingSales || isLoadingReturns || isLoadingExpenses) {
+      return { netTotalRevenue: 0, grossTotalRevenue: 0, totalReturnsValue: 0, totalExpensesAllTime: 0 };
     }
 
-    // Gross revenue (all non-cancelled sales)
-    const gross = sales
-      .filter(sale => sale.status !== 'cancelled')
-      .reduce((sum, sale) => sum + (Number(sale.totalAmount) || 0), 0);
+    const activeSales = sales.filter(s => s.status !== 'cancelled');
+    const gross = activeSales.reduce((sum, sale) => sum + sale.totalAmount, 0);
 
-    // Total cash actually received (excluding credit)
-    const cashReceived = sales
-      .filter(sale => sale.status !== 'cancelled')
-      .reduce((sum, sale) => sum + (Number(sale.totalAmountPaid) || 0), 0);
-
-    // Net returns impact
-    const returnsImpact = returns.reduce((sum, ret) => {
-      return sum - (ret.cashPaidOut || 0) - (ret.refundAmount || 0);
+    const returnsValue = returns.reduce((sum, ret) => {
+        const returnedValue = ret.returnedItems.reduce((itemSum, item) => itemSum + item.appliedPrice * item.quantity, 0);
+        return sum + returnedValue;
     }, 0);
-
-    // Total expenses
-    const expensesTotal = expenses.reduce((sum, exp) => sum + (exp.amount || 0), 0);
+    
+    const expensesTotal = expenses.reduce((sum, exp) => sum + exp.amount, 0);
 
     return {
       grossTotalRevenue: gross,
-      totalReturnsImpact: returnsImpact,
+      totalReturnsValue: returnsValue,
       totalExpensesAllTime: expensesTotal,
-      totalCashReceivedAllTime: cashReceived,
-      netTotalRevenue: cashReceived + returnsImpact - expensesTotal
+      netTotalRevenue: gross - returnsValue - expensesTotal,
     };
   }, [sales, returns, expenses, isLoadingSales, isLoadingReturns, isLoadingExpenses]);
 
@@ -411,7 +397,6 @@ export default function DashboardPage() {
       )}
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        {/* Total Net Revenue Card */}
         {isLoadingSales || isLoadingReturns || isLoadingExpenses ? (
           renderLoadingCard("Total Net Revenue", Banknote, "text-green-600")
         ) : salesError || returnsError || expensesError ? (
@@ -423,17 +408,15 @@ export default function DashboardPage() {
             Banknote,
             "text-green-600",
             <>
-              <div>Gross Sales: {formatCurrency(grossTotalRevenue)}</div>
-              <div>Cash Received: {formatCurrency(totalCashReceivedAllTime)}</div>
-              <div>Returns: {formatCurrency(totalReturnsImpact)}</div>
-              <div>Expenses: {formatCurrency(totalExpensesAllTime)}</div>
+              <div>Gross: {formatCurrency(grossTotalRevenue)}</div>
+              <div>Returns: -{formatCurrency(totalReturnsValue)}</div>
+              <div>Expenses: -{formatCurrency(totalExpensesAllTime)}</div>
             </>,
             monthlyComparison[new Date().getMonth()],
             "After all returns & expenses"
           )
         )}
 
-        {/* Today's Revenue Card */}
         {isLoadingSales || isLoadingReturns || isLoadingExpenses ? (
           renderLoadingCard("Today's Net Revenue", TrendingUp, "text-purple-600")
         ) : salesError || returnsError || expensesError ? (
@@ -446,16 +429,14 @@ export default function DashboardPage() {
             "text-purple-600",
             <>
               <div>{salesCountToday} sales ({formatCurrency(grossRevenueToday)})</div>
-              <div>Cash Received: {formatCurrency(totalCashReceivedToday)}</div>
-              <div>Returns: {formatCurrency(netReturnsToday)}</div>
-              <div>Expenses: {formatCurrency(expensesToday)}</div>
+              <div>Returns: -{formatCurrency(netReturnsValueToday)}</div>
+              <div>Expenses: -{formatCurrency(expensesToday)}</div>
             </>,
             undefined,
             `Net: ${formatCurrency(revenueToday)}`
           )
         )}
 
-        {/* Total Customers Card */}
         {isLoadingCustomers ? (
           renderLoadingCard("Total Customers", Users, "text-blue-600")
         ) : customersError ? (
@@ -471,7 +452,6 @@ export default function DashboardPage() {
           )
         )}
 
-        {/* Inventory Status Card */}
         {isLoadingProducts ? (
           renderLoadingCard("Inventory Status", Package, "text-orange-600")
         ) : productsError ? (
