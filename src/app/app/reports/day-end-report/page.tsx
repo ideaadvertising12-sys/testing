@@ -66,7 +66,6 @@ export default function DayEndReportPage() {
       const activeSales = allSales.filter(s => s.status !== 'cancelled');
       const salesToday = activeSales.filter(s => isSameDay(s.saleDate, selectedDate));
       const returnsToday = returns.filter(r => isSameDay(r.returnDate, selectedDate));
-      const salesBeforeToday = activeSales.filter(s => !isSameDay(s.saleDate, selectedDate));
       const expensesTodayList = expenses.filter(e => isSameDay(e.expenseDate, selectedDate));
 
       // --- Revenue Calculations ---
@@ -74,6 +73,7 @@ export default function DayEndReportPage() {
       const totalDiscountsToday = salesToday.reduce((sum, s) => sum + (s.discountAmount || 0), 0);
       
       const valueOfReturnedGoodsToday = returnsToday.reduce((sum, r) => {
+        // Only count returns against sales made today for net sales calculation
         if (salesToday.some(s => s.id === r.originalSaleId)) {
           return sum + r.returnedItems.reduce((itemSum, item) => itemSum + (item.appliedPrice * item.quantity), 0);
         }
@@ -84,44 +84,38 @@ export default function DayEndReportPage() {
 
       // --- Corrected Cash Flow Calculations ---
       let cashFromTodaySales = 0;
+      let cashFromCreditPayments = 0;
       let totalChequeIn = 0;
       let totalBankTransferIn = 0;
-      let totalChangeGiven = 0;
       const collectedCheques: string[] = [];
       const collectedTransfers: string[] = [];
       
-      // Process today's sales
-      salesToday.forEach(sale => {
-        if (sale.paidAmountCash) {
-            cashFromTodaySales += sale.paidAmountCash;
-        }
-        
-        if (sale.paidAmountCheque) {
-          totalChequeIn += sale.paidAmountCheque;
-          if (sale.chequeDetails?.number) collectedCheques.push(sale.chequeDetails.number);
-        }
-        
-        if (sale.paidAmountBankTransfer) {
-          totalBankTransferIn += sale.paidAmountBankTransfer;
-          if (sale.bankTransferDetails?.referenceNumber) collectedTransfers.push(sale.bankTransferDetails.referenceNumber);
-        }
-        
-        if (sale.changeGiven) totalChangeGiven += sale.changeGiven;
-      });
+      // Process all active sales to find payments made TODAY
+      activeSales.forEach(sale => {
+        const isSaleFromToday = isSameDay(sale.saleDate, selectedDate);
 
-      // Process credit payments from past sales by payment type
-      let cashFromCreditPayments = 0;
-      salesBeforeToday.forEach(sale => {
+        // Capture initial payments made today for today's sales
+        if (isSaleFromToday) {
+            if (sale.paidAmountCash) cashFromTodaySales += sale.paidAmountCash;
+            if (sale.paidAmountCheque) {
+                totalChequeIn += sale.paidAmountCheque;
+                if (sale.chequeDetails?.number) collectedCheques.push(sale.chequeDetails.number);
+            }
+            if (sale.paidAmountBankTransfer) {
+                totalBankTransferIn += sale.paidAmountBankTransfer;
+                if (sale.bankTransferDetails?.referenceNumber) collectedTransfers.push(sale.bankTransferDetails.referenceNumber);
+            }
+        }
+        
+        // Capture additional payments (credit payments) made today for ANY sale
         sale.additionalPayments?.forEach(p => {
           if (isSameDay(p.date, selectedDate)) {
             if (p.method === 'Cash') {
               cashFromCreditPayments += p.amount;
-            }
-            if (p.method === 'Cheque') {
+            } else if (p.method === 'Cheque') {
               totalChequeIn += p.amount;
               if (p.details && 'number' in p.details && p.details.number) collectedCheques.push(p.details.number);
-            }
-            if (p.method === 'BankTransfer') {
+            } else if (p.method === 'BankTransfer') {
               totalBankTransferIn += p.amount;
               if (p.details && 'referenceNumber' in p.details && p.details.referenceNumber) collectedTransfers.push(p.details.referenceNumber);
             }
@@ -133,7 +127,7 @@ export default function DayEndReportPage() {
       const totalCashPaidOutForRefunds = returnsToday.reduce((sum, r) => sum + (r.cashPaidOut || 0), 0);
       const totalExpensesToday = expensesTodayList.reduce((sum, e) => sum + e.amount, 0);
 
-      // Corrected Net Cash Calculation
+      // Final Cash Calculation
       const totalCashIn = cashFromTodaySales + cashFromCreditPayments;
       const finalNetCashInHand = totalCashIn - totalCashPaidOutForRefunds - totalExpensesToday;
 
@@ -164,7 +158,6 @@ export default function DayEndReportPage() {
         totalChequeIn,
         totalBankTransferIn,
         
-        totalChangeGiven,
         totalRefundsPaidToday: totalCashPaidOutForRefunds,
         totalExpensesToday: totalExpensesToday,
         netCashInHand: finalNetCashInHand,
@@ -189,7 +182,7 @@ export default function DayEndReportPage() {
     if (!reportSummary || !selectedDate) return;
     const doc = new jsPDF() as jsPDFWithAutoTable;
     const reportDateFormatted = format(selectedDate, "PPP");
-    let yPos = 45;
+    let yPos = 35;
     const sectionSpacing = 10;
     
     doc.setFontSize(18);
@@ -200,7 +193,7 @@ export default function DayEndReportPage() {
     const tableBody = [
         ['Gross Sales Today', formatCurrency(reportSummary.grossSalesValue)],
         ['Total Discounts Today', formatCurrency(reportSummary.totalDiscountsToday ?? 0)],
-        ['Value of Returns Today', formatCurrency((reportSummary.grossSalesValue - (reportSummary.totalDiscountsToday ?? 0)) - reportSummary.netSalesValue)],
+        ['Value of Returns Today', formatCurrency(reportSummary.grossSalesValue - (reportSummary.totalDiscountsToday ?? 0) - reportSummary.netSalesValue)],
         [{ content: 'Net Sales Value', styles: { fontStyle: 'bold' } }, { content: formatCurrency(reportSummary.netSalesValue), styles: { fontStyle: 'bold' } }],
         [' ', ' '],
         ['Cash from Today\'s Sales', formatCurrency(reportSummary.cashFromTodaySales)],
@@ -346,12 +339,12 @@ export default function DayEndReportPage() {
               <CardContent className="space-y-1 text-sm">
                 <p className="flex justify-between"><span>Cash from Today's Sales:</span> <span className="font-semibold text-green-600">{formatCurrency(reportSummary.cashFromTodaySales)}</span></p>
                 <p className="flex justify-between"><span>Cash from Credit Payments:</span> <span className="font-semibold text-green-600">{formatCurrency(reportSummary.cashFromCreditPayments)}</span></p>
-                <p className="flex justify-between"><span>Total Cash In:</span> <span className="font-semibold">{formatCurrency(reportSummary.totalCashIn)}</span></p>
+                <p className="flex justify-between font-bold"><span>Total Cash In:</span> <span>{formatCurrency(reportSummary.totalCashIn)}</span></p>
                 <Separator className="my-2"/>
                 <p className="flex justify-between"><span>Refunds Paid:</span> <span className="font-semibold text-destructive">{formatCurrency(reportSummary.totalRefundsPaidToday)}</span></p>
                 <p className="flex justify-between"><span>Expenses Paid:</span> <span className="font-semibold text-destructive">{formatCurrency(reportSummary.totalExpensesToday)}</span></p>
                 <Separator className="my-2"/>
-                <p className="flex justify-between font-bold text-base"><span>Final Net Cash:</span> <span>{formatCurrency(reportSummary.netCashInHand)}</span></p>
+                <p className="flex justify-between font-bold text-base text-primary"><span>Final Net Cash:</span> <span>{formatCurrency(reportSummary.netCashInHand)}</span></p>
               </CardContent>
             </Card>
 
@@ -409,7 +402,7 @@ export default function DayEndReportPage() {
                     <p className="flex justify-between"><span>Gross Sales Value:</span> <strong className="text-right">{formatCurrency(reportSummary.grossSalesValue)}</strong></p>
                     <p className="flex justify-between text-orange-500"><span>Discounts Given Today:</span> <strong className="text-right">{formatCurrency(reportSummary.totalDiscountsToday ?? 0)}</strong></p>
                     <p className="flex justify-between text-red-500"><span>Value of Returns Today:</span> <strong className="text-right">{formatCurrency((reportSummary.grossSalesValue - (reportSummary.totalDiscountsToday ?? 0)) - reportSummary.netSalesValue)}</strong></p>
-                    <p className="flex justify-between text-blue-600"><span>Total Collections:</span> <strong className="text-right">{formatCurrency(reportSummary.totalCashIn + reportSummary.totalChequeIn + reportSummary.totalBankTransferIn)}</strong></p>
+                    <p className="flex justify-between text-blue-600"><span>Total Collections (Cash+Other):</span> <strong className="text-right">{formatCurrency(reportSummary.totalCashIn + reportSummary.totalChequeIn + reportSummary.totalBankTransferIn)}</strong></p>
                     <p className="flex justify-between text-destructive"><span>Total Refunds Paid Out (Cash):</span> <strong className="text-right">{formatCurrency(reportSummary.totalRefundsPaidToday)}</strong></p>
                     <p className="flex justify-between text-destructive"><span>Total Expenses Today:</span> <strong className="text-right">{formatCurrency(reportSummary.totalExpensesToday)}</strong></p>
                     <p className="flex justify-between font-bold text-primary text-lg border-t pt-2 mt-2"><span>Net Sales Value:</span> <strong className="text-right">{formatCurrency(reportSummary.netSalesValue)}</strong></p>
