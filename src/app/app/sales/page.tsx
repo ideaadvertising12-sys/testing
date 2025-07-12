@@ -268,11 +268,11 @@ export default function SalesPage() {
       .reduce((sum, item) => sum + item.quantity, 0);
 
     // Check against available stock
-    if (totalQuantityOfProductInCart >= productToAdd.stock) {
+    if (totalQuantityOfProductInCart + 1 > productToAdd.stock) {
       toast({
         variant: "destructive",
         title: "Out of Stock",
-        description: `Cannot add more ${productToAdd.name}. All available stock (${productToAdd.stock} units) is already in the cart.`,
+        description: `Cannot add more ${productToAdd.name}. Available stock: ${productToAdd.stock}.`,
       });
       return; // Exit if no more stock is available
     }
@@ -821,4 +821,3 @@ export default function SalesPage() {
     </div>
   );
 }
-
