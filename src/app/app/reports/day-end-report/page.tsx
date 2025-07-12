@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
@@ -61,9 +62,12 @@ export default function DayEndReportPage() {
 
   useEffect(() => {
     if (selectedDate && !isLoadingSales && allSales && !isLoadingReturns && returns && !isLoadingTransactions && allTransactions && !isLoadingExpenses && expenses) {
-      const salesToday = allSales.filter(s => isSameDay(s.saleDate, selectedDate));
+      
+      const activeSales = allSales.filter(s => s.status !== 'cancelled');
+
+      const salesToday = activeSales.filter(s => isSameDay(s.saleDate, selectedDate));
       const returnsToday = returns.filter(r => isSameDay(r.returnDate, selectedDate));
-      const salesBeforeToday = allSales.filter(s => !isSameDay(s.saleDate, selectedDate));
+      const salesBeforeToday = activeSales.filter(s => !isSameDay(s.saleDate, selectedDate));
       const expensesTodayList = expenses.filter(e => isSameDay(e.expenseDate, selectedDate));
 
       // --- Revenue Calculations ---
@@ -407,3 +411,5 @@ export default function DayEndReportPage() {
     </>
   );
 }
+
+    
