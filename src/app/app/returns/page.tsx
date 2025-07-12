@@ -138,6 +138,15 @@ export default function ReturnsPage() {
     setIsSearchingSale(true);
     const sale = customerSales.find(s => s.id === selectedSaleId);
     if (sale) {
+        if (sale.status === 'cancelled') {
+            toast({
+                variant: "destructive",
+                title: "Cannot Process Return",
+                description: "This sale has been cancelled and cannot be used for returns or exchanges.",
+            });
+            setIsSearchingSale(false);
+            return;
+        }
         setSelectedSale(sale);
         const returnableItems = sale.items
             .filter(item => !item.isOfferItem)
@@ -615,7 +624,12 @@ export default function ReturnsPage() {
                <Select value={selectedSaleId} onValueChange={setSelectedSaleId} disabled={!selectedCustomer || customerSales.length === 0}>
                 <SelectTrigger id="saleId"><SelectValue placeholder={!selectedCustomer ? "Select customer first" : "Select a sale..."} /></SelectTrigger>
                 <SelectContent>
-                  {customerSales.map(sale => (<SelectItem key={sale.id} value={sale.id}>{sale.id} ({format(new Date(sale.saleDate), "PP")})</SelectItem>))}
+                  {customerSales.map(sale => (
+                    <SelectItem key={sale.id} value={sale.id} disabled={sale.status === 'cancelled'}>
+                      {sale.id} ({format(new Date(sale.saleDate), "PP")})
+                      {sale.status === 'cancelled' && <span className="ml-2 text-destructive">[CANCELLED]</span>}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <Button onClick={handleSearchSale} disabled={!selectedSaleId || isSearchingSale}>
@@ -835,7 +849,7 @@ export default function ReturnsPage() {
                     {outstandingToSettle > 0 && <div className="flex justify-between items-center text-sm text-blue-600"><span className="text-muted-foreground pl-4">Outstanding Settled:</span><span className="font-medium">- {formatCurrency(outstandingToSettle)}</span></div>}
                     <Separator className="!my-1"/>
                     <div className="flex justify-between items-center text-sm"><span className="text-muted-foreground">Net Credit:</span><span className="font-medium">{formatCurrency(netCreditAfterSettle)}</span></div>
-                    <div className="flex justify-between items-center text-sm"><span className="text-muted-foreground">New Items Cost:</span><span className="font-medium">- {formatCurrency(exchangeItems.reduce((sum, item) => sum + item.quantity * item.appliedPrice, 0))}</span></div>
+                    <div className="flex justify-between items-center text-sm"><span className="text-muted-foreground">New Items Cost:</span><span>- {formatCurrency(exchangeItems.reduce((sum, item) => sum + item.quantity * item.appliedPrice, 0))}</span></div>
                     <Separator className="!my-1"/>
                     
                     <div className={cn("flex justify-between items-center font-bold text-lg", finalAmountDue > 0 ? "text-destructive" : "text-green-600")}>
