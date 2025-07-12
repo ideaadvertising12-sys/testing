@@ -1,4 +1,5 @@
 
+
 import { db, checkFirebase } from "./firebase";
 import { 
   collection, 
@@ -15,6 +16,7 @@ import {
   setDoc,
   arrayUnion,
   DocumentReference,
+  query,
 } from "firebase/firestore";
 import { format } from 'date-fns';
 import { 
@@ -229,8 +231,8 @@ export const addSale = async (saleData: Omit<Sale, 'id'>): Promise<string> => {
 
 export const getSales = async (): Promise<Sale[]> => {
   checkFirebase();
-  const salesCol = collection(db, "sales").withConverter(saleConverter);
-  const salesSnapshot = await getDocs(salesCol);
+  const salesQuery = query(collection(db, "sales")).withConverter(saleConverter);
+  const salesSnapshot = await getDocs(salesQuery);
   return salesSnapshot.docs.map(doc => doc.data());
 };
 
