@@ -1,3 +1,4 @@
+
 import { db, checkFirebase } from "./firebase";
 import { 
   collection, 
@@ -13,6 +14,7 @@ import {
   runTransaction,
   setDoc,
   arrayUnion,
+  DocumentReference,
 } from "firebase/firestore";
 import { format } from 'date-fns';
 import { 
@@ -313,7 +315,7 @@ export const processReturnTransaction = async ({
   await runTransaction(db, async (transaction) => {
     // 1. GATHER ALL REFS & PERFORM READS
     const saleRef = doc(db, 'sales', saleId).withConverter(saleConverter);
-    const productRefs = new Map<string, ReturnType<typeof doc>>();
+    const productRefs = new Map<string, DocumentReference<Product>>();
     const allProductIds = new Set([
       ...returnedItems.map(i => i.id),
       ...exchangedItems.map(i => i.id)
@@ -334,7 +336,7 @@ export const processReturnTransaction = async ({
     const productDataMap = new Map<string, { doc: Product, newStock: number }>();
     productDocs.forEach(docSnap => {
       if (docSnap.exists()) {
-        const data = docSnap.data();
+        const data = productConverter.fromFirestore(docSnap); // Use converter explicitly
         productDataMap.set(docSnap.id, { doc: data, newStock: data.stock });
       } else {
         const failedId = Array.from(productRefs.entries()).find(([, ref]) => ref.path === docSnap.ref.path)?.[0];
