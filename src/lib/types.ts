@@ -866,10 +866,14 @@ export interface DayEndReportSummary {
   reportDate: Date;
   totalTransactions: number;
   grossSalesValue: number;
-  totalDiscountsToday?: number;
+  totalDiscountsToday: number;
   netSalesValue: number;
   
+  cashFromTodaySales: number;
+  cashFromCreditPayments: number;
+  cashPaymentsOnPastCredit: number; // A subset of cashFromCreditPayments, specifically for past invoices
   totalCashIn: number;
+
   totalChequeIn: number;
   totalBankTransferIn: number;
   
@@ -878,7 +882,6 @@ export interface DayEndReportSummary {
   totalExpensesToday: number;
   netCashInHand: number;
 
-  paidAgainstPastCredit: number;
   newCreditIssued: number;
   paidAgainstNewCredit: number;
   netOutstandingFromToday: number;
