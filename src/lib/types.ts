@@ -871,13 +871,11 @@ export interface DayEndReportSummary {
   
   cashFromTodaySales: number;
   cashFromCreditPayments: number;
-  cashPaymentsOnPastCredit: number; // A subset of cashFromCreditPayments, specifically for past invoices
   totalCashIn: number;
 
   totalChequeIn: number;
   totalBankTransferIn: number;
   
-  totalChangeGiven: number;
   totalRefundsPaidToday: number;
   totalExpensesToday: number;
   netCashInHand: number;
