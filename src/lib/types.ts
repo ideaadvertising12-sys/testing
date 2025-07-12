@@ -866,7 +866,7 @@ export interface DayEndReportSummary {
   reportDate: Date;
   totalTransactions: number;
   grossSalesValue: number;
-  totalDiscountsToday: number;
+  totalDiscountsToday?: number;
   netSalesValue: number;
   
   cashFromTodaySales: number;
@@ -883,6 +883,8 @@ export interface DayEndReportSummary {
   newCreditIssued: number;
   paidAgainstNewCredit: number;
   netOutstandingFromToday: number;
+  
+  creditSettledByReturns: number;
 
   chequeNumbers: string[];
   bankTransferRefs: string[];
