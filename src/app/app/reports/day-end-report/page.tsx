@@ -192,8 +192,8 @@ export default function DayEndReportPage() {
 
     const tableBody = [
         ['Gross Sales Today', formatCurrency(reportSummary.grossSalesValue)],
-        ['Total Discounts Today', formatCurrency(reportSummary.totalDiscountsToday ?? 0)],
-        ['Value of Returns Today', formatCurrency(reportSummary.grossSalesValue - (reportSummary.totalDiscountsToday ?? 0) - reportSummary.netSalesValue)],
+        ['Total Discounts Today', formatCurrency(reportSummary.totalDiscountsToday)],
+        ['Value of Returns Today', formatCurrency(reportSummary.grossSalesValue - reportSummary.totalDiscountsToday - reportSummary.netSalesValue)],
         [{ content: 'Net Sales Value', styles: { fontStyle: 'bold' } }, { content: formatCurrency(reportSummary.netSalesValue), styles: { fontStyle: 'bold' } }],
         [' ', ' '],
         ['Cash from Today\'s Sales', formatCurrency(reportSummary.cashFromTodaySales)],
@@ -222,7 +222,7 @@ export default function DayEndReportPage() {
 
     yPos = (doc as any).lastAutoTable.finalY + sectionSpacing;
 
-    if ((reportSummary.samplesIssuedCount ?? 0) > 0) {
+    if (reportSummary.samplesIssuedCount > 0) {
         doc.autoTable({
             startY: yPos,
             head: [['Samples Summary', 'Count']],
@@ -379,18 +379,16 @@ export default function DayEndReportPage() {
             </Card>
             
             {/* Samples Issued Card */}
-            {(reportSummary.samplesIssuedCount ?? 0) > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2"><Beaker className="h-5 w-5 text-purple-600"/>Samples Issued</CardTitle>
-                  <CardDescription>Free samples given out today</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-2 text-sm">
-                  <p className="flex justify-between"><span>Total Items Issued:</span> <span className="font-semibold">{reportSummary.samplesIssuedCount}</span></p>
-                  <p className="flex justify-between"><span>Number of Transactions:</span> <span className="font-semibold">{reportSummary.sampleTransactionsCount}</span></p>
-                </CardContent>
-              </Card>
-            )}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2"><Beaker className="h-5 w-5 text-purple-600"/>Samples Issued</CardTitle>
+                <CardDescription>Free samples given out today</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm">
+                <p className="flex justify-between"><span>Total Items Issued:</span> <span className="font-semibold">{reportSummary.samplesIssuedCount}</span></p>
+                <p className="flex justify-between"><span>Number of Transactions:</span> <span className="font-semibold">{reportSummary.sampleTransactionsCount}</span></p>
+              </CardContent>
+            </Card>
           </div>
 
           <Card className="shadow-lg">
@@ -400,8 +398,8 @@ export default function DayEndReportPage() {
             <CardContent className="space-y-2 text-md">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
                     <p className="flex justify-between"><span>Gross Sales Value:</span> <strong className="text-right">{formatCurrency(reportSummary.grossSalesValue)}</strong></p>
-                    <p className="flex justify-between text-orange-500"><span>Discounts Given Today:</span> <strong className="text-right">{formatCurrency(reportSummary.totalDiscountsToday ?? 0)}</strong></p>
-                    <p className="flex justify-between text-red-500"><span>Value of Returns Today:</span> <strong className="text-right">{formatCurrency((reportSummary.grossSalesValue - (reportSummary.totalDiscountsToday ?? 0)) - reportSummary.netSalesValue)}</strong></p>
+                    <p className="flex justify-between text-orange-500"><span>Discounts Given Today:</span> <strong className="text-right">{formatCurrency(reportSummary.totalDiscountsToday)}</strong></p>
+                    <p className="flex justify-between text-red-500"><span>Value of Returns Today:</span> <strong className="text-right">{formatCurrency((reportSummary.grossSalesValue - reportSummary.totalDiscountsToday) - reportSummary.netSalesValue)}</strong></p>
                     <p className="flex justify-between text-blue-600"><span>Total Collections (Cash+Other):</span> <strong className="text-right">{formatCurrency(reportSummary.totalCashIn + reportSummary.totalChequeIn + reportSummary.totalBankTransferIn)}</strong></p>
                     <p className="flex justify-between text-destructive"><span>Total Refunds Paid Out (Cash):</span> <strong className="text-right">{formatCurrency(reportSummary.totalRefundsPaidToday)}</strong></p>
                     <p className="flex justify-between text-destructive"><span>Total Expenses Today:</span> <strong className="text-right">{formatCurrency(reportSummary.totalExpensesToday)}</strong></p>
