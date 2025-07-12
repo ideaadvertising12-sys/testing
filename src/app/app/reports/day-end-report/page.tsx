@@ -70,19 +70,19 @@ export default function DayEndReportPage() {
       const salesBeforeToday = activeSales.filter(s => !isSameDay(s.saleDate, selectedDate));
       const expensesTodayList = expenses.filter(e => isSameDay(e.expenseDate, selectedDate));
 
-      // --- Revenue Calculations ---
-      const grossSalesToday = salesToday.reduce((sum, s) => sum + s.totalAmount, 0);
+      // --- Revenue Calculations (Corrected Logic) ---
+      const grossSalesToday = salesToday.reduce((sum, s) => sum + s.subTotal, 0);
       const totalDiscountsToday = salesToday.reduce((sum, s) => sum + (s.discountAmount || 0), 0);
       
-      const refundsForTodaySales = returnsToday.reduce((sum, r) => {
-        const originalSale = allSales.find(s => s.id === r.originalSaleId);
-        if (originalSale && isSameDay(originalSale.saleDate, selectedDate)) {
-            return sum + (r.refundAmount || 0);
+      const valueOfReturnedGoodsToday = returnsToday.reduce((sum, r) => {
+        // Only count returns against sales made today
+        if (salesToday.some(s => s.id === r.originalSaleId)) {
+          return sum + r.returnedItems.reduce((itemSum, item) => itemSum + (item.appliedPrice * item.quantity), 0);
         }
         return sum;
       }, 0);
 
-      const netSalesToday = grossSalesToday - totalDiscountsToday - refundsForTodaySales;
+      const netSalesToday = grossSalesToday - totalDiscountsToday - valueOfReturnedGoodsToday;
 
       // --- Collections (Cash/Cheque/Transfer IN) ---
       let totalCashIn = 0;

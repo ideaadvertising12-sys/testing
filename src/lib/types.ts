@@ -867,19 +867,22 @@ export interface DayEndReportSummary {
   totalTransactions: number;
   grossSalesValue: number;
   totalDiscountsToday?: number;
-  refundsForTodaySales: number;
-  refundsForPastSales: number;
   netSalesValue: number;
+  
   totalCashIn: number;
   totalChequeIn: number;
   totalBankTransferIn: number;
+  
   totalChangeGiven: number;
   totalRefundsPaidToday: number;
   totalExpensesToday: number;
   netCashInHand: number;
+
+  paidAgainstPastCredit: number;
   newCreditIssued: number;
   paidAgainstNewCredit: number;
   netOutstandingFromToday: number;
+
   chequeNumbers: string[];
   bankTransferRefs: string[];
   creditSalesCount: number;
