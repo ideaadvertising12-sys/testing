@@ -84,7 +84,6 @@ export default function DayEndReportPage() {
 
       // --- Corrected Cash Flow Calculations ---
       let cashFromTodaySales = 0;
-      let cashFromCreditPayments = 0;
       let totalChequeIn = 0;
       let totalBankTransferIn = 0;
       let totalChangeGiven = 0;
@@ -94,11 +93,7 @@ export default function DayEndReportPage() {
       // Process today's sales
       salesToday.forEach(sale => {
         if (sale.paidAmountCash) {
-          if (sale.initialOutstandingBalance && sale.initialOutstandingBalance > 0) {
-            cashFromCreditPayments += sale.paidAmountCash;
-          } else {
             cashFromTodaySales += sale.paidAmountCash;
-          }
         }
         
         if (sale.paidAmountCheque) {
@@ -114,14 +109,13 @@ export default function DayEndReportPage() {
         if (sale.changeGiven) totalChangeGiven += sale.changeGiven;
       });
 
-      // Process credit payments from past sales
-      let cashPaymentsOnPastCredit = 0;
+      // Process credit payments from past sales by payment type
+      let cashFromCreditPayments = 0;
       salesBeforeToday.forEach(sale => {
         sale.additionalPayments?.forEach(p => {
           if (isSameDay(p.date, selectedDate)) {
             if (p.method === 'Cash') {
               cashFromCreditPayments += p.amount;
-              cashPaymentsOnPastCredit += p.amount;
             }
             if (p.method === 'Cheque') {
               totalChequeIn += p.amount;
@@ -166,7 +160,6 @@ export default function DayEndReportPage() {
         
         cashFromTodaySales,
         cashFromCreditPayments,
-        cashPaymentsOnPastCredit,
         totalCashIn,
         totalChequeIn,
         totalBankTransferIn,
@@ -212,7 +205,6 @@ export default function DayEndReportPage() {
         [' ', ' '],
         ['Cash from Today\'s Sales', formatCurrency(reportSummary.cashFromTodaySales)],
         ['Cash from Credit Payments', formatCurrency(reportSummary.cashFromCreditPayments)],
-        ['(Includes Rs. ' + formatCurrency(reportSummary.cashPaymentsOnPastCredit) + ' from past credit)', ''],
         [{ content: 'Total Cash In', styles: { fontStyle: 'bold' } }, { content: formatCurrency(reportSummary.totalCashIn), styles: { fontStyle: 'bold' } }],
         ['Less: Total Refunds Paid (Cash)', formatCurrency(reportSummary.totalRefundsPaidToday)],
         ['Less: Total Expenses', formatCurrency(reportSummary.totalExpensesToday)],
@@ -354,7 +346,6 @@ export default function DayEndReportPage() {
               <CardContent className="space-y-1 text-sm">
                 <p className="flex justify-between"><span>Cash from Today's Sales:</span> <span className="font-semibold text-green-600">{formatCurrency(reportSummary.cashFromTodaySales)}</span></p>
                 <p className="flex justify-between"><span>Cash from Credit Payments:</span> <span className="font-semibold text-green-600">{formatCurrency(reportSummary.cashFromCreditPayments)}</span></p>
-                <p className="text-xs text-muted-foreground pl-4">(Includes {formatCurrency(reportSummary.cashPaymentsOnPastCredit)} from past credit)</p>
                 <p className="flex justify-between"><span>Total Cash In:</span> <span className="font-semibold">{formatCurrency(reportSummary.totalCashIn)}</span></p>
                 <Separator className="my-2"/>
                 <p className="flex justify-between"><span>Refunds Paid:</span> <span className="font-semibold text-destructive">{formatCurrency(reportSummary.totalRefundsPaidToday)}</span></p>
