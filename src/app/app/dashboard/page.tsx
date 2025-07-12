@@ -31,7 +31,6 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
 
-// Utility function for consistent date handling
 const getTodayRange = () => {
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -48,8 +47,7 @@ export default function DashboardPage() {
   const { 
     sales, 
     isLoading: isLoadingSales, 
-    error: salesError, 
-    totalRevenue: grossTotalRevenue
+    error: salesError
   } = useSalesData(true);
   const { 
     products: allProducts, 
@@ -59,12 +57,14 @@ export default function DashboardPage() {
   const { returns, isLoading: isLoadingReturns, error: returnsError } = useReturns();
   const { expenses, isLoading: isLoadingExpenses, error: expensesError } = useExpenses();
 
+  // Corrected revenue calculations with accurate return handling
   const { 
     revenueToday, 
     salesCountToday, 
     expensesToday,
     grossRevenueToday,
-    netReturnsToday
+    netReturnsToday,
+    totalCashReceivedToday
   } = useMemo(() => {
     if (isLoadingSales || isLoadingReturns || isLoadingExpenses || !sales || !returns || !expenses) {
       return { 
@@ -72,36 +72,36 @@ export default function DashboardPage() {
         salesCountToday: 0, 
         expensesToday: 0,
         grossRevenueToday: 0,
-        netReturnsToday: 0
+        netReturnsToday: 0,
+        totalCashReceivedToday: 0
       };
     }
 
     const { start: todayStart, end: todayEnd } = getTodayRange();
 
-    // Calculate gross sales for today
-    const salesTodayList = sales.filter(sale => {
+    // Process today's sales
+    const salesToday = sales.filter(sale => {
       if (sale.status === 'cancelled') return false;
       const saleDate = sale.saleDate instanceof Date ? sale.saleDate : new Date(sale.saleDate);
       return saleDate >= todayStart && saleDate < todayEnd;
     });
 
-    const grossRevenueToday = salesTodayList.reduce((sum, sale) => sum + (Number(sale.totalAmount) || 0), 0);
+    const grossRevenueToday = salesToday.reduce((sum, sale) => sum + (Number(sale.totalAmount) || 0), 0);
+    const totalCashReceivedToday = salesToday.reduce((sum, sale) => sum + (Number(sale.totalAmountPaid) || 0), 0);
 
-    // Calculate net returns impact for today
-    const returnsTodayList = returns.filter(ret => {
+    // Process today's returns
+    const returnsToday = returns.filter(ret => {
       const returnDate = ret.returnDate instanceof Date ? ret.returnDate : new Date(ret.returnDate);
       return returnDate >= todayStart && returnDate < todayEnd;
     });
 
-    const netReturnsToday = returnsTodayList.reduce((sum, ret) => {
-      const cashPaid = ret.cashPaidOut || 0;
-      const creditGiven = ret.refundAmount || 0;
-      // Net returns is the cash value leaving the business today due to returns.
-      // Exchanges are treated as a new sale component.
-      return sum - cashPaid - creditGiven;
+    // The net impact of returns is the sum of cash paid out and credit given to the customer.
+    // It's a negative value for revenue calculations.
+    const netReturnsToday = returnsToday.reduce((sum, ret) => {
+        return sum - (ret.cashPaidOut || 0) - (ret.refundAmount || 0);
     }, 0);
 
-    // Calculate expenses for today
+    // Process today's expenses
     const expensesTodayTotal = expenses
       .filter(exp => {
         const expenseDate = exp.expenseDate instanceof Date ? exp.expenseDate : new Date(exp.expenseDate);
@@ -113,46 +113,53 @@ export default function DashboardPage() {
       grossRevenueToday,
       netReturnsToday,
       expensesToday: expensesTodayTotal,
-      salesCountToday: salesTodayList.length,
-      revenueToday: grossRevenueToday + netReturnsToday - expensesTodayTotal
+      salesCountToday: salesToday.length,
+      totalCashReceivedToday,
+      revenueToday: totalCashReceivedToday + netReturnsToday - expensesTodayTotal
     };
   }, [sales, returns, expenses, isLoadingSales, isLoadingReturns, isLoadingExpenses]);
   
   const { 
     netTotalRevenue, 
-    grossTotalRevenue: totalGrossRevenue, 
-    totalReturnsImpact, 
-    totalExpensesAllTime 
+    grossTotalRevenue, 
+    totalReturnsImpact,
+    totalExpensesAllTime,
+    totalCashReceivedAllTime
   } = useMemo(() => {
     if (isLoadingSales || isLoadingReturns || isLoadingExpenses || !sales || !returns || !expenses) {
       return { 
         netTotalRevenue: 0, 
         grossTotalRevenue: 0,
         totalReturnsImpact: 0,
-        totalExpensesAllTime: 0
+        totalExpensesAllTime: 0,
+        totalCashReceivedAllTime: 0
       };
     }
 
-    // Calculate gross revenue from all sales, excluding cancelled ones
+    // Gross revenue (all non-cancelled sales)
     const gross = sales
-        .filter(sale => sale.status !== 'cancelled')
-        .reduce((sum, sale) => sum + (Number(sale.totalAmount) || 0), 0);
+      .filter(sale => sale.status !== 'cancelled')
+      .reduce((sum, sale) => sum + (Number(sale.totalAmount) || 0), 0);
 
-    // Calculate total returns impact: all cash out and credit given
+    // Total cash actually received (excluding credit)
+    const cashReceived = sales
+      .filter(sale => sale.status !== 'cancelled')
+      .reduce((sum, sale) => sum + (Number(sale.totalAmountPaid) || 0), 0);
+
+    // Net returns impact
     const returnsImpact = returns.reduce((sum, ret) => {
-        const cashPaid = ret.cashPaidOut || 0;
-        const creditGiven = ret.refundAmount || 0;
-        return sum - cashPaid - creditGiven;
+      return sum - (ret.cashPaidOut || 0) - (ret.refundAmount || 0);
     }, 0);
 
-    // Calculate total expenses
+    // Total expenses
     const expensesTotal = expenses.reduce((sum, exp) => sum + (exp.amount || 0), 0);
 
     return {
       grossTotalRevenue: gross,
       totalReturnsImpact: returnsImpact,
       totalExpensesAllTime: expensesTotal,
-      netTotalRevenue: gross + returnsImpact - expensesTotal
+      totalCashReceivedAllTime: cashReceived,
+      netTotalRevenue: cashReceived + returnsImpact - expensesTotal
     };
   }, [sales, returns, expenses, isLoadingSales, isLoadingReturns, isLoadingExpenses]);
 
@@ -404,6 +411,7 @@ export default function DashboardPage() {
       )}
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        {/* Total Net Revenue Card */}
         {isLoadingSales || isLoadingReturns || isLoadingExpenses ? (
           renderLoadingCard("Total Net Revenue", Banknote, "text-green-600")
         ) : salesError || returnsError || expensesError ? (
@@ -415,7 +423,8 @@ export default function DashboardPage() {
             Banknote,
             "text-green-600",
             <>
-              <div>Gross: {formatCurrency(totalGrossRevenue)}</div>
+              <div>Gross Sales: {formatCurrency(grossTotalRevenue)}</div>
+              <div>Cash Received: {formatCurrency(totalCashReceivedAllTime)}</div>
               <div>Returns: {formatCurrency(totalReturnsImpact)}</div>
               <div>Expenses: {formatCurrency(totalExpensesAllTime)}</div>
             </>,
@@ -424,6 +433,7 @@ export default function DashboardPage() {
           )
         )}
 
+        {/* Today's Revenue Card */}
         {isLoadingSales || isLoadingReturns || isLoadingExpenses ? (
           renderLoadingCard("Today's Net Revenue", TrendingUp, "text-purple-600")
         ) : salesError || returnsError || expensesError ? (
@@ -436,6 +446,7 @@ export default function DashboardPage() {
             "text-purple-600",
             <>
               <div>{salesCountToday} sales ({formatCurrency(grossRevenueToday)})</div>
+              <div>Cash Received: {formatCurrency(totalCashReceivedToday)}</div>
               <div>Returns: {formatCurrency(netReturnsToday)}</div>
               <div>Expenses: {formatCurrency(expensesToday)}</div>
             </>,
@@ -444,6 +455,7 @@ export default function DashboardPage() {
           )
         )}
 
+        {/* Total Customers Card */}
         {isLoadingCustomers ? (
           renderLoadingCard("Total Customers", Users, "text-blue-600")
         ) : customersError ? (
@@ -459,6 +471,7 @@ export default function DashboardPage() {
           )
         )}
 
+        {/* Inventory Status Card */}
         {isLoadingProducts ? (
           renderLoadingCard("Inventory Status", Package, "text-orange-600")
         ) : productsError ? (
