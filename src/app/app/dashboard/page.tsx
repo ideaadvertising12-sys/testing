@@ -73,36 +73,31 @@ export default function DashboardPage() {
     
     const salesTodayList = sales.filter(sale => {
       const saleDate = sale.saleDate instanceof Date ? sale.saleDate : new Date(sale.saleDate);
-      return saleDate >= todayStart && saleDate < todayEnd;
+      return saleDate >= todayStart && saleDate < todayEnd && sale.status !== 'cancelled';
     });
 
     const grossRevenueToday = salesTodayList.reduce((sum, sale) => sum + sale.totalAmount, 0);
 
-    let netRevenueFromSalesToday = grossRevenueToday;
-    let netReturnsValueToday = 0;
-
-    returns.forEach(ret => {
-      const returnDate = ret.returnDate instanceof Date ? ret.returnDate : new Date(ret.returnDate);
-      const isReturnToday = returnDate >= todayStart && returnDate < todayEnd;
-      
-      const originalSale = sales.find(s => s.id === ret.originalSaleId);
-      if (!originalSale) return;
-
-      const originalSaleDate = originalSale.saleDate instanceof Date ? originalSale.saleDate : new Date(originalSale.saleDate);
-      const isOriginalSaleToday = originalSaleDate >= todayStart && originalSaleDate < todayEnd;
-      
-      const returnedValue = ret.returnedItems.reduce((sum, item) => sum + item.appliedPrice * item.quantity, 0);
-
-      // If the original sale was today, subtract the return value from today's sales revenue
-      if (isOriginalSaleToday) {
-        netRevenueFromSalesToday -= returnedValue;
-      }
-      
-      // For the "Returns" display metric, we want to show the total value of all returns processed today
-      if (isReturnToday) {
-        netReturnsValueToday += returnedValue;
-      }
+    const returnsTodayList = returns.filter(ret => {
+        const returnDate = ret.returnDate instanceof Date ? ret.returnDate : new Date(ret.returnDate);
+        return returnDate >= todayStart && returnDate < todayEnd;
     });
+
+    // Calculate revenue loss from today's returns
+    const revenueLossFromReturnsToday = returnsTodayList.reduce((loss, ret) => {
+        const nonResellableValue = ret.returnedItems
+            .filter(item => !item.isResellable)
+            .reduce((sum, item) => sum + item.appliedPrice * item.quantity, 0);
+        
+        const cashRefunds = ret.cashPaidOut || 0;
+        const creditRefunds = ret.refundAmount || 0; // Credit given back to customer account
+
+        return loss + nonResellableValue + cashRefunds + creditRefunds;
+    }, 0);
+    
+    const netReturnsValueToday = returnsTodayList.reduce((sum, ret) => {
+        return sum + ret.returnedItems.reduce((itemSum, item) => itemSum + item.appliedPrice * item.quantity, 0);
+    }, 0);
 
     const expensesTodayTotal = expenses
       .filter(exp => {
@@ -112,11 +107,11 @@ export default function DashboardPage() {
       .reduce((sum, exp) => sum + exp.amount, 0);
 
     return {
-      revenueToday: netRevenueFromSalesToday - expensesTodayTotal,
+      revenueToday: grossRevenueToday - revenueLossFromReturnsToday - expensesTodayTotal,
       salesCountToday: salesTodayList.length,
       expensesToday: expensesTodayTotal,
       grossRevenueToday: grossRevenueToday,
-      netReturnsValueToday: netReturnsValueToday,
+      netReturnsValueToday: netReturnsValueToday, // This is for display, not calculation
     };
   }, [sales, returns, expenses, isLoadingSales, isLoadingReturns, isLoadingExpenses]);
   
@@ -134,18 +129,28 @@ export default function DashboardPage() {
     const activeSales = sales.filter(s => s.status !== 'cancelled');
     const gross = activeSales.reduce((sum, sale) => sum + sale.totalAmount, 0);
 
-    const returnsValue = returns.reduce((sum, ret) => {
-        const returnedValue = ret.returnedItems.reduce((itemSum, item) => itemSum + item.appliedPrice * item.quantity, 0);
-        return sum + returnedValue;
+    const totalRevenueLossFromReturns = returns.reduce((loss, ret) => {
+      const nonResellableValue = ret.returnedItems
+        .filter(item => !item.isResellable)
+        .reduce((sum, item) => sum + (item.appliedPrice * item.quantity), 0);
+      
+      const cashRefunds = ret.cashPaidOut || 0;
+      const creditRefunds = ret.refundAmount || 0;
+
+      return loss + nonResellableValue + cashRefunds + creditRefunds;
     }, 0);
     
+    const totalReturnsDisplayValue = returns.reduce((sum, ret) => {
+        return sum + ret.returnedItems.reduce((itemSum, item) => itemSum + item.appliedPrice * item.quantity, 0);
+    }, 0);
+
     const expensesTotal = expenses.reduce((sum, exp) => sum + exp.amount, 0);
 
     return {
       grossTotalRevenue: gross,
-      totalReturnsValue: returnsValue,
+      totalReturnsValue: totalReturnsDisplayValue, // For display purposes
       totalExpensesAllTime: expensesTotal,
-      netTotalRevenue: gross - returnsValue - expensesTotal,
+      netTotalRevenue: gross - totalRevenueLossFromReturns - expensesTotal,
     };
   }, [sales, returns, expenses, isLoadingSales, isLoadingReturns, isLoadingExpenses]);
 
@@ -409,11 +414,11 @@ export default function DashboardPage() {
             "text-green-600",
             <>
               <div>Gross: {formatCurrency(grossTotalRevenue)}</div>
-              <div>Returns: -{formatCurrency(totalReturnsValue)}</div>
+              <div>Losses/Refunds: -{formatCurrency(grossTotalRevenue - netTotalRevenue - totalExpensesAllTime)}</div>
               <div>Expenses: -{formatCurrency(totalExpensesAllTime)}</div>
             </>,
             monthlyComparison[new Date().getMonth()],
-            "After all returns & expenses"
+            "After all deductions"
           )
         )}
 
@@ -429,7 +434,7 @@ export default function DashboardPage() {
             "text-purple-600",
             <>
               <div>{salesCountToday} sales ({formatCurrency(grossRevenueToday)})</div>
-              <div>Returns: -{formatCurrency(netReturnsValueToday)}</div>
+              <div>Losses/Refunds: -{formatCurrency(grossRevenueToday - revenueToday - expensesToday)}</div>
               <div>Expenses: -{formatCurrency(expensesToday)}</div>
             </>,
             undefined,
@@ -604,3 +609,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    
