@@ -216,20 +216,6 @@ export default function DailyCountPage() {
               </CardContent>
             </Card>
           </div>
-          
-          <Card className="shadow-lg">
-            <CardHeader>
-              <CardTitle className="font-headline">Cash Flow Breakdown</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-md">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
-                    <p className="flex justify-between"><span>Total Cash In:</span> <strong className="text-right">{formatCurrency(reportSummary.totalCashIn)}</strong></p>
-                    <p className="flex justify-between text-orange-500"><span>Cash Paid Out for Refunds:</span> <strong className="text-right">{formatCurrency(reportSummary.totalRefundsPaidOut)}</strong></p>
-                    <p className="flex justify-between text-destructive"><span>Cash Paid for Expenses:</span> <strong className="text-right">{formatCurrency(reportSummary.totalExpenses)}</strong></p>
-                    <p className="flex justify-between font-bold text-primary text-lg border-t pt-2 mt-2"><span>Net Cash In Hand:</span> <strong className="text-right">{formatCurrency(reportSummary.netCashInHand)}</strong></p>
-                </div>
-            </CardContent>
-          </Card>
         </div>
       ) : (
         <Card className="shadow-lg">
