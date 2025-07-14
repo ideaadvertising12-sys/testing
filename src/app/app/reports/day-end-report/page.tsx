@@ -135,10 +135,10 @@ export default function DayEndReportPage() {
         reportDate: selectedDate,
         totalTransactions: salesToday.length,
         grossSalesValue: grossSalesToday,
-        totalDiscountsToday: totalDiscountsToday,
+        totalDiscountsToday,
         netSalesValue: netSalesToday,
         
-        cashFromSales,
+        cashFromSales: cashFromTodaySales,
         cashFromCreditPayments,
         chequeFromCreditPayments,
         bankFromCreditPayments,
@@ -148,7 +148,7 @@ export default function DayEndReportPage() {
         totalBankTransferIn,
         
         totalRefundsPaidToday: totalCashPaidOutForRefunds,
-        totalExpensesToday: totalExpensesToday,
+        totalExpensesToday,
         netCashInHand: finalNetCashInHand,
 
         newCreditIssued: totalInitialCreditIssuedToday,
@@ -158,9 +158,9 @@ export default function DayEndReportPage() {
 
         chequeNumbers: [...new Set(collectedCheques)],
         bankTransferRefs: [...new Set(collectedTransfers)],
-        creditSalesCount: creditSalesCount,
+        creditSalesCount,
         samplesIssuedCount: totalSamplesIssuedCount,
-        sampleTransactionsCount: sampleTransactionsCount,
+        sampleTransactionsCount,
       });
 
     } else {
@@ -182,8 +182,8 @@ export default function DayEndReportPage() {
 
     const tableBody = [
         ['Gross Sales Today', formatCurrency(reportSummary.grossSalesValue)],
-        ['Total Discounts Today', formatCurrency(reportSummary.totalDiscountsToday)],
-        ['Value of Returns Today', formatCurrency(reportSummary.grossSalesValue - reportSummary.totalDiscountsToday - reportSummary.netSalesValue)],
+        ['Total Discounts Today', formatCurrency(reportSummary.totalDiscountsToday ?? 0)],
+        ['Value of Returns Today', formatCurrency((reportSummary.grossSalesValue - (reportSummary.totalDiscountsToday ?? 0)) - reportSummary.netSalesValue)],
         [{ content: 'Net Sales Value', styles: { fontStyle: 'bold' } }, { content: formatCurrency(reportSummary.netSalesValue), styles: { fontStyle: 'bold' } }],
         [' ', ' '],
         ['Cash from Today\'s Sales', formatCurrency(reportSummary.cashFromSales)],
@@ -395,8 +395,8 @@ export default function DayEndReportPage() {
             <CardContent className="space-y-2 text-md">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
                     <p className="flex justify-between"><span>Gross Sales Value:</span> <strong className="text-right">{formatCurrency(reportSummary.grossSalesValue)}</strong></p>
-                    <p className="flex justify-between text-orange-500"><span>Discounts Given Today:</span> <strong className="text-right">{formatCurrency(reportSummary.totalDiscountsToday)}</strong></p>
-                    <p className="flex justify-between text-red-500"><span>Value of Returns Today:</span> <strong className="text-right">{formatCurrency((reportSummary.grossSalesValue - reportSummary.totalDiscountsToday) - reportSummary.netSalesValue)}</strong></p>
+                    <p className="flex justify-between text-orange-500"><span>Discounts Given Today:</span> <strong className="text-right">{formatCurrency(reportSummary.totalDiscountsToday ?? 0)}</strong></p>
+                    <p className="flex justify-between text-red-500"><span>Value of Returns Today:</span> <strong className="text-right">{formatCurrency((reportSummary.grossSalesValue - (reportSummary.totalDiscountsToday ?? 0)) - reportSummary.netSalesValue)}</strong></p>
                     <p className="flex justify-between text-blue-600"><span>Total Collections (Cash+Other):</span> <strong className="text-right">{formatCurrency(reportSummary.totalCashIn + reportSummary.totalChequeIn + reportSummary.totalBankTransferIn)}</strong></p>
                     <p className="flex justify-between text-destructive"><span>Total Refunds Paid Out (Cash):</span> <strong className="text-right">{formatCurrency(reportSummary.totalRefundsPaidToday)}</strong></p>
                     <p className="flex justify-between text-destructive"><span>Total Expenses Today:</span> <strong className="text-right">{formatCurrency(reportSummary.totalExpensesToday)}</strong></p>
