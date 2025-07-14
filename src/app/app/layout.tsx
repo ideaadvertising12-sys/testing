@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import Link from "next/link";
@@ -29,6 +30,7 @@ import {
   Undo2, 
   Beaker,
   Wallet,
+  Calculator,
 } from "lucide-react";
 
 import {
@@ -121,6 +123,7 @@ const ALL_NAV_ITEMS: NavItemConfig[] = [
       { id: "vehicle-report", href: "/app/reports/vehicle-report", label: "Vehicle Report", icon: Truck, allowedRoles: ["admin"] },
     ]
   },
+  { id: "daily-count", href: "/app/daily-count", label: "Daily Count", icon: Calculator, allowedRoles: ["admin", "cashier"] },
   { id: "user-management", href: "/app/user-management", label: "User Management", icon: UserCog, allowedRoles: ["admin"] },
   { id: "settings", href: "/app/settings", label: "Settings", icon: Settings, allowedRoles: ["admin", "cashier"] },
 ];
