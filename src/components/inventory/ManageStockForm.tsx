@@ -530,6 +530,3 @@ export function ManageStockForm() {
     </Card>
   );
 }
-
-    
-
