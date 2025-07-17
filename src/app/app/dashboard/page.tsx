@@ -57,18 +57,21 @@ export default function DashboardPage() {
     salesCountToday,
     expensesToday,
     grossRevenueToday,
+    refundsAndLossesToday,
   } = useMemo(() => {
-    if (isLoadingSales || isLoadingReturns || isLoadingExpenses) {
-      return { revenueToday: 0, salesCountToday: 0, expensesToday: 0, grossRevenueToday: 0 };
+    if (isLoadingSales || isLoadingReturns || isLoadingExpenses || !allSales || !returns || !expenses) {
+      return { revenueToday: 0, salesCountToday: 0, expensesToday: 0, grossRevenueToday: 0, refundsAndLossesToday: 0 };
     }
   
     const todaySales = allSales.filter(s => isSameDay(new Date(s.saleDate), new Date()) && s.status !== 'cancelled');
   
+    // Calculate the total value of items returned *against today's sales* to adjust gross revenue.
     const valueOfReturnsAgainstTodaySales = returns
       .filter(r => todaySales.some(s => s.id === r.originalSaleId))
       .reduce((sum, r) => r.returnedItems.reduce((itemSum, item) => itemSum + (item.appliedPrice * item.quantity), 0), 0);
   
-    const otherRefundsAndLossesToday = returns
+    // Calculate true losses: non-resellable returns + refunds (cash or credit).
+    const todayRefundsAndLosses = returns
       .filter(r => isSameDay(new Date(r.returnDate), new Date()))
       .reduce((sum, r) => {
         const nonResellableValue = r.returnedItems.filter(item => !item.isResellable).reduce((itemSum, item) => itemSum + (item.appliedPrice * item.quantity), 0);
@@ -80,23 +83,27 @@ export default function DashboardPage() {
       .reduce((sum, exp) => sum + exp.amount, 0);
   
     const grossRevenueTodayValue = todaySales.reduce((sum, sale) => sum + sale.totalAmount, 0);
-    const netRevenueToday = grossRevenueTodayValue - valueOfReturnsAgainstTodaySales - otherRefundsAndLossesToday - todayExpensesTotal;
+    
+    // Net revenue is today's gross, minus value of goods returned, minus other losses, minus expenses.
+    const netRevenueToday = grossRevenueTodayValue - valueOfReturnsAgainstTodaySales - todayRefundsAndLosses - todayExpensesTotal;
     
     return {
       revenueToday: netRevenueToday,
       salesCountToday: todaySales.length,
       expensesToday: todayExpensesTotal,
       grossRevenueToday: grossRevenueTodayValue,
+      refundsAndLossesToday: todayRefundsAndLosses,
     };
   }, [allSales, returns, expenses, isLoadingSales, isLoadingReturns, isLoadingExpenses]);
   
   const { 
     netTotalRevenue, 
     grossTotalRevenue, 
-    totalExpensesAllTime 
+    totalExpensesAllTime,
+    totalRefundsAndLossesAllTime
   } = useMemo(() => {
-    if (isLoadingSales || isLoadingReturns || isLoadingExpenses) {
-      return { netTotalRevenue: 0, grossTotalRevenue: 0, totalExpensesAllTime: 0 };
+    if (isLoadingSales || isLoadingReturns || isLoadingExpenses || !allSales || !returns || !expenses) {
+      return { netTotalRevenue: 0, grossTotalRevenue: 0, totalExpensesAllTime: 0, totalRefundsAndLossesAllTime: 0 };
     }
 
     const activeSales = allSales.filter(s => s.status !== 'cancelled');
@@ -120,6 +127,7 @@ export default function DashboardPage() {
       grossTotalRevenue: gross,
       totalExpensesAllTime: expensesTotal,
       netTotalRevenue: netRevenue,
+      totalRefundsAndLossesAllTime: totalRevenueLossFromReturns,
     };
   }, [allSales, returns, expenses, isLoadingSales, isLoadingReturns, isLoadingExpenses]);
 
@@ -392,7 +400,7 @@ export default function DashboardPage() {
             "text-green-600",
             <>
               <div>Gross: {formatCurrency(grossTotalRevenue)}</div>
-              <div>Losses/Refunds: -{formatCurrency(grossTotalRevenue - netTotalRevenue - totalExpensesAllTime)}</div>
+              <div>Refunds &amp; Losses: -{formatCurrency(totalRefundsAndLossesAllTime)}</div>
               <div>Expenses: -{formatCurrency(totalExpensesAllTime)}</div>
             </>,
             monthlyComparison[new Date().getMonth()],
@@ -412,7 +420,7 @@ export default function DashboardPage() {
             "text-purple-600",
             <>
               <div>{salesCountToday} sales ({formatCurrency(grossRevenueToday)})</div>
-              <div>Losses/Refunds: -{formatCurrency(grossRevenueToday - revenueToday - expensesToday)}</div>
+              <div>Refunds &amp; Losses: -{formatCurrency(refundsAndLossesToday)}</div>
               <div>Expenses: -{formatCurrency(expensesToday)}</div>
             </>,
             undefined,
