@@ -31,15 +31,8 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { isSameDay } from "date-fns";
 
-// Utility function for consistent date handling
-const getTodayRange = () => {
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  return { start: today, end: tomorrow };
-};
 
 export default function DashboardPage() {
   const { currentUser } = useAuth();
@@ -47,7 +40,7 @@ export default function DashboardPage() {
   
   const { customers, isLoading: isLoadingCustomers, error: customersError } = useCustomers();
   const { 
-    sales, 
+    sales: allSales, 
     isLoading: isLoadingSales, 
     error: salesError, 
   } = useSalesData(true);
@@ -64,70 +57,49 @@ export default function DashboardPage() {
     salesCountToday,
     expensesToday,
     grossRevenueToday,
-    netReturnsValueToday,
   } = useMemo(() => {
     if (isLoadingSales || isLoadingReturns || isLoadingExpenses) {
-      return { revenueToday: 0, salesCountToday: 0, expensesToday: 0, grossRevenueToday: 0, netReturnsValueToday: 0 };
+      return { revenueToday: 0, salesCountToday: 0, expensesToday: 0, grossRevenueToday: 0 };
     }
-
-    const { start: todayStart, end: todayEnd } = getTodayRange();
-    
-    const salesTodayList = sales.filter(sale => {
-      const saleDate = sale.saleDate instanceof Date ? sale.saleDate : new Date(sale.saleDate);
-      return saleDate >= todayStart && saleDate < todayEnd && sale.status !== 'cancelled';
-    });
-
-    const grossRevenueToday = salesTodayList.reduce((sum, sale) => sum + sale.totalAmount, 0);
-
-    const returnsTodayList = returns.filter(ret => {
-        const returnDate = ret.returnDate instanceof Date ? ret.returnDate : new Date(ret.returnDate);
-        return returnDate >= todayStart && returnDate < todayEnd;
-    });
-
-    // Calculate revenue loss from today's returns
-    const revenueLossFromReturnsToday = returnsTodayList.reduce((loss, ret) => {
-        const nonResellableValue = ret.returnedItems
-            .filter(item => !item.isResellable)
-            .reduce((sum, item) => sum + item.appliedPrice * item.quantity, 0);
-        
-        const cashRefunds = ret.cashPaidOut || 0;
-        const creditRefunds = ret.refundAmount || 0; // Credit given back to customer account
-
-        return loss + nonResellableValue + cashRefunds + creditRefunds;
-    }, 0);
-    
-    const netReturnsValueToday = returnsTodayList.reduce((sum, ret) => {
-        return sum + ret.returnedItems.reduce((itemSum, item) => itemSum + item.appliedPrice * item.quantity, 0);
-    }, 0);
-
-    const expensesTodayTotal = expenses
-      .filter(exp => {
-        const expenseDate = exp.expenseDate instanceof Date ? exp.expenseDate : new Date(exp.expenseDate);
-        return expenseDate >= todayStart && expenseDate < todayEnd;
-      })
-      .reduce((sum, exp) => sum + exp.amount, 0);
-
-    return {
-      revenueToday: grossRevenueToday - revenueLossFromReturnsToday - expensesTodayTotal,
-      salesCountToday: salesTodayList.length,
-      expensesToday: expensesTodayTotal,
-      grossRevenueToday: grossRevenueToday,
-      netReturnsValueToday: netReturnsValueToday, // This is for display, not calculation
-    };
-  }, [sales, returns, expenses, isLoadingSales, isLoadingReturns, isLoadingExpenses]);
   
+    const todaySales = allSales.filter(s => isSameDay(new Date(s.saleDate), new Date()) && s.status !== 'cancelled');
+  
+    const valueOfReturnsAgainstTodaySales = returns
+      .filter(r => todaySales.some(s => s.id === r.originalSaleId))
+      .reduce((sum, r) => r.returnedItems.reduce((itemSum, item) => itemSum + (item.appliedPrice * item.quantity), 0), 0);
+  
+    const otherRefundsAndLossesToday = returns
+      .filter(r => isSameDay(new Date(r.returnDate), new Date()))
+      .reduce((sum, r) => {
+        const nonResellableValue = r.returnedItems.filter(item => !item.isResellable).reduce((itemSum, item) => itemSum + (item.appliedPrice * item.quantity), 0);
+        return sum + (r.cashPaidOut || 0) + (r.refundAmount || 0) + nonResellableValue;
+      }, 0);
+  
+    const todayExpensesTotal = expenses
+      .filter(exp => isSameDay(new Date(exp.expenseDate), new Date()))
+      .reduce((sum, exp) => sum + exp.amount, 0);
+  
+    const grossRevenueTodayValue = todaySales.reduce((sum, sale) => sum + sale.totalAmount, 0);
+    const netRevenueToday = grossRevenueTodayValue - valueOfReturnsAgainstTodaySales - otherRefundsAndLossesToday - todayExpensesTotal;
+    
+    return {
+      revenueToday: netRevenueToday,
+      salesCountToday: todaySales.length,
+      expensesToday: todayExpensesTotal,
+      grossRevenueToday: grossRevenueTodayValue,
+    };
+  }, [allSales, returns, expenses, isLoadingSales, isLoadingReturns, isLoadingExpenses]);
   
   const { 
     netTotalRevenue, 
     grossTotalRevenue, 
-    totalReturnsValue, 
     totalExpensesAllTime 
   } = useMemo(() => {
     if (isLoadingSales || isLoadingReturns || isLoadingExpenses) {
-      return { netTotalRevenue: 0, grossTotalRevenue: 0, totalReturnsValue: 0, totalExpensesAllTime: 0 };
+      return { netTotalRevenue: 0, grossTotalRevenue: 0, totalExpensesAllTime: 0 };
     }
 
-    const activeSales = sales.filter(s => s.status !== 'cancelled');
+    const activeSales = allSales.filter(s => s.status !== 'cancelled');
     const gross = activeSales.reduce((sum, sale) => sum + sale.totalAmount, 0);
 
     const totalRevenueLossFromReturns = returns.reduce((loss, ret) => {
@@ -136,24 +108,20 @@ export default function DashboardPage() {
         .reduce((sum, item) => sum + (item.appliedPrice * item.quantity), 0);
       
       const cashRefunds = ret.cashPaidOut || 0;
-      const creditRefunds = ret.refundAmount || 0;
+      const creditRefunds = ret.refundAmount || 0; // Credit to account is a loss
 
       return loss + nonResellableValue + cashRefunds + creditRefunds;
     }, 0);
-    
-    const totalReturnsDisplayValue = returns.reduce((sum, ret) => {
-        return sum + ret.returnedItems.reduce((itemSum, item) => itemSum + item.appliedPrice * item.quantity, 0);
-    }, 0);
 
     const expensesTotal = expenses.reduce((sum, exp) => sum + exp.amount, 0);
+    const netRevenue = gross - totalRevenueLossFromReturns - expensesTotal;
 
     return {
       grossTotalRevenue: gross,
-      totalReturnsValue: totalReturnsDisplayValue, // For display purposes
       totalExpensesAllTime: expensesTotal,
-      netTotalRevenue: gross - totalRevenueLossFromReturns - expensesTotal,
+      netTotalRevenue: netRevenue,
     };
-  }, [sales, returns, expenses, isLoadingSales, isLoadingReturns, isLoadingExpenses]);
+  }, [allSales, returns, expenses, isLoadingSales, isLoadingReturns, isLoadingExpenses]);
 
   const { liveLowStockItemsCount, criticalStockItemsCount } = useMemo(() => {
     if (isLoadingProducts || !allProducts || allProducts.length === 0) {
@@ -170,7 +138,7 @@ export default function DashboardPage() {
   }, [allProducts, isLoadingProducts]);
 
   const topSellingProducts = useMemo(() => {
-    if (isLoadingSales || isLoadingProducts || !sales || !allProducts) {
+    if (isLoadingSales || isLoadingProducts || !allSales || !allProducts) {
       return [];
     }
 
@@ -182,7 +150,7 @@ export default function DashboardPage() {
       category?: string;
     }> = {};
 
-    sales.forEach(sale => {
+    allSales.forEach(sale => {
       if (sale.status === 'cancelled') return;
       sale.items.forEach(item => {
         if (!item.isOfferItem) {
@@ -211,10 +179,19 @@ export default function DashboardPage() {
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 5);
 
-  }, [sales, allProducts, isLoadingSales, isLoadingProducts]);
+  }, [allSales, allProducts, isLoadingSales, isLoadingProducts]);
+
+  const recentFiveSales = useMemo(() => {
+    if (!allSales) return [];
+    return allSales
+        .filter(s => s.status !== 'cancelled')
+        .sort((a, b) => new Date(b.saleDate).getTime() - new Date(a.saleDate).getTime())
+        .slice(0, 5);
+  }, [allSales]);
+
 
   const { monthlySalesData, monthlyComparison } = useMemo(() => {
-    const activeSales = sales ? sales.filter(s => s.status !== 'cancelled') : [];
+    const activeSales = allSales ? allSales.filter(s => s.status !== 'cancelled') : [];
     if (!activeSales || activeSales.length === 0) {
       const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
       return {
@@ -254,7 +231,7 @@ export default function DashboardPage() {
       })),
       monthlyComparison: comparison
     };
-  }, [sales]);
+  }, [allSales]);
 
   const customerGrowth = useMemo(() => {
     if (isLoadingCustomers || !customers) return 0;
@@ -491,7 +468,7 @@ export default function DashboardPage() {
                 Recent Transactions
               </CardTitle>
               <CardDescription>
-                {isLoadingSales ? 'Loading...' : 'Latest sales activities'}
+                {isLoadingSales ? 'Loading...' : 'Latest five sales activities'}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -511,7 +488,7 @@ export default function DashboardPage() {
                 <div className="text-center text-destructive py-10">
                   <p>Could not load transactions.</p>
                 </div>
-              ) : (!sales || sales.length === 0) ? (
+              ) : (!recentFiveSales || recentFiveSales.length === 0) ? (
                 <div className="text-center text-muted-foreground py-10">
                   No transactions yet.
                 </div>
@@ -527,7 +504,7 @@ export default function DashboardPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {sales.filter(s => s.status !== 'cancelled').map((sale) => (
+                      {recentFiveSales.map((sale) => (
                         <TableRow key={sale.id}>
                           <TableCell className="font-medium">#{sale.id}</TableCell>
                           <TableCell>
@@ -612,5 +589,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-    
