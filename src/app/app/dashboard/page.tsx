@@ -30,6 +30,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 // Utility function for consistent date handling
 const getTodayRange = () => {
@@ -515,38 +516,40 @@ export default function DashboardPage() {
                   No transactions yet.
                 </div>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Invoice</TableHead>
-                      <TableHead>Customer</TableHead>
-                      <TableHead className="text-right">Amount</TableHead>
-                      <TableHead className="text-right">Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {sales.filter(s => s.status !== 'cancelled').slice(0, 5).map((sale) => (
-                      <TableRow key={sale.id}>
-                        <TableCell className="font-medium">#{sale.id}</TableCell>
-                        <TableCell>
-                          {sale.customerName || "Walk-in Customer"}
-                          {sale.customerShopName && (
-                            <div className="text-xs text-muted-foreground">{sale.customerShopName}</div>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right">{formatCurrency(sale.totalAmount)}</TableCell>
-                        <TableCell className="text-right">
-                          <Badge 
-                            variant={sale.outstandingBalance > 0 ? 'destructive' : 'default'}
-                            className={cn(sale.outstandingBalance === 0 && "bg-green-600 hover:bg-green-700")}
-                          >
-                            {sale.outstandingBalance > 0 ? 'Pending' : 'Completed'}
-                          </Badge>
-                        </TableCell>
+                <ScrollArea className="h-[300px]">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Invoice</TableHead>
+                        <TableHead>Customer</TableHead>
+                        <TableHead className="text-right">Amount</TableHead>
+                        <TableHead className="text-right">Status</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {sales.filter(s => s.status !== 'cancelled').map((sale) => (
+                        <TableRow key={sale.id}>
+                          <TableCell className="font-medium">#{sale.id}</TableCell>
+                          <TableCell>
+                            {sale.customerName || "Walk-in Customer"}
+                            {sale.customerShopName && (
+                              <div className="text-xs text-muted-foreground">{sale.customerShopName}</div>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">{formatCurrency(sale.totalAmount)}</TableCell>
+                          <TableCell className="text-right">
+                            <Badge 
+                              variant={sale.outstandingBalance > 0 ? 'destructive' : 'default'}
+                              className={cn(sale.outstandingBalance === 0 && "bg-green-600 hover:bg-green-700")}
+                            >
+                              {sale.outstandingBalance > 0 ? 'Pending' : 'Completed'}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </ScrollArea>
               )}
             </CardContent>
           </Card>
