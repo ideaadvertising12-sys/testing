@@ -14,10 +14,12 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ChevronDown, ChevronUp, UserCheck, Loader2 } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { ChevronDown, ChevronUp, UserCheck, Loader2, ShoppingCart, TrendingUp } from "lucide-react";
 import type { Customer, Sale } from "@/lib/types";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { useMediaQuery } from "@/hooks/use-media-query";
 
 export interface CustomerReportData extends Customer {
   totalSpent: number;
@@ -36,6 +38,7 @@ const formatCurrency = (amount: number) => new Intl.NumberFormat('en-LK', { styl
 const getInitials = (name: string) => name.split(" ").map(n => n[0]).join("").toUpperCase();
 
 export function CustomerReportTable({ data, isLoading }: CustomerReportTableProps) {
+  const isMobile = useMediaQuery("(max-width: 768px)");
   const [expandedCustomerId, setExpandedCustomerId] = React.useState<string | null>(null);
 
   const toggleExpand = (customerId: string) => {
@@ -60,6 +63,76 @@ export function CustomerReportTable({ data, isLoading }: CustomerReportTableProp
     );
   }
 
+  // Mobile View
+  if (isMobile) {
+    return (
+      <ScrollArea className="h-[calc(100vh-30rem)]">
+        <div className="space-y-3">
+          {data.map((customer) => (
+            <Card key={customer.id} className="p-3" onClick={() => toggleExpand(customer.id)}>
+              <div className="flex items-start gap-3">
+                <Avatar className="h-10 w-10">
+                  <AvatarImage src={customer.avatar} alt={customer.name} />
+                  <AvatarFallback>{getInitials(customer.name)}</AvatarFallback>
+                </Avatar>
+                <div className="flex-1">
+                  <div className="flex justify-between">
+                    <div>
+                      <p className="font-semibold text-primary">{customer.name}</p>
+                      <p className="text-xs text-muted-foreground">{customer.shopName || customer.phone}</p>
+                    </div>
+                     <Button variant="ghost" size="icon" className="h-7 w-7">
+                        {expandedCustomerId === customer.id ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                     </Button>
+                  </div>
+                  <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
+                      <div>
+                          <p className="text-xs text-muted-foreground flex items-center gap-1"><ShoppingCart className="h-3 w-3" /> Total Spent</p>
+                          <p className="font-semibold">{formatCurrency(customer.totalSpent)}</p>
+                      </div>
+                       <div>
+                          <p className="text-xs text-muted-foreground flex items-center gap-1"><TrendingUp className="h-3 w-3" /> Outstanding</p>
+                          <p className={cn("font-semibold", customer.outstandingBalance > 0 ? 'text-destructive' : '')}>
+                              {formatCurrency(customer.outstandingBalance)}
+                          </p>
+                      </div>
+                  </div>
+                </div>
+              </div>
+              {expandedCustomerId === customer.id && (
+                <div className="mt-2 pt-2 border-t">
+                  <h4 className="font-semibold text-xs mb-1">Purchase History</h4>
+                  {customer.sales.length > 0 ? (
+                    <div className="space-y-1">
+                      {customer.sales.slice(0, 5).map(sale => (
+                        <div key={sale.id} className="text-xs flex justify-between p-1 rounded bg-muted/50">
+                          <div>
+                            <p className="font-mono">{sale.id}</p>
+                            <p className="text-muted-foreground">{format(sale.saleDate, 'PP')}</p>
+                          </div>
+                          <div className="text-right">
+                             <p>{formatCurrency(sale.totalAmount)}</p>
+                             <Badge variant={sale.outstandingBalance > 0 ? 'destructive' : 'default'} className={cn("text-[10px] h-4 px-1", sale.outstandingBalance <= 0 && 'bg-green-600')}>
+                                {sale.outstandingBalance > 0 ? 'Pending' : 'Paid'}
+                              </Badge>
+                          </div>
+                        </div>
+                      ))}
+                      {customer.sales.length > 5 && <p className="text-center text-xs text-muted-foreground mt-1">...and {customer.sales.length - 5} more</p>}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground text-center py-2">No sales recorded.</p>
+                  )}
+                </div>
+              )}
+            </Card>
+          ))}
+        </div>
+      </ScrollArea>
+    )
+  }
+
+  // Desktop View
   return (
     <ScrollArea className="h-[calc(100vh-25rem)]">
       <Table>
