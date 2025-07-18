@@ -65,21 +65,17 @@ export default function DayEndReportPage() {
       );
 
       // --- Revenue Calculations ---
-      let grossSalesToday = salesToday.reduce((sum, s) => {
+      const grossSalesToday = salesToday.reduce((sum, s) => {
         return sum + s.items.reduce((itemSum, item) => {
-          // The value is based on the original product price, not the applied price for discounts.
           return itemSum + (item.price * item.quantity);
         }, 0);
       }, 0);
       
-      // Calculate value of samples issued today and add to gross sales
       const totalSampleValue = samplesIssuedToday.reduce((sum, tx) => {
         const product = allProducts.find(p => p.id === tx.productId);
         const sampleValue = product ? tx.quantity * product.price : 0;
         return sum + sampleValue;
       }, 0);
-
-      grossSalesToday += totalSampleValue;
 
       const totalDiscountsToday = salesToday.reduce((sum, sale) => {
           const saleDiscount = sale.items.reduce((itemSum, item) => {
@@ -100,8 +96,6 @@ export default function DayEndReportPage() {
         return sum;
       }, 0);
 
-      const netSalesToday = grossSalesToday - totalDiscountsToday - valueOfReturnedGoodsToday;
-
       // --- Offer Items Calculations ---
       let totalFreeItemsCount = 0;
       let totalFreeItemsValue = 0;
@@ -113,6 +107,8 @@ export default function DayEndReportPage() {
               }
           });
       });
+      
+      const netSalesToday = grossSalesToday + totalSampleValue - (totalDiscountsToday + valueOfReturnedGoodsToday + totalFreeItemsValue + totalSampleValue);
 
       // --- Cash Flow Calculations ---
       const cashFromTodaySales = salesToday.reduce((sum, s) => sum + (s.paidAmountCash || 0), 0);
@@ -164,7 +160,7 @@ export default function DayEndReportPage() {
       setReportSummary({
         reportDate: selectedDate,
         totalTransactions: salesToday.length,
-        grossSalesValue: grossSalesToday,
+        grossSalesValue: grossSalesToday + totalSampleValue,
         totalDiscountsToday,
         valueOfReturnsToday: valueOfReturnedGoodsToday,
         netSalesValue: netSalesToday,
