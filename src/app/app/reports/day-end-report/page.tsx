@@ -73,6 +73,7 @@ export default function DayEndReportPage() {
       const totalDiscountsToday = salesToday.reduce((sum, s) => sum + (s.discountAmount || 0), 0);
       
       const valueOfReturnedGoodsToday = returnsToday.reduce((sum, r) => {
+        // Only count returns against today's sales for this specific metric
         if (salesToday.some(s => s.id === r.originalSaleId)) {
           return sum + r.returnedItems.reduce((itemSum, item) => itemSum + (item.appliedPrice * item.quantity), 0);
         }
@@ -93,6 +94,7 @@ export default function DayEndReportPage() {
       const collectedCheques: string[] = salesToday.flatMap(s => s.chequeDetails?.number ? [s.chequeDetails.number] : []);
       const collectedTransfers: string[] = salesToday.flatMap(s => s.bankTransferDetails?.referenceNumber ? [s.bankTransferDetails.referenceNumber] : []);
       
+      // Iterate over ALL sales to find payments made TODAY for past invoices
       activeSales.forEach(sale => {
           sale.additionalPayments?.forEach(p => {
             if (isSameDay(p.date, selectedDate)) {

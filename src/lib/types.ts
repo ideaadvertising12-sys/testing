@@ -883,8 +883,8 @@ export interface DayEndReportSummary {
   netCashInHand: number;
 
   newCreditIssued: number;
-  creditSettledByReturns: number; // New: Credit settled using return value
-  paidAgainstNewCredit: number; // Payments made against credit issued today
+  creditSettledByReturns: number; 
+  paidAgainstNewCredit: number;
   netOutstandingFromToday: number;
 
   chequeNumbers: string[];
