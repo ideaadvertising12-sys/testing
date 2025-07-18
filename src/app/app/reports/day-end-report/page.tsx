@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { CalendarClock, FileText, DownloadCloud, ReceiptText, Banknote, Building, Newspaper, CreditCard, AlertTriangle, ArrowDown, ArrowUp, Beaker, Wallet, Landmark } from "lucide-react";
+import { CalendarClock, FileText, DownloadCloud, ReceiptText, Banknote, Building, Newspaper, CreditCard, AlertTriangle, ArrowDown, ArrowUp, Beaker, Wallet, Landmark, Gift } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -75,7 +75,7 @@ export default function DayEndReportPage() {
       
       const totalDiscountsToday = salesToday.reduce((sum, sale) => {
           const saleDiscount = sale.items.reduce((itemSum, item) => {
-              if (item.isOfferItem) return itemSum; // Free items aren't discounted
+              if (item.isOfferItem) return itemSum;
               const originalPrice = item.saleType === 'wholesale' && item.wholesalePrice ? item.wholesalePrice : item.price;
               const discountOnItem = originalPrice - item.appliedPrice;
               return itemSum + (discountOnItem * item.quantity);
@@ -93,6 +93,18 @@ export default function DayEndReportPage() {
       }, 0);
 
       const netSalesToday = grossSalesToday - totalDiscountsToday - valueOfReturnedGoodsToday;
+
+      // --- Offer Items Calculations ---
+      let totalFreeItemsCount = 0;
+      let totalFreeItemsValue = 0;
+      salesToday.forEach(sale => {
+          sale.items.forEach(item => {
+              if (item.isOfferItem) {
+                  totalFreeItemsCount += item.quantity;
+                  totalFreeItemsValue += item.quantity * item.price; // Cost is based on original price
+              }
+          });
+      });
 
       // --- Cash Flow Calculations ---
       const cashFromTodaySales = salesToday.reduce((sum, s) => sum + (s.paidAmountCash || 0), 0);
@@ -175,6 +187,8 @@ export default function DayEndReportPage() {
         creditSalesCount,
         samplesIssuedCount: totalSamplesIssuedCount,
         sampleTransactionsCount,
+        totalFreeItemsCount,
+        totalFreeItemsValue,
       });
 
     } else {
@@ -333,7 +347,7 @@ export default function DayEndReportPage() {
             </CardHeader>
           </Card>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-6">
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2"><Banknote className="h-5 w-5"/>Cash Flow</CardTitle>
@@ -396,6 +410,17 @@ export default function DayEndReportPage() {
                     <p className="flex justify-between"><span>Number of Transactions:</span> <span className="font-semibold">{reportSummary.sampleTransactionsCount}</span></p>
                 </CardContent>
             </Card>
+            
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2"><Gift className="h-5 w-5 text-green-600"/>Offer Free Items</CardTitle>
+                    <CardDescription>Free items from "Buy 12 Get 1"</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-2 text-sm">
+                    <p className="flex justify-between"><span>Total Free Items:</span> <span className="font-semibold">{reportSummary.totalFreeItemsCount || 0}</span></p>
+                    <p className="flex justify-between"><span>Cost of Free Items:</span> <span className="font-semibold">{formatCurrency(reportSummary.totalFreeItemsValue || 0)}</span></p>
+                </CardContent>
+            </Card>
           </div>
 
           <Card className="shadow-lg">
@@ -432,5 +457,3 @@ export default function DayEndReportPage() {
     </>
   );
 }
-
-

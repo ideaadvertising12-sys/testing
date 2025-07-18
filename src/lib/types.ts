@@ -893,6 +893,8 @@ export interface DayEndReportSummary {
   creditSalesCount: number;
   samplesIssuedCount: number;
   sampleTransactionsCount: number;
+  totalFreeItemsCount?: number;
+  totalFreeItemsValue?: number;
 }
 
 
