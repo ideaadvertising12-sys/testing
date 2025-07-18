@@ -69,13 +69,17 @@ export default function DayEndReportPage() {
       const expensesTodayList = expenses.filter(e => isSameDay(e.expenseDate, selectedDate));
 
       // --- Revenue Calculations ---
-      const grossSalesToday = salesToday.reduce((sum, s) => sum + s.subTotal, 0);
+      const grossSalesToday = salesToday.reduce((sum, s) => {
+        return sum + s.items.reduce((itemSum, item) => itemSum + (item.price * item.quantity), 0);
+      }, 0);
+      
       const totalDiscountsToday = salesToday.reduce((sum, s) => sum + (s.discountAmount || 0), 0);
       
       const valueOfReturnedGoodsToday = returnsToday.reduce((sum, r) => {
-        // Only count returns against today's sales for this specific metric
-        if (salesToday.some(s => s.id === r.originalSaleId)) {
-          return sum + r.returnedItems.reduce((itemSum, item) => itemSum + (item.appliedPrice * item.quantity), 0);
+        const hasNonResellable = r.returnedItems.some(item => !item.isResellable);
+        if (hasNonResellable) {
+            const exchangeValue = r.exchangedItems.reduce((itemSum, item) => itemSum + (item.appliedPrice * item.quantity), 0);
+            return sum + exchangeValue;
         }
         return sum;
       }, 0);
@@ -94,7 +98,6 @@ export default function DayEndReportPage() {
       const collectedCheques: string[] = salesToday.flatMap(s => s.chequeDetails?.number ? [s.chequeDetails.number] : []);
       const collectedTransfers: string[] = salesToday.flatMap(s => s.bankTransferDetails?.referenceNumber ? [s.bankTransferDetails.referenceNumber] : []);
       
-      // Iterate over ALL sales to find payments made TODAY for past invoices
       activeSales.forEach(sale => {
           sale.additionalPayments?.forEach(p => {
             if (isSameDay(p.date, selectedDate)) {
@@ -138,6 +141,7 @@ export default function DayEndReportPage() {
         totalTransactions: salesToday.length,
         grossSalesValue: grossSalesToday,
         totalDiscountsToday,
+        valueOfReturnsToday: valueOfReturnedGoodsToday,
         netSalesValue: netSalesToday,
         
         cashFromSales: cashFromTodaySales,
@@ -185,7 +189,7 @@ export default function DayEndReportPage() {
     const tableBody = [
         ['Gross Sales Today', formatCurrency(reportSummary.grossSalesValue)],
         ['Total Discounts Today', formatCurrency(reportSummary.totalDiscountsToday ?? 0)],
-        ['Value of Returns Today', formatCurrency((reportSummary.grossSalesValue - (reportSummary.totalDiscountsToday ?? 0)) - reportSummary.netSalesValue)],
+        ['Value of Returns Today', formatCurrency(reportSummary.valueOfReturnsToday)],
         [{ content: 'Net Sales Value', styles: { fontStyle: 'bold' } }, { content: formatCurrency(reportSummary.netSalesValue), styles: { fontStyle: 'bold' } }],
         [' ', ' '],
         ['Cash from Today\'s Sales', formatCurrency(reportSummary.cashFromSales)],
@@ -322,7 +326,6 @@ export default function DayEndReportPage() {
           </Card>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-            {/* Cash Flow Card */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2"><Banknote className="h-5 w-5"/>Cash Flow</CardTitle>
@@ -340,7 +343,6 @@ export default function DayEndReportPage() {
               </CardContent>
             </Card>
 
-            {/* Other Collections Card */}
              <Card>
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2"><Building className="h-5 w-5"/>Other Collections</CardTitle>
@@ -355,7 +357,6 @@ export default function DayEndReportPage() {
               </CardContent>
             </Card>
             
-            {/* Credit Summary Card */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2"><CreditCard className="h-5 w-5"/>Credit Summary</CardTitle>
@@ -377,7 +378,6 @@ export default function DayEndReportPage() {
               </CardContent>
             </Card>
             
-            {/* Samples Issued Card */}
              <Card>
                 <CardHeader>
                     <CardTitle className="text-lg flex items-center gap-2"><Beaker className="h-5 w-5 text-purple-600"/>Samples Issued</CardTitle>
@@ -398,7 +398,7 @@ export default function DayEndReportPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
                     <p className="flex justify-between"><span>Gross Sales Value:</span> <strong className="text-right">{formatCurrency(reportSummary.grossSalesValue)}</strong></p>
                     <p className="flex justify-between text-orange-500"><span>Discounts Given Today:</span> <strong className="text-right">{formatCurrency(reportSummary.totalDiscountsToday ?? 0)}</strong></p>
-                    <p className="flex justify-between text-red-500"><span>Value of Returns Today:</span> <strong className="text-right">{formatCurrency((reportSummary.grossSalesValue - (reportSummary.totalDiscountsToday ?? 0)) - reportSummary.netSalesValue)}</strong></p>
+                    <p className="flex justify-between text-red-500"><span>Value of Returns Today:</span> <strong className="text-right">{formatCurrency(reportSummary.valueOfReturnsToday)}</strong></p>
                     <p className="flex justify-between text-blue-600"><span>Total Collections (Cash+Other):</span> <strong className="text-right">{formatCurrency(reportSummary.totalCashIn + reportSummary.totalChequeIn + reportSummary.totalBankTransferIn)}</strong></p>
                     <p className="flex justify-between text-destructive"><span>Total Refunds Paid Out (Cash):</span> <strong className="text-right">{formatCurrency(reportSummary.totalRefundsPaidToday)}</strong></p>
                     <p className="flex justify-between text-destructive"><span>Total Expenses Today:</span> <strong className="text-right">{formatCurrency(reportSummary.totalExpensesToday)}</strong></p>
@@ -424,3 +424,4 @@ export default function DayEndReportPage() {
     </>
   );
 }
+

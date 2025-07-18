@@ -867,6 +867,7 @@ export interface DayEndReportSummary {
   totalTransactions: number;
   grossSalesValue: number;
   totalDiscountsToday: number;
+  valueOfReturnsToday: number;
   netSalesValue: number;
   
   cashFromSales: number;
