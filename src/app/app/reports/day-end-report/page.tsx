@@ -84,7 +84,7 @@ export default function DayEndReportPage() {
       const totalDiscountsToday = salesToday.reduce((sum, sale) => {
           const saleDiscount = sale.items.reduce((itemSum, item) => {
               if (item.isOfferItem) return itemSum;
-              const originalPrice = item.saleType === 'wholesale' && item.wholesalePrice ? item.wholesalePrice : item.price;
+              const originalPrice = (item.saleType === 'wholesale' && item.wholesalePrice) ? item.wholesalePrice : item.price;
               const discountOnItem = originalPrice - item.appliedPrice;
               return itemSum + (discountOnItem * item.quantity);
           }, 0);
