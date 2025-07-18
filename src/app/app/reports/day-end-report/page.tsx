@@ -54,16 +54,6 @@ export default function DayEndReportPage() {
 
 
   useEffect(() => {
-    if (!currentUser) {
-      router.replace("/");
-      return;
-    }
-    if (currentUser.role !== "admin") {
-      router.replace(currentUser.role === "cashier" ? "/app/sales" : "/app/dashboard");
-    }
-  }, [currentUser, router]);
-
-  useEffect(() => {
     if (selectedDate && !isLoadingSales && allSales && !isLoadingReturns && returns && !isLoadingTransactions && allTransactions && !isLoadingExpenses && expenses && !isLoadingProducts && allProducts) {
       
       const activeSales = allSales.filter(s => s.status !== 'cancelled');
@@ -89,7 +79,7 @@ export default function DayEndReportPage() {
         return sum + sampleValue;
       }, 0);
 
-      grossSalesToday += totalSampleValue; // Add sample value to gross sales
+      grossSalesToday += totalSampleValue;
 
       const totalDiscountsToday = salesToday.reduce((sum, sale) => {
           const saleDiscount = sale.items.reduce((itemSum, item) => {
