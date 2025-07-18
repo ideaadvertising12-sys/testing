@@ -23,6 +23,7 @@ import { useStockTransactions } from "@/hooks/useStockTransactions";
 import { useExpenses } from "@/hooks/useExpenses";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
+import { useProducts } from "@/hooks/useProducts";
 
 const formatCurrency = (amount: number | undefined): string => {
   if (amount === undefined || isNaN(amount)) return "Rs. 0.00";
@@ -49,6 +50,8 @@ export default function DayEndReportPage() {
   const { returns, isLoading: isLoadingReturns, error: returnsError } = useReturns();
   const { transactions: allTransactions, isLoading: isLoadingTransactions, error: transactionsError } = useStockTransactions();
   const { expenses, isLoading: isLoadingExpenses, error: expensesError } = useExpenses();
+  const { products: allProducts, isLoading: isLoadingProducts, error: productsError } = useProducts();
+
 
   useEffect(() => {
     if (!currentUser) {
@@ -61,18 +64,33 @@ export default function DayEndReportPage() {
   }, [currentUser, router]);
 
   useEffect(() => {
-    if (selectedDate && !isLoadingSales && allSales && !isLoadingReturns && returns && !isLoadingTransactions && allTransactions && !isLoadingExpenses && expenses) {
+    if (selectedDate && !isLoadingSales && allSales && !isLoadingReturns && returns && !isLoadingTransactions && allTransactions && !isLoadingExpenses && expenses && !isLoadingProducts && allProducts) {
       
       const activeSales = allSales.filter(s => s.status !== 'cancelled');
       const salesToday = activeSales.filter(s => isSameDay(s.saleDate, selectedDate));
       const returnsToday = returns.filter(r => isSameDay(r.returnDate, selectedDate));
       const expensesTodayList = expenses.filter(e => isSameDay(e.expenseDate, selectedDate));
+      const samplesIssuedToday = allTransactions.filter(tx => 
+        tx.type === 'ISSUE_SAMPLE' && isSameDay(tx.transactionDate, selectedDate)
+      );
 
       // --- Revenue Calculations ---
-      const grossSalesToday = salesToday.reduce((sum, s) => {
-        return sum + s.items.reduce((itemSum, item) => itemSum + (item.price * item.quantity), 0);
+      let grossSalesToday = salesToday.reduce((sum, s) => {
+        return sum + s.items.reduce((itemSum, item) => {
+          if (item.isOfferItem) return itemSum; // Free items don't contribute to gross sales
+          return itemSum + (item.price * item.quantity);
+        }, 0);
       }, 0);
       
+      // Calculate value of samples issued today and add to gross sales
+      const totalSampleValue = samplesIssuedToday.reduce((sum, tx) => {
+        const product = allProducts.find(p => p.id === tx.productId);
+        const sampleValue = product ? tx.quantity * product.price : 0;
+        return sum + sampleValue;
+      }, 0);
+
+      grossSalesToday += totalSampleValue; // Add sample value to gross sales
+
       const totalDiscountsToday = salesToday.reduce((sum, sale) => {
           const saleDiscount = sale.items.reduce((itemSum, item) => {
               if (item.isOfferItem) return itemSum;
@@ -150,9 +168,6 @@ export default function DayEndReportPage() {
       const creditSettledByReturns = returnsToday.reduce((sum, r) => sum + (r.settleOutstandingAmount || 0), 0);
 
       // --- Sample Calculations ---
-      const samplesIssuedToday = allTransactions.filter(tx => 
-        tx.type === 'ISSUE_SAMPLE' && isSameDay(tx.transactionDate, selectedDate)
-      );
       const totalSamplesIssuedCount = samplesIssuedToday.reduce((sum, tx) => sum + tx.quantity, 0);
       const sampleTransactionsCount = samplesIssuedToday.length;
       
@@ -194,7 +209,7 @@ export default function DayEndReportPage() {
     } else {
       setReportSummary(null);
     }
-  }, [selectedDate, allSales, isLoadingSales, returns, isLoadingReturns, allTransactions, isLoadingTransactions, expenses, isLoadingExpenses]);
+  }, [selectedDate, allSales, isLoadingSales, returns, isLoadingReturns, allTransactions, isLoadingTransactions, expenses, isLoadingExpenses, allProducts, isLoadingProducts]);
 
   const handleExportPDF = () => {
     if (!reportSummary || !selectedDate) return;
@@ -310,7 +325,7 @@ export default function DayEndReportPage() {
     return <AccessDenied message="Day End reports are not available for your role. Redirecting..." />;
   }
   
-  const pageIsLoading = (isLoadingSales || isLoadingReturns || isLoadingTransactions || isLoadingExpenses) && !reportSummary;
+  const pageIsLoading = (isLoadingSales || isLoadingReturns || isLoadingTransactions || isLoadingExpenses || isLoadingProducts) && !reportSummary;
 
   if (pageIsLoading) {
     return <GlobalPreloaderScreen message="Fetching report data..." />
@@ -325,11 +340,11 @@ export default function DayEndReportPage() {
         action={reportActions}
       />
 
-      {(salesError || returnsError || transactionsError || expensesError) && (
+      {(salesError || returnsError || transactionsError || expensesError || productsError) && (
         <Alert variant="destructive" className="mb-4">
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle>Error Loading Data</AlertTitle>
-          <AlertDescription>{salesError || returnsError || transactionsError || expensesError}</AlertDescription>
+          <AlertDescription>{salesError || returnsError || transactionsError || expensesError || productsError}</AlertDescription>
         </Alert>
       )}
 
