@@ -73,7 +73,15 @@ export default function DayEndReportPage() {
         return sum + s.items.reduce((itemSum, item) => itemSum + (item.price * item.quantity), 0);
       }, 0);
       
-      const totalDiscountsToday = salesToday.reduce((sum, s) => sum + (s.discountAmount || 0), 0);
+      const totalDiscountsToday = salesToday.reduce((sum, sale) => {
+          const saleDiscount = sale.items.reduce((itemSum, item) => {
+              if (item.isOfferItem) return itemSum; // Free items aren't discounted
+              const originalPrice = item.saleType === 'wholesale' && item.wholesalePrice ? item.wholesalePrice : item.price;
+              const discountOnItem = originalPrice - item.appliedPrice;
+              return itemSum + (discountOnItem * item.quantity);
+          }, 0);
+          return sum + saleDiscount;
+      }, 0);
       
       const valueOfReturnedGoodsToday = returnsToday.reduce((sum, r) => {
         const hasNonResellable = r.returnedItems.some(item => !item.isResellable);
@@ -424,4 +432,5 @@ export default function DayEndReportPage() {
     </>
   );
 }
+
 
