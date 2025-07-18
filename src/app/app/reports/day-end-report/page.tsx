@@ -67,7 +67,7 @@ export default function DayEndReportPage() {
       // --- Revenue Calculations ---
       let grossSalesToday = salesToday.reduce((sum, s) => {
         return sum + s.items.reduce((itemSum, item) => {
-          if (item.isOfferItem) return itemSum; // Free items don't contribute to gross sales
+          // The value is based on the original product price, not the applied price for discounts.
           return itemSum + (item.price * item.quantity);
         }, 0);
       }, 0);
