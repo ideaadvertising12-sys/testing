@@ -11,7 +11,7 @@ interface StatsCardProps {
   title: string;
   value: string | number;
   icon: LucideIcon;
-  description?: React.ReactNode;
+  description?: string;
   className?: string;
   iconColor?: string;
   trend?: number; // e.g., 12.5 for +12.5%
@@ -43,7 +43,7 @@ export function StatsCard({
         <div className="text-2xl font-bold font-headline text-foreground">
           {value}
         </div>
-        {description && <div className="text-xs text-muted-foreground pt-1">{description}</div>}
+        {description && <p className="text-xs text-muted-foreground pt-1">{description}</p>}
       </CardContent>
       {(trend !== undefined || additionalInfo) && (
         <CardFooter className="pt-0 pb-4 text-xs text-muted-foreground flex items-center justify-between">

@@ -71,7 +71,7 @@ export function CartView({
         .forEach(customer => {
           options.push({
             value: customer.id,
-            label: `${customer.name} (${customer.phone || 'N/A'})${customer.shopName ? ` - ${customer.shopName}` : ''}`,
+            label: `${customer.shopName} (${customer.phone || 'N/A'})${customer.shopName ? ` - ${customer.name}` : ''}`,
             customerObject: customer
           });
         });
@@ -80,7 +80,7 @@ export function CartView({
   }, [allCustomers]);
 
   const currentCustomerLabel = selectedCustomer
-    ? `${selectedCustomer.name} (${selectedCustomer.phone || 'N/A'})${selectedCustomer.shopName ? ` - ${selectedCustomer.shopName}` : ''}`
+    ? `${selectedCustomer.shopName} (${selectedCustomer.phone || 'N/A'})${selectedCustomer.shopName ? ` - ${selectedCustomer.name}` : ''}`
     : "Walk-in / Guest";
 
   return (

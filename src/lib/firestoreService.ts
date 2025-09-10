@@ -17,6 +17,8 @@ import {
   arrayUnion,
   DocumentReference,
   query,
+  onSnapshot,
+  orderBy,
 } from "firebase/firestore";
 import { format } from 'date-fns';
 import { 
@@ -50,6 +52,25 @@ export const getProducts = async (): Promise<Product[]> => {
   const productsCol = collection(db, "products").withConverter(productConverter);
   const productSnapshot = await getDocs(productsCol);
   return productSnapshot.docs.map(doc => doc.data());
+};
+
+export const subscribeToProducts = (
+  callback: (products: Product[]) => void, 
+  onError: (error: Error) => void
+): (() => void) => {
+  checkFirebase();
+  const q = query(collection(db, "products")).withConverter(productConverter);
+  const unsubscribe = onSnapshot(q, 
+    (snapshot) => {
+      const products = snapshot.docs.map(doc => doc.data());
+      callback(products);
+    },
+    (error) => {
+      console.error("Error subscribing to products:", error);
+      onError(error);
+    }
+  );
+  return unsubscribe;
 };
 
 export const getProduct = async (id: string): Promise<Product | null> => {
@@ -88,6 +109,25 @@ export const getCustomers = async (): Promise<Customer[]> => {
   const customersCol = collection(db, "customers").withConverter(customerConverter);
   const customerSnapshot = await getDocs(customersCol);
   return customerSnapshot.docs.map(doc => doc.data());
+};
+
+export const subscribeToCustomers = (
+  callback: (customers: Customer[]) => void, 
+  onError: (error: Error) => void
+): (() => void) => {
+  checkFirebase();
+  const q = query(collection(db, "customers")).withConverter(customerConverter);
+  const unsubscribe = onSnapshot(q, 
+    (snapshot) => {
+      const customers = snapshot.docs.map(doc => doc.data());
+      callback(customers);
+    },
+    (error) => {
+      console.error("Error subscribing to customers:", error);
+      onError(error);
+    }
+  );
+  return unsubscribe;
 };
 
 export const getCustomer = async (id: string): Promise<Customer | null> => {
@@ -236,11 +276,49 @@ export const getSales = async (): Promise<Sale[]> => {
   return salesSnapshot.docs.map(doc => doc.data());
 };
 
+export const subscribeToSales = (
+  callback: (sales: Sale[]) => void, 
+  onError: (error: Error) => void
+): (() => void) => {
+  checkFirebase();
+  const q = query(collection(db, "sales"), orderBy("saleDate", "desc")).withConverter(saleConverter);
+  const unsubscribe = onSnapshot(q, 
+    (snapshot) => {
+      const sales = snapshot.docs.map(doc => doc.data());
+      callback(sales);
+    },
+    (error) => {
+      console.error("Error subscribing to sales:", error);
+      onError(error);
+    }
+  );
+  return unsubscribe;
+};
+
 export const getReturns = async (): Promise<ReturnTransaction[]> => {
   checkFirebase();
   const returnsCol = collection(db, "returns").withConverter(returnTransactionConverter);
   const returnsSnapshot = await getDocs(returnsCol);
   return returnsSnapshot.docs.map(doc => doc.data());
+};
+
+export const subscribeToReturns = (
+  callback: (returns: ReturnTransaction[]) => void, 
+  onError: (error: Error) => void
+): (() => void) => {
+  checkFirebase();
+  const q = query(collection(db, "returns"), orderBy("returnDate", "desc")).withConverter(returnTransactionConverter);
+  const unsubscribe = onSnapshot(q, 
+    (snapshot) => {
+      const returns = snapshot.docs.map(doc => doc.data());
+      callback(returns);
+    },
+    (error) => {
+      console.error("Error subscribing to returns:", error);
+      onError(error);
+    }
+  );
+  return unsubscribe;
 };
 
 
@@ -545,3 +623,4 @@ export const updateProductStockTransactional = async (productId: string, quantit
     throw e; 
   }
 };
+

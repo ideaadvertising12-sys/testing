@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { AppLogo } from "@/components/AppLogo";
+import { Logo } from "@/components/Logo";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import React, { useState, FormEvent, useEffect, useRef } from "react";
@@ -102,7 +102,7 @@ export default function LoginPage() {
   return (
     <div className="relative min-h-screen w-full bg-background">
       <Image
-        src="https://images.unsplash.com/photo-1533628635777-112b2229cc2?q=80&w=2070&auto=format&fit=crop"
+        src="https://images.unsplash.com/photo-1668962857273-6cab55849320?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
         alt="Abstract background"
         fill
         className="object-cover"
@@ -117,9 +117,9 @@ export default function LoginPage() {
         <Card className="w-full max-w-sm shadow-2xl bg-card/80 dark:bg-card/60 backdrop-blur-lg border-white/10">
           <CardHeader className="space-y-1 text-center">
             <div className="mx-auto mb-4">
-              <AppLogo />
+              <Logo />
             </div>
-            <CardTitle className="text-3xl font-headline">Welcome to N Group Products</CardTitle>
+            <CardTitle className="text-3xl font-headline">Welcome  <br /> N Group Products</CardTitle>
             <CardDescription className="text-card-foreground/80">Enter your credentials to access your account</CardDescription>
           </CardHeader>
           <CardContent>

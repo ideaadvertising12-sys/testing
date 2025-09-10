@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -16,7 +17,6 @@ import { LogOut, Settings, User, Sun, Moon, Laptop, UserCog } from "lucide-react
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "next-themes";
 import Link from "next/link";
-import { AppLogo } from "@/components/AppLogo";
 
 export function UserProfile() {
   const { currentUser, logout } = useAuth();
@@ -54,9 +54,6 @@ export function UserProfile() {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-64" align="end" forceMount>
-        <div className="flex justify-center items-center p-2 border-b">
-           <AppLogo size="sm"/>
-        </div>
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
             <p className="text-sm font-medium leading-none">{userDisplay.name}</p>

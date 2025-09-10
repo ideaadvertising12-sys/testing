@@ -33,54 +33,55 @@ import { useReturns } from "@/hooks/useReturns";
 function reconcileOfferItems(
   currentCart: CartItem[],
   offerActive: boolean,
+  allProductsForLookup: Product[],
   excludedProductIds: Set<string>
 ): CartItem[] {
-  // Start with only paid items
-  let paidItems = currentCart.filter(item => !item.isOfferItem);
-  
-  if (!offerActive) {
-    // If offer is off, just return the paid items.
-    return paidItems;
+  const paidItems = currentCart.filter(item => !item.isOfferItem);
+
+  if (!offerActive || !allProductsForLookup || allProductsForLookup.length === 0) {
+    return paidItems; // If offer is off, return only paid items
   }
 
-  const productGroupQuantities: Record<string, number> = {};
+  const newOfferItems: CartItem[] = [];
+  const productGroupCounts: Record<string, { count: number; productDetails: Product; saleType: 'retail' | 'wholesale' }> = {};
 
-  // First, calculate the total quantity for each product (ID and saleType combination)
   paidItems.forEach(item => {
-    const key = `${item.id}-${item.saleType}`;
-    productGroupQuantities[key] = (productGroupQuantities[key] || 0) + item.quantity;
+    const key = `${item.id}-${item.saleType}`; // Group by product ID and sale type
+    const baseProduct = allProductsForLookup.find(p => p.id === item.id);
+    if (!baseProduct) return;
+    
+    if (!productGroupCounts[key]) {
+      productGroupCounts[key] = { count: 0, productDetails: baseProduct, saleType: item.saleType };
+    }
+    productGroupCounts[key].count += item.quantity;
   });
 
-  const newCart: CartItem[] = [];
-
-  // Re-calculate paid and free items based on totals
-  paidItems.forEach(item => {
-    const key = `${item.id}-${item.saleType}`;
-    const totalQuantity = productGroupQuantities[key];
-    
-    // If this item group has already been processed, skip it.
-    if (totalQuantity === -1) return;
-    
-    // Check if this product is excluded from the offer
-    if (excludedProductIds.has(item.id)) {
-        newCart.push({ ...item, quantity: totalQuantity, isOfferItem: false });
-    } else {
-        const freeItemsCount = Math.floor(totalQuantity / 13);
-        const paidItemsCount = totalQuantity - freeItemsCount;
-        
-        if (paidItemsCount > 0) {
-            newCart.push({ ...item, quantity: paidItemsCount, isOfferItem: false });
-        }
-        if (freeItemsCount > 0) {
-            newCart.push({ ...item, quantity: freeItemsCount, appliedPrice: 0, isOfferItem: true });
-        }
+  Object.values(productGroupCounts).forEach(group => {
+    if (excludedProductIds.has(group.productDetails.id)) {
+        return; // Skip generating offer for this item
     }
     
-    // Mark this group as processed
-    productGroupQuantities[key] = -1;
+    const numberOfFreeUnits = Math.floor(group.count / 12);
+    if (numberOfFreeUnits > 0) {
+      // Stock check: Ensure adding free items doesn't exceed stock
+      if ((group.count + numberOfFreeUnits) <= group.productDetails.stock) {
+        newOfferItems.push({
+          ...group.productDetails,
+          id: group.productDetails.id,
+          name: group.productDetails.name,
+          category: group.productDetails.category,
+          price: group.productDetails.price,
+          sku: group.productDetails.sku,
+          imageUrl: group.productDetails.imageUrl,
+          quantity: numberOfFreeUnits,
+          appliedPrice: 0,
+          saleType: group.saleType,
+          isOfferItem: true,
+        });
+      }
+    }
   });
-  
-  return newCart;
+  return [...paidItems, ...newOfferItems];
 }
 
 
@@ -190,7 +191,7 @@ export default function SalesPage() {
       setExcludedOfferProductIds(newExclusions);
     }
     // Re-run reconciliation on the cart with the new offer status
-    setCartItems(prev => reconcileOfferItems(prev, checked, newExclusions));
+    setCartItems(prev => reconcileOfferItems(prev, checked, allProducts, newExclusions));
   };
 
 
@@ -268,11 +269,11 @@ export default function SalesPage() {
       .reduce((sum, item) => sum + item.quantity, 0);
 
     // Check against available stock
-    if (totalQuantityOfProductInCart + 1 > productToAdd.stock) {
+    if (totalQuantityOfProductInCart >= productToAdd.stock) {
       toast({
         variant: "destructive",
         title: "Out of Stock",
-        description: `Cannot add more ${productToAdd.name}. Available stock: ${productToAdd.stock}.`,
+        description: `Cannot add more ${productToAdd.name}. All available stock (${productToAdd.stock} units) is already in the cart.`,
       });
       return; // Exit if no more stock is available
     }
@@ -301,7 +302,7 @@ export default function SalesPage() {
           isOfferItem: false 
         });
       }
-      return reconcileOfferItems(updatedCart, isBuy12Get1FreeActive, excludedOfferProductIds);
+      return reconcileOfferItems(updatedCart, isBuy12Get1FreeActive, allProducts, excludedOfferProductIds);
     });
   
     if (isMobile && !isCartOpen) {
@@ -316,25 +317,18 @@ export default function SalesPage() {
     const productInStock = sourceProducts.find(p => p.id === productId);
     if (!productInStock) return;
   
+    const targetQuantity = Math.max(0, Math.min(quantity, productInStock.stock));
+  
     setCartItems(prevItems => {
-      // Find the total quantity of this item type currently in the cart (excluding the one being changed)
-      const otherItemsQuantity = prevItems
-        .filter(item => item.id === productId && item.saleType !== saleType)
-        .reduce((sum, item) => sum + item.quantity, 0);
-
-      // Ensure the new total quantity doesn't exceed stock
-      const targetQuantity = Math.max(0, Math.min(quantity, productInStock.stock - otherItemsQuantity));
-
-      // Rebuild the cart with the new quantity for the target item
-      const updatedCart = prevItems
+      let updatedCart = prevItems
         .map(item =>
           item.id === productId && item.saleType === saleType && !item.isOfferItem
             ? { ...item, quantity: targetQuantity }
             : item
         )
-        .filter(item => item.quantity > 0); // Remove items if quantity becomes 0
-
-      return reconcileOfferItems(updatedCart, isBuy12Get1FreeActive, excludedOfferProductIds);
+        .filter(item => (item.isOfferItem) || (!item.isOfferItem && item.quantity > 0)); 
+        
+      return reconcileOfferItems(updatedCart, isBuy12Get1FreeActive, allProducts, excludedOfferProductIds);
     });
   };
 
@@ -362,7 +356,7 @@ export default function SalesPage() {
         const updatedCart = prevItems.filter(item =>
             !(item.id === productId && item.saleType === saleType && item.isOfferItem === isOfferItem)
         );
-        return reconcileOfferItems(updatedCart, isBuy12Get1FreeActive, newExclusions);
+        return reconcileOfferItems(updatedCart, isBuy12Get1FreeActive, allProducts, newExclusions);
     });
   };
 
