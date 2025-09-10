@@ -294,7 +294,7 @@ export function InvoiceDataTable({ sales: initialSales, isLoading, error, refetc
                           <p className="text-xs text-muted-foreground">
                             {format(typeof sale.saleDate === 'string' ? parseISO(sale.saleDate) : sale.saleDate, "PP")}
                           </p>
-                          <p className="text-xs mt-1">{sale.customerName || "Walk-in"}</p>
+                          <p className="text-xs mt-1">{sale.customerShopName || sale.customerName || "Walk-in"}</p>
                         </div>
                         <div className="text-right">
                           <p className="font-medium text-sm">{formatCurrency(sale.totalAmount)}</p>
@@ -386,7 +386,7 @@ export function InvoiceDataTable({ sales: initialSales, isLoading, error, refetc
                       <TableRow key={sale.id} className={cn(sale.status === 'cancelled' && 'bg-muted/40 text-muted-foreground hover:bg-muted/50')}>
                         <TableCell className="font-mono text-xs">{sale.id}</TableCell>
                         <TableCell className="text-xs">{format(typeof sale.saleDate === 'string' ? parseISO(sale.saleDate) : sale.saleDate, "PP, p")}</TableCell>
-                        <TableCell className="text-sm">{sale.customerName || "Walk-in"}</TableCell>
+                        <TableCell className="text-sm">{sale.customerShopName || sale.customerName || "Walk-in"}</TableCell>
                         <TableCell className="text-right font-medium text-sm">{formatCurrency(sale.totalAmount)}</TableCell>
                         <TableCell className="text-right text-sm">{formatCurrency(sale.totalAmountPaid)}</TableCell>
                         <TableCell className={cn("text-right text-sm", (sale.outstandingBalance ?? 0) > 0 && sale.status !== 'cancelled' && "text-destructive font-semibold")}>{formatCurrency(sale.outstandingBalance)}</TableCell>
