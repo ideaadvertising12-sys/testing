@@ -63,6 +63,14 @@ export function CartView({
   
   const [openCustomerPopover, setOpenCustomerPopover] = React.useState(false);
 
+  const getCustomerDisplayLabel = (customer: Customer | null): string => {
+    if (!customer) return "Walk-in / Guest";
+    if (customer.shopName) {
+      return `${customer.shopName} (${customer.name})`;
+    }
+    return customer.name;
+  };
+
   const customerOptions = React.useMemo(() => {
     const options = [{ value: "guest", label: "Walk-in / Guest", customerObject: null as Customer | null }];
     if (allCustomers) {
@@ -71,7 +79,7 @@ export function CartView({
         .forEach(customer => {
           options.push({
             value: customer.id,
-            label: `${customer.shopName} (${customer.phone || 'N/A'})${customer.shopName ? ` - ${customer.name}` : ''}`,
+            label: getCustomerDisplayLabel(customer),
             customerObject: customer
           });
         });
@@ -79,9 +87,8 @@ export function CartView({
     return options;
   }, [allCustomers]);
 
-  const currentCustomerLabel = selectedCustomer
-    ? `${selectedCustomer.shopName} (${selectedCustomer.phone || 'N/A'})${selectedCustomer.shopName ? ` - ${selectedCustomer.name}` : ''}`
-    : "Walk-in / Guest";
+  const currentCustomerLabel = getCustomerDisplayLabel(selectedCustomer);
+
 
   return (
     <Card className={cn("rounded-lg border bg-card text-card-foreground shadow-sm flex flex-col h-full overflow-hidden", className)}>
