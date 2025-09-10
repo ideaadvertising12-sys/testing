@@ -37,6 +37,15 @@ interface ReturnItem extends CartItem {
 
 const formatCurrency = (amount: number) => `Rs. ${amount.toFixed(2)}`;
 
+const getCustomerDisplayLabel = (customer: Customer | null): string => {
+    if (!customer) return "Select a customer...";
+    if (customer.shopName) {
+      return `${customer.shopName} (${customer.name})`;
+    }
+    return customer.name;
+};
+
+
 export default function ReturnsPage() {
   const { customers, isLoading: isLoadingCustomers } = useCustomers();
   const { sales, isLoading: isLoadingSales, refetchSales } = useSalesData();
@@ -100,7 +109,7 @@ export default function ReturnsPage() {
       .filter(c => c.status !== 'pending')
       .map(customer => ({
       value: customer.id,
-      label: `${customer.name} (${customer.shopName || customer.phone})`,
+      label: getCustomerDisplayLabel(customer),
       customerObject: customer
     }));
   }, [customers]);
@@ -571,9 +580,7 @@ export default function ReturnsPage() {
   }
 
   const isLoading = isLoadingCustomers || isLoadingSales || isLoadingProducts || isLoadingReturns;
-  const currentCustomerLabel = selectedCustomer
-    ? `${selectedCustomer.name} (${selectedCustomer.shopName || selectedCustomer.phone})`
-    : "Select a customer...";
+  const currentCustomerLabel = getCustomerDisplayLabel(selectedCustomer);
 
   const availableProductsForExchange = useMemo(() => {
     if (viewMode === 'main') {
@@ -600,7 +607,18 @@ export default function ReturnsPage() {
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                <Command filter={(value, search) => customerOptions.find(opt => opt.value === value)?.label.toLowerCase().includes(search.toLowerCase()) ? 1 : 0}>
+                <Command 
+                  filter={(value, search) => {
+                    const option = customerOptions.find(opt => opt.value === value);
+                    if (!option) return 0;
+                    const label = typeof option.label === 'string' ? option.label.toLowerCase() : '';
+                    const name = option.customerObject?.name ? option.customerObject.name.toLowerCase() : '';
+                    const shopName = option.customerObject?.shopName ? option.customerObject.shopName.toLowerCase() : '';
+                    const phone = option.customerObject?.phone ? option.customerObject.phone.toLowerCase() : '';
+                    const searchableString = `${label} ${name} ${shopName} ${phone}`;
+                    return searchableString.includes(search.toLowerCase()) ? 1 : 0;
+                  }}
+                >
                   <CommandInput placeholder="Search by name, shop, or phone..." />
                   <CommandList>
                     <CommandEmpty>No customer found.</CommandEmpty>
@@ -974,3 +992,5 @@ export default function ReturnsPage() {
     </>
   );
 }
+
+    
