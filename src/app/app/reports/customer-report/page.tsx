@@ -30,7 +30,7 @@ export default function CustomerReportPage() {
   const router = useRouter();
 
   const { customers, isLoading: isLoadingCustomers } = useCustomers();
-  const { sales, isLoading: isLoadingSales } = useSalesData(true);
+  const { sales, isLoading: isLoadingSales } = useSalesData();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [showOnlyWithOutstanding, setShowOnlyWithOutstanding] = useState(false);

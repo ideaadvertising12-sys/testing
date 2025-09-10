@@ -163,7 +163,7 @@ export default function FullReportPage() {
   const { currentUser } = useAuth();
   const router = useRouter();
   
-  const { sales: liveSales, isLoading: isLoadingSales, error: salesError } = useSalesData(false);
+  const { sales: liveSales, isLoading: isLoadingSales, error: salesError } = useSalesData();
   const { returns, isLoading: isLoadingReturns, error: returnsError } = useReturns();
   const { transactions: stockTransactions, isLoading: isLoadingStock, error: stockError } = useStockTransactions();
   const { products: allProducts, isLoading: isLoadingProducts, error: productsError } = useProducts();

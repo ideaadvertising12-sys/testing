@@ -39,7 +39,7 @@ const formatCurrency = (amount: number) => `Rs. ${amount.toFixed(2)}`;
 
 export default function ReturnsPage() {
   const { customers, isLoading: isLoadingCustomers } = useCustomers();
-  const { sales, isLoading: isLoadingSales, refetchSales } = useSalesData(false);
+  const { sales, isLoading: isLoadingSales, refetchSales } = useSalesData();
   const { products: allProducts, isLoading: isLoadingProducts, refetch: refetchProducts } = useProducts();
   const { vehicles, isLoading: isLoadingVehicles } = useVehicles();
   const { returns, isLoading: isLoadingReturns, refetchReturns } = useReturns();

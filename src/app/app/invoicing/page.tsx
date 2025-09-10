@@ -16,8 +16,8 @@ export default function InvoicingPage() {
   const { currentUser } = useAuth();
   const router = useRouter();
   
-  // Use the centralized hook for fetching sales data with real-time polling
-  const { sales, isLoading, error, totalRevenue, refetchSales } = useSalesData(true);
+  // The hook now handles real-time updates by default.
+  const { sales, isLoading, error, totalRevenue, refetchSales } = useSalesData();
 
   useEffect(() => {
     if (currentUser === null) { // Explicitly check for not logged in

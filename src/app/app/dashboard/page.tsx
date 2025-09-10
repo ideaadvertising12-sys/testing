@@ -44,7 +44,7 @@ export default function DashboardPage() {
     sales: allSales, 
     isLoading: isLoadingSales, 
     error: salesError, 
-  } = useSalesData(true);
+  } = useSalesData();
   const { 
     products: allProducts, 
     isLoading: isLoadingProducts, 
