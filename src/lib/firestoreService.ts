@@ -44,6 +44,8 @@ import {
   type FirestoreReturnTransaction,
   type Payment,
   type FirestorePayment,
+  expenseConverter,
+  type Expense,
 } from "./types";
 
 // Product Services
@@ -315,6 +317,25 @@ export const subscribeToReturns = (
     },
     (error) => {
       console.error("Error subscribing to returns:", error);
+      onError(error);
+    }
+  );
+  return unsubscribe;
+};
+
+export const subscribeToExpenses = (
+  callback: (expenses: Expense[]) => void,
+  onError: (error: Error) => void
+): (() => void) => {
+  checkFirebase();
+  const q = query(collection(db, "expenses"), orderBy("expenseDate", "desc")).withConverter(expenseConverter);
+  const unsubscribe = onSnapshot(q,
+    (snapshot) => {
+      const expenses = snapshot.docs.map(doc => doc.data());
+      callback(expenses);
+    },
+    (error) => {
+      console.error("Error subscribing to expenses:", error);
       onError(error);
     }
   );
@@ -623,4 +644,3 @@ export const updateProductStockTransactional = async (productId: string, quantit
     throw e; 
   }
 };
-

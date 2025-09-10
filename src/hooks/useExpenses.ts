@@ -4,6 +4,7 @@
 import { useState, useEffect, useCallback } from "react";
 import type { Expense } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
+import { subscribeToExpenses } from "@/lib/firestoreService"; // Updated import
 
 const API_BASE_URL = "/api/expenses";
 
@@ -13,29 +14,27 @@ export function useExpenses() {
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const fetchExpenses = useCallback(async () => {
+  const refetchExpenses = useCallback(() => {
     setIsLoading(true);
-    setError(null);
-    try {
-      const response = await fetch(API_BASE_URL);
-      if (!response.ok) throw new Error("Failed to fetch expenses");
-      const data = await response.json();
-      const processedData = data.map((e: any) => ({
-        ...e,
-        expenseDate: new Date(e.expenseDate),
-      }));
-      setExpenses(processedData);
-    } catch (err: any) {
-      setError(err.message);
-      toast({ variant: "destructive", title: "Error", description: "Could not load expenses." });
-    } finally {
-      setIsLoading(false);
-    }
+    const unsubscribe = subscribeToExpenses(
+      (newExpenses) => {
+        setExpenses(newExpenses);
+        setIsLoading(false);
+        setError(null);
+      },
+      (err) => {
+        setError(err.message);
+        toast({ variant: "destructive", title: "Error", description: "Could not load expenses." });
+        setIsLoading(false);
+      }
+    );
+    return unsubscribe;
   }, [toast]);
 
   useEffect(() => {
-    fetchExpenses();
-  }, [fetchExpenses]);
+    const unsubscribe = refetchExpenses();
+    return () => unsubscribe();
+  }, [refetchExpenses]);
 
   const addExpense = async (expenseData: Omit<Expense, "id">): Promise<Expense | null> => {
     try {
@@ -48,8 +47,9 @@ export function useExpenses() {
         const errorData = await response.json();
         throw new Error(errorData.error || "Failed to add expense");
       }
+      // Listener will handle UI update
       const newExpense = await response.json();
-      await fetchExpenses(); // Refetch to update the list
+      toast({ title: "Success", description: "Expense added successfully." });
       return newExpense;
     } catch (err: any) {
       toast({ variant: "destructive", title: "Error", description: err.message });
@@ -66,7 +66,7 @@ export function useExpenses() {
             const errorData = await response.json();
             throw new Error(errorData.error || "Failed to delete expense");
         }
-        await fetchExpenses();
+        // Listener will handle UI update
         toast({ title: "Success", description: "Expense deleted." });
         return true;
     } catch (err: any) {
@@ -75,5 +75,5 @@ export function useExpenses() {
     }
   };
 
-  return { expenses, isLoading, error, addExpense, deleteExpense, refetchExpenses: fetchExpenses };
+  return { expenses, isLoading, error, addExpense, deleteExpense, refetchExpenses };
 }
