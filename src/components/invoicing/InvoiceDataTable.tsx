@@ -82,6 +82,7 @@ export function InvoiceDataTable({ sales: initialSales, isLoading, error, refetc
       const matchesSearchTerm = 
         (sale.id && sale.id.toLowerCase().includes(lowerSearchTerm)) ||
         (sale.customerName && sale.customerName.toLowerCase().includes(lowerSearchTerm)) ||
+        (sale.customerShopName && sale.customerShopName.toLowerCase().includes(lowerSearchTerm)) ||
         (sale.paymentSummary && sale.paymentSummary.toLowerCase().includes(lowerSearchTerm)) ||
         (sale.chequeDetails?.number && sale.chequeDetails.number.toLowerCase().includes(lowerSearchTerm)) ||
         (sale.bankTransferDetails?.referenceNumber && sale.bankTransferDetails.referenceNumber.toLowerCase().includes(lowerSearchTerm));
@@ -197,7 +198,7 @@ export function InvoiceDataTable({ sales: initialSales, isLoading, error, refetc
             <div className="relative flex-grow">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search ID, Customer, Payment Summary, Cheque#, Ref#"
+                placeholder="Search ID, Customer, Shop, Payment..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-9 h-10 w-full"
