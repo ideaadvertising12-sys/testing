@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback } from "react";
 import type { Expense } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
-import { subscribeToExpenses } from "@/lib/firestoreService"; // Updated import
+import { getExpenses } from "@/lib/firestoreService";
 
 const API_BASE_URL = "/api/expenses";
 
@@ -14,26 +14,22 @@ export function useExpenses() {
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const refetchExpenses = useCallback(() => {
+  const refetchExpenses = useCallback(async () => {
     setIsLoading(true);
-    const unsubscribe = subscribeToExpenses(
-      (newExpenses) => {
-        setExpenses(newExpenses);
-        setIsLoading(false);
-        setError(null);
-      },
-      (err) => {
-        setError(err.message);
-        toast({ variant: "destructive", title: "Error", description: "Could not load expenses." });
-        setIsLoading(false);
-      }
-    );
-    return unsubscribe;
+    try {
+      const fetchedExpenses = await getExpenses();
+      setExpenses(fetchedExpenses);
+      setError(null);
+    } catch (err: any) {
+      setError(err.message);
+      toast({ variant: "destructive", title: "Error", description: "Could not load expenses." });
+    } finally {
+      setIsLoading(false);
+    }
   }, [toast]);
 
   useEffect(() => {
-    const unsubscribe = refetchExpenses();
-    return () => unsubscribe();
+    refetchExpenses();
   }, [refetchExpenses]);
 
   const addExpense = async (expenseData: Omit<Expense, "id">): Promise<Expense | null> => {
@@ -47,8 +43,8 @@ export function useExpenses() {
         const errorData = await response.json();
         throw new Error(errorData.error || "Failed to add expense");
       }
-      // Listener will handle UI update
       const newExpense = await response.json();
+      await refetchExpenses(); // Refetch after adding
       toast({ title: "Success", description: "Expense added successfully." });
       return newExpense;
     } catch (err: any) {
@@ -66,7 +62,7 @@ export function useExpenses() {
             const errorData = await response.json();
             throw new Error(errorData.error || "Failed to delete expense");
         }
-        // Listener will handle UI update
+        await refetchExpenses(); // Refetch after deleting
         toast({ title: "Success", description: "Expense deleted." });
         return true;
     } catch (err: any) {
@@ -75,5 +71,4 @@ export function useExpenses() {
     }
   };
 
-  return { expenses, isLoading, error, addExpense, deleteExpense, refetchExpenses };
-}
+  return { expenses, isLoading, error, addExpense, deleteExpense, ref
