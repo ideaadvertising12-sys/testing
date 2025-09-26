@@ -71,4 +71,5 @@ export function useExpenses() {
     }
   };
 
-  return { expenses, isLoading, error, addExpense, deleteExpense, ref
+  return { expenses, isLoading, error, addExpense, deleteExpense, refetchExpenses };
+}

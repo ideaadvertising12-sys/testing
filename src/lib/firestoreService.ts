@@ -56,25 +56,6 @@ export const getProducts = async (): Promise<Product[]> => {
   return productSnapshot.docs.map(doc => doc.data());
 };
 
-export const subscribeToProducts = (
-  callback: (products: Product[]) => void, 
-  onError: (error: Error) => void
-): (() => void) => {
-  checkFirebase();
-  const q = query(collection(db, "products")).withConverter(productConverter);
-  const unsubscribe = onSnapshot(q, 
-    (snapshot) => {
-      const products = snapshot.docs.map(doc => doc.data());
-      callback(products);
-    },
-    (error) => {
-      console.error("Error subscribing to products:", error);
-      onError(error);
-    }
-  );
-  return unsubscribe;
-};
-
 export const getProduct = async (id: string): Promise<Product | null> => {
   checkFirebase();
   const productDocRef = doc(db, "products", id).withConverter(productConverter);
@@ -111,25 +92,6 @@ export const getCustomers = async (): Promise<Customer[]> => {
   const customersCol = collection(db, "customers").withConverter(customerConverter);
   const customerSnapshot = await getDocs(customersCol);
   return customerSnapshot.docs.map(doc => doc.data());
-};
-
-export const subscribeToCustomers = (
-  callback: (customers: Customer[]) => void, 
-  onError: (error: Error) => void
-): (() => void) => {
-  checkFirebase();
-  const q = query(collection(db, "customers")).withConverter(customerConverter);
-  const unsubscribe = onSnapshot(q, 
-    (snapshot) => {
-      const customers = snapshot.docs.map(doc => doc.data());
-      callback(customers);
-    },
-    (error) => {
-      console.error("Error subscribing to customers:", error);
-      onError(error);
-    }
-  );
-  return unsubscribe;
 };
 
 export const getCustomer = async (id: string): Promise<Customer | null> => {
@@ -278,25 +240,6 @@ export const getSales = async (): Promise<Sale[]> => {
   return salesSnapshot.docs.map(doc => doc.data());
 };
 
-export const subscribeToSales = (
-  callback: (sales: Sale[]) => void, 
-  onError: (error: Error) => void
-): (() => void) => {
-  checkFirebase();
-  const q = query(collection(db, "sales"), orderBy("saleDate", "desc")).withConverter(saleConverter);
-  const unsubscribe = onSnapshot(q, 
-    (snapshot) => {
-      const sales = snapshot.docs.map(doc => doc.data());
-      callback(sales);
-    },
-    (error) => {
-      console.error("Error subscribing to sales:", error);
-      onError(error);
-    }
-  );
-  return unsubscribe;
-};
-
 export const getReturns = async (): Promise<ReturnTransaction[]> => {
   checkFirebase();
   const returnsCol = collection(db, "returns").withConverter(returnTransactionConverter);
@@ -304,42 +247,11 @@ export const getReturns = async (): Promise<ReturnTransaction[]> => {
   return returnsSnapshot.docs.map(doc => doc.data());
 };
 
-export const subscribeToReturns = (
-  callback: (returns: ReturnTransaction[]) => void, 
-  onError: (error: Error) => void
-): (() => void) => {
-  checkFirebase();
-  const q = query(collection(db, "returns"), orderBy("returnDate", "desc")).withConverter(returnTransactionConverter);
-  const unsubscribe = onSnapshot(q, 
-    (snapshot) => {
-      const returns = snapshot.docs.map(doc => doc.data());
-      callback(returns);
-    },
-    (error) => {
-      console.error("Error subscribing to returns:", error);
-      onError(error);
-    }
-  );
-  return unsubscribe;
-};
-
-export const subscribeToExpenses = (
-  callback: (expenses: Expense[]) => void,
-  onError: (error: Error) => void
-): (() => void) => {
+export const getExpenses = async (): Promise<Expense[]> => {
   checkFirebase();
   const q = query(collection(db, "expenses"), orderBy("expenseDate", "desc")).withConverter(expenseConverter);
-  const unsubscribe = onSnapshot(q,
-    (snapshot) => {
-      const expenses = snapshot.docs.map(doc => doc.data());
-      callback(expenses);
-    },
-    (error) => {
-      console.error("Error subscribing to expenses:", error);
-      onError(error);
-    }
-  );
-  return unsubscribe;
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map(doc => doc.data());
 };
 
 

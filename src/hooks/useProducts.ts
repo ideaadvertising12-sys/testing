@@ -113,4 +113,24 @@ export function useProducts() {
         description: "The product has been successfully deleted.",
       });
       return true;
-    } catch (err: any
+    } catch (err: any) {
+      console.error("Error deleting product:", err);
+      toast({
+        variant: "destructive",
+        title: "Failed to Delete Product",
+        description: err.message,
+      });
+      return false;
+    }
+  };
+
+  return {
+    products,
+    isLoading,
+    error,
+    addProduct,
+    updateProduct,
+    deleteProduct,
+    refetch,
+  };
+}
