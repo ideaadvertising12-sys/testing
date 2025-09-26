@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback } from "react";
 import type { Sale } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
-import { subscribeToSales } from "@/lib/firestoreService";
+import { getSales } from "@/lib/firestoreService";
 
 export function useSalesData() {
   const [sales, setSales] = useState<Sale[]>([]);
@@ -12,37 +12,27 @@ export function useSalesData() {
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const refetchSales = useCallback(() => {
+  const refetchSales = useCallback(async () => {
     setIsLoading(true);
-    
-    // The listener handles real-time updates.
-    const unsubscribe = subscribeToSales(
-      (newSales) => {
-        setSales(newSales);
-        setIsLoading(false);
-        setError(null);
-      },
-      (err) => {
-        const errorMessage = err.message || "An unknown error occurred while fetching sales data.";
-        setError(errorMessage);
-        toast({
-          variant: "destructive",
-          title: "Error Fetching Sales Data",
-          description: errorMessage,
-        });
-        setIsLoading(false);
-      }
-    );
-
-    return unsubscribe;
-
+    try {
+      const fetchedSales = await getSales();
+      setSales(fetchedSales);
+      setError(null);
+    } catch (err: any) {
+      const errorMessage = err.message || "An unknown error occurred while fetching sales.";
+      setError(errorMessage);
+      toast({
+        variant: "destructive",
+        title: "Error Fetching Sales",
+        description: errorMessage,
+      });
+    } finally {
+      setIsLoading(false);
+    }
   }, [toast]);
 
   useEffect(() => {
-    const unsubscribe = refetchSales();
-    
-    // Cleanup subscription on component unmount
-    return () => unsubscribe();
+    refetchSales();
   }, [refetchSales]);
 
   const totalRevenue = sales.reduce((sum, sale) => sum + (sale.status !== 'cancelled' ? sale.totalAmount : 0), 0);

@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback } from "react";
 import type { ReturnTransaction } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
-import { subscribeToReturns } from "@/lib/firestoreService";
+import { getReturns } from "@/lib/firestoreService";
 
 export function useReturns() {
   const [returns, setReturns] = useState<ReturnTransaction[]>([]);
@@ -12,31 +12,27 @@ export function useReturns() {
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const refetchReturns = useCallback(() => {
+  const refetchReturns = useCallback(async () => {
     setIsLoading(true);
-    const unsubscribe = subscribeToReturns(
-      (newReturns) => {
-        setReturns(newReturns); // The query in firestoreService already sorts by date
+    try {
+      const fetchedReturns = await getReturns();
+      setReturns(fetchedReturns); // The query in firestoreService already sorts by date
+      setError(null);
+    } catch (err: any) {
+      const errorMessage = err.message || "An unknown error occurred while fetching returns.";
+      setError(errorMessage);
+      toast({
+        variant: "destructive",
+        title: "Error Fetching Returns",
+        description: errorMessage,
+      });
+    } finally {
         setIsLoading(false);
-        setError(null);
-      },
-      (err) => {
-        const errorMessage = err.message || "An unknown error occurred while fetching returns.";
-        setError(errorMessage);
-        toast({
-          variant: "destructive",
-          title: "Error Fetching Returns",
-          description: errorMessage,
-        });
-        setIsLoading(false);
-      }
-    );
-    return unsubscribe;
+    }
   }, [toast]);
 
   useEffect(() => {
-    const unsubscribe = refetchReturns();
-    return () => unsubscribe();
+    refetchReturns();
   }, [refetchReturns]);
 
   return {
