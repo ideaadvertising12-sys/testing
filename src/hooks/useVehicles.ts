@@ -14,16 +14,13 @@ export function useVehicles() {
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  useEffect(() => {
+  const fetchVehicles = useCallback(async () => {
     setIsLoading(true);
     setError(null);
-
-    const unsubscribe = VehicleService.subscribeToVehicles(
-      (newVehicles) => {
-        setVehicles(newVehicles.sort((a, b) => a.vehicleNumber.localeCompare(b.vehicleNumber)));
-        setIsLoading(false);
-      },
-      (err) => {
+    try {
+        const fetchedVehicles = await VehicleService.getAllVehicles();
+        setVehicles(fetchedVehicles.sort((a, b) => a.vehicleNumber.localeCompare(b.vehicleNumber)));
+    } catch (err: any) {
         const errorMessage = err.message || "An unknown error occurred while fetching vehicles.";
         setError(errorMessage);
         toast({
@@ -31,15 +28,16 @@ export function useVehicles() {
           title: "Error Fetching Vehicles",
           description: errorMessage,
         });
+    } finally {
         setIsLoading(false);
-      }
-    );
-
-    return () => unsubscribe();
+    }
   }, [toast]);
 
+  useEffect(() => {
+    fetchVehicles();
+  }, [fetchVehicles]);
+
   const addVehicle = async (vehicleData: Omit<Vehicle, "id">): Promise<Vehicle | null> => {
-    setIsLoading(true);
     try {
       const response = await fetch(API_BASE_URL, {
         method: "POST",
@@ -51,7 +49,7 @@ export function useVehicles() {
         throw new Error(errorData.message || "Failed to add vehicle.");
       }
       const newVehicle = await response.json();
-      // The listener will update the state.
+      await fetchVehicles(); // Refetch
       toast({
         title: "Vehicle Added",
         description: `Vehicle ${newVehicle.vehicleNumber} has been successfully added.`,
@@ -64,13 +62,11 @@ export function useVehicles() {
         title: "Failed to Add Vehicle",
         description: err.message,
       });
-      setIsLoading(false); // Reset loading on error
       return null;
     }
   };
 
   const updateVehicle = async (id: string, vehicleData: Partial<Omit<Vehicle, "id">>): Promise<Vehicle | null> => {
-    setIsLoading(true);
     try {
       const response = await fetch(`${API_BASE_URL}?id=${id}`, {
         method: "PUT",
@@ -81,6 +77,7 @@ export function useVehicles() {
         const errorData = await response.json().catch(() => ({ message: "Failed to update vehicle" }));
         throw new Error(errorData.message || `Failed to update vehicle.`);
       }
+      await fetchVehicles(); // Refetch
       toast({
         title: "Vehicle Updated",
         description: `Vehicle ${vehicleData.vehicleNumber || ''} has been successfully updated.`,
@@ -94,13 +91,11 @@ export function useVehicles() {
         title: "Failed to Update Vehicle",
         description: err.message,
       });
-      setIsLoading(false);
       return null;
     }
   };
 
   const deleteVehicle = async (id: string): Promise<boolean> => {
-    setIsLoading(true);
     try {
       const response = await fetch(`${API_BASE_URL}?id=${id}`, {
         method: "DELETE",
@@ -109,6 +104,7 @@ export function useVehicles() {
         const errorData = await response.json().catch(() => ({ message: "Failed to delete vehicle" }));
         throw new Error(errorData.message || `Failed to delete vehicle.`);
       }
+      await fetchVehicles(); // Refetch
       toast({
         title: "Vehicle Deleted",
         description: "The vehicle has been successfully deleted.",
@@ -121,7 +117,6 @@ export function useVehicles() {
         title: "Failed to Delete Vehicle",
         description: err.message,
       });
-      setIsLoading(false);
       return false;
     }
   };

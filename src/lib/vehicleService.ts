@@ -66,22 +66,4 @@ export const VehicleService = {
     const docRef = doc(db, 'vehicles', id);
     await deleteDoc(docRef);
   },
-
-  subscribeToVehicles(
-    callback: (vehicles: Vehicle[]) => void,
-    onError?: (error: Error) => void
-  ): () => void {
-    checkFirebase();
-    const q = query(collection(db, 'vehicles')).withConverter(vehicleConverter);
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const vehicles = snapshot.docs.map(docSnapshot => docSnapshot.data());
-      callback(vehicles);
-    }, (error) => {
-      console.error("Error subscribing to vehicles:", error);
-      if (onError) {
-        onError(error);
-      }
-    });
-    return unsubscribe;
-  }
 };

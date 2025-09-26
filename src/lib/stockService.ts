@@ -51,29 +51,4 @@ export const StockService = {
     // Sorting on the client side to avoid needing a composite index
     return transactions.sort((a, b) => b.transactionDate.getTime() - a.transactionDate.getTime());
   },
-
-  // Note: Real-time subscription might be intensive for all transactions.
-  // Use with caution or with more specific queries if performance becomes an issue.
-  subscribeToAllTransactions(
-    callback: (transactions: StockTransaction[]) => void,
-    onError?: (error: Error) => void
-    ): () => void {
-    checkFirebase();
-    const q = query(
-      collection(db, 'stockTransactions').withConverter(stockTransactionConverter as any),
-      orderBy('transactionDate', 'desc')
-    );
-    
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const transactions = snapshot.docs.map(doc => doc.data() as StockTransaction);
-      callback(transactions);
-    }, (error) => {
-      console.error("Error subscribing to stock transactions:", error);
-      if (onError) {
-        onError(error);
-      }
-    });
-    
-    return unsubscribe;
-  }
 };
