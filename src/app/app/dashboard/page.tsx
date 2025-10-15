@@ -44,6 +44,7 @@ export default function DashboardPage() {
     sales: allSales, 
     isLoading: isLoadingSales, 
     error: salesError, 
+    totalRevenue: netTotalRevenue,
   } = useSalesData();
   const { 
     products: allProducts, 
@@ -57,98 +58,20 @@ export default function DashboardPage() {
   const {
     revenueToday,
     salesCountToday,
-    grossRevenueToday,
-    totalDeductionsToday,
   } = useMemo(() => {
-    if (isLoadingSales || isLoadingReturns || isLoadingExpenses || isLoadingStock || !allSales || !returns || !expenses || !stockTransactions || !allProducts) {
-      return { revenueToday: 0, salesCountToday: 0, grossRevenueToday: 0, totalDeductionsToday: 0 };
+    if (isLoadingSales || !allSales) {
+      return { revenueToday: 0, salesCountToday: 0 };
     }
   
     const today = new Date();
     const activeSalesToday = allSales.filter(s => isSameDay(s.saleDate, today) && s.status !== 'cancelled');
-    const cancelledSalesToday = allSales.filter(s => s.status === 'cancelled' && s.updatedAt && isSameDay(s.updatedAt, today));
-    const returnsToday = returns.filter(r => isSameDay(r.returnDate, today));
-    const expensesTodayList = expenses.filter(exp => isSameDay(exp.expenseDate, today));
-    const samplesToday = stockTransactions.filter(tx => tx.type === 'ISSUE_SAMPLE' && isSameDay(tx.transactionDate, today));
-
-    // 1. Gross Revenue for today
-    const grossRevenue = activeSalesToday.reduce((sum, sale) => sum + sale.totalAmount, 0);
-
-    // 2. Total Deductions for today
-    const expensesTotal = expensesTodayList.reduce((sum, exp) => sum + exp.amount, 0);
-    
-    const refundsTotal = returnsToday.reduce((sum, r) => sum + (r.cashPaidOut || 0) + (r.refundAmount || 0), 0);
-    
-    const nonResellableLoss = returnsToday.reduce((sum, r) => {
-        const nonResellableValue = r.returnedItems.filter(item => !item.isResellable).reduce((itemSum, item) => itemSum + (item.appliedPrice * item.quantity), 0);
-        return sum + nonResellableValue;
-    }, 0);
-
-    const samplesLoss = samplesToday.reduce((sum, tx) => {
-        const product = allProducts.find(p => p.id === tx.productId);
-        const sampleValue = product ? tx.quantity * product.price : 0;
-        return sum + sampleValue;
-    }, 0);
-
-    const cancelledValue = cancelledSalesToday.reduce((sum, s) => sum + s.totalAmount, 0);
-    
-    const totalDeductions = expensesTotal + refundsTotal + nonResellableLoss + samplesLoss + cancelledValue;
-
-    // 3. Net Revenue for today
-    const netRevenue = grossRevenue - totalDeductions;
     
     return {
-      revenueToday: netRevenue,
+      revenueToday: activeSalesToday.reduce((sum, sale) => sum + sale.totalAmount, 0),
       salesCountToday: activeSalesToday.length,
-      grossRevenueToday: grossRevenue,
-      totalDeductionsToday: totalDeductions,
     };
-  }, [allSales, returns, expenses, stockTransactions, allProducts, isLoadingSales, isLoadingReturns, isLoadingExpenses, isLoadingStock, isLoadingProducts]);
+  }, [allSales, isLoadingSales]);
   
-  const { 
-    netTotalRevenue, 
-    grossTotalRevenue, 
-    totalDeductionsAllTime,
-  } = useMemo(() => {
-    if (isLoadingSales || isLoadingReturns || isLoadingExpenses || isLoadingStock || !allSales || !returns || !expenses || !stockTransactions || !allProducts) {
-      return { netTotalRevenue: 0, grossTotalRevenue: 0, totalDeductionsAllTime: 0 };
-    }
-
-    const activeSales = allSales.filter(s => s.status !== 'cancelled');
-    const cancelledSales = allSales.filter(s => s.status === 'cancelled');
-
-    // 1. Gross Revenue
-    const grossRevenue = activeSales.reduce((sum, sale) => sum + sale.totalAmount, 0);
-    
-    // 2. Total Deductions
-    const expensesTotal = expenses.reduce((sum, exp) => sum + exp.amount, 0);
-    const refundsTotal = returns.reduce((sum, r) => sum + (r.cashPaidOut || 0) + (r.refundAmount || 0), 0);
-    
-    const nonResellableLoss = returns.reduce((sum, r) => {
-        const nonResellableValue = r.returnedItems.filter(item => !item.isResellable).reduce((itemSum, item) => itemSum + (item.appliedPrice * item.quantity), 0);
-        return sum + nonResellableValue;
-    }, 0);
-    
-    const samplesLoss = stockTransactions.filter(tx => tx.type === 'ISSUE_SAMPLE').reduce((sum, tx) => {
-        const product = allProducts.find(p => p.id === tx.productId);
-        const sampleValue = product ? tx.quantity * product.price : 0;
-        return sum + sampleValue;
-    }, 0);
-
-    const cancelledValue = cancelledSales.reduce((sum, s) => sum + s.totalAmount, 0);
-
-    const totalDeductions = expensesTotal + refundsTotal + nonResellableLoss + samplesLoss + cancelledValue;
-
-    // 3. Net Revenue
-    const netRevenue = grossRevenue - totalDeductions;
-
-    return {
-      grossTotalRevenue: grossRevenue,
-      totalDeductionsAllTime: totalDeductions,
-      netTotalRevenue: netRevenue,
-    };
-  }, [allSales, returns, expenses, stockTransactions, allProducts, isLoadingSales, isLoadingReturns, isLoadingExpenses, isLoadingStock, isLoadingProducts]);
-
   const { liveLowStockItemsCount, criticalStockItemsCount } = useMemo(() => {
     if (isLoadingProducts || !allProducts || allProducts.length === 0) {
       return { liveLowStockItemsCount: 0, criticalStockItemsCount: 0 };
@@ -413,41 +336,35 @@ export default function DashboardPage() {
       )}
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        {isLoadingSales || isLoadingReturns || isLoadingExpenses || isLoadingStock ? (
-          renderLoadingCard("Total Net Revenue", Banknote, "text-green-600")
-        ) : salesError || returnsError || expensesError || stockError ? (
-          renderErrorCard("Total Net Revenue", Banknote, "text-green-600")
+        {isLoadingSales ? (
+          renderLoadingCard("Total Gross Revenue", Banknote, "text-green-600")
+        ) : salesError ? (
+          renderErrorCard("Total Gross Revenue", Banknote, "text-green-600")
         ) : (
           renderStatsCard(
-            "Total Net Revenue",
+            "Total Gross Revenue",
             formatCurrency(netTotalRevenue),
             Banknote,
             "text-green-600",
-            <>
-              <div>Gross: {formatCurrency(grossTotalRevenue)}</div>
-              <div>Deductions: -{formatCurrency(totalDeductionsAllTime)}</div>
-            </>,
+            "Revenue from all completed sales.",
             monthlyComparison[new Date().getMonth()],
-            "After all deductions"
+            "All time"
           )
         )}
 
-        {isLoadingSales || isLoadingReturns || isLoadingExpenses || isLoadingStock ? (
-          renderLoadingCard("Today's Net Revenue", TrendingUp, "text-purple-600")
-        ) : salesError || returnsError || expensesError || stockError ? (
-          renderErrorCard("Today's Net Revenue", TrendingUp, "text-purple-600")
+        {isLoadingSales ? (
+          renderLoadingCard("Today's Gross Revenue", TrendingUp, "text-purple-600")
+        ) : salesError ? (
+          renderErrorCard("Today's Gross Revenue", TrendingUp, "text-purple-600")
         ) : (
           renderStatsCard(
-            "Today's Net Revenue",
+            "Today's Gross Revenue",
             formatCurrency(revenueToday),
             TrendingUp,
             "text-purple-600",
-            <>
-              <div>{salesCountToday} sales ({formatCurrency(grossRevenueToday)})</div>
-              <div>Deductions: -{formatCurrency(totalDeductionsToday)}</div>
-            </>,
+             `From ${salesCountToday} transactions`,
             undefined,
-            `Net: ${formatCurrency(revenueToday)}`
+            "Today"
           )
         )}
 
@@ -539,9 +456,9 @@ export default function DashboardPage() {
                         <TableRow key={sale.id}>
                           <TableCell className="font-medium">#{sale.id}</TableCell>
                           <TableCell>
-                            {sale.customerName || "Walk-in Customer"}
+                            {sale.customerShopName || sale.customerName || "Walk-in Customer"}
                             {sale.customerShopName && (
-                              <div className="text-xs text-muted-foreground">{sale.customerShopName}</div>
+                              <div className="text-xs text-muted-foreground">{sale.customerName}</div>
                             )}
                           </TableCell>
                           <TableCell className="text-right">{formatCurrency(sale.totalAmount)}</TableCell>
