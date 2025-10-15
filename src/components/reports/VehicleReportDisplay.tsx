@@ -18,7 +18,7 @@ import { DownloadCloud, FileText, GaugeCircle, Route } from "lucide-react";
 import { format } from 'date-fns';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import { Separator } from "../ui/separator";
 
 interface VehicleReportDisplayProps {
@@ -30,10 +30,6 @@ interface VehicleReportDisplayProps {
   };
   vehicleNumber: string;
   reportDate?: Date;
-}
-
-interface jsPDFWithAutoTable extends jsPDF {
-  autoTable: (options: any) => jsPDF;
 }
 
 export function VehicleReportDisplay({ report, vehicleNumber, reportDate }: VehicleReportDisplayProps) {
@@ -88,7 +84,7 @@ export function VehicleReportDisplay({ report, vehicleNumber, reportDate }: Vehi
   };
 
   const handleExportPDF = () => {
-    const doc = new jsPDF() as jsPDFWithAutoTable;
+    const doc = new jsPDF();
     let yPos = 22;
     doc.text(`Vehicle Report for: ${vehicleNumber}`, 14, 16);
     doc.setFontSize(10);
@@ -99,7 +95,7 @@ export function VehicleReportDisplay({ report, vehicleNumber, reportDate }: Vehi
       doc.setFontSize(12);
       doc.text("Mileage Summary", 14, yPos);
       yPos += 6;
-      doc.autoTable({
+      autoTable(doc, {
         startY: yPos,
         body: [
           ['Start Meter', `${startMeter ?? 'N/A'} km`],
@@ -109,14 +105,14 @@ export function VehicleReportDisplay({ report, vehicleNumber, reportDate }: Vehi
         theme: 'plain',
         styles: { fontSize: 10 }
       });
-      yPos = doc.autoTable.previous.finalY + 10;
+      yPos = (doc as any).lastAutoTable.finalY + 10;
     }
     
     doc.setFontSize(12);
     doc.text("Stock Summary", 14, yPos);
     yPos += 6;
 
-    doc.autoTable({
+    autoTable(doc, {
         startY: yPos,
         head: [['Product Name', 'SKU', 'Total Loaded', 'Total Unloaded', 'Net Change']],
         body: data.map(item => [

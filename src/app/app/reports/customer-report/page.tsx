@@ -16,12 +16,8 @@ import { useSalesData } from "@/hooks/useSalesData";
 import { CustomerReportTable, type CustomerReportData } from "@/components/reports/CustomerReportTable";
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import { format } from "date-fns";
-
-interface jsPDFWithAutoTable extends jsPDF {
-  autoTable: (options: any) => jsPDF;
-}
 
 const formatCurrency = (amount: number) => new Intl.NumberFormat('en-LK', { style: 'currency', currency: 'LKR' }).format(amount).replace('LKR', 'Rs.');
 
@@ -99,7 +95,7 @@ export default function CustomerReportPage() {
   const pageIsLoading = isLoadingCustomers || isLoadingSales;
 
   const handleExportPDF = () => {
-      const doc = new jsPDF() as jsPDFWithAutoTable;
+      const doc = new jsPDF();
       doc.text("Customer Report", 14, 16);
       doc.setFontSize(10);
       doc.text(`Generated on: ${format(new Date(), 'PP')}`, 14, 22);
@@ -113,7 +109,7 @@ export default function CustomerReportPage() {
           c.lastPurchaseDate ? format(c.lastPurchaseDate, 'yyyy-MM-dd') : 'N/A'
       ]);
 
-      doc.autoTable({
+      autoTable(doc, {
           startY: 30,
           head: [['Name', 'Shop', 'Total Sales', 'Total Spent', 'Outstanding', 'Last Purchase']],
           body: tableData,

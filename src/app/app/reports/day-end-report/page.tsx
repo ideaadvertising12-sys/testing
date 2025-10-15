@@ -15,7 +15,7 @@ import { GlobalPreloaderScreen } from "@/components/GlobalPreloaderScreen";
 import type { Sale, DayEndReportSummary, ReturnTransaction, StockTransaction, Expense } from "@/lib/types";
 import { format, startOfDay, endOfDay, isSameDay } from "date-fns";
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import { cn } from "@/lib/utils";
 import { useSalesData } from "@/hooks/useSalesData"; 
 import { useReturns } from "@/hooks/useReturns";
@@ -35,10 +35,6 @@ const formatCurrency = (amount: number | undefined): string => {
     maximumFractionDigits: 2 
   }).format(rounded).replace("LKR", "Rs.");
 };
-
-interface jsPDFWithAutoTable extends jsPDF {
-  autoTable: (options: any) => jsPDF;
-}
 
 export default function DayEndReportPage() {
   const { currentUser } = useAuth();
@@ -80,7 +76,8 @@ export default function DayEndReportPage() {
       const totalDiscountsToday = salesToday.reduce((sum, sale) => {
           const saleDiscount = sale.items.reduce((itemSum, item) => {
               if (item.isOfferItem) return itemSum;
-              const originalPrice = (item.saleType === 'wholesale' && item.wholesalePrice) ? item.wholesalePrice : item.price;
+              const originalProduct = allProducts.find(p => p.id === item.id);
+              const originalPrice = (item.saleType === 'wholesale' && originalProduct?.wholesalePrice) ? originalProduct.wholesalePrice : (originalProduct?.price || item.appliedPrice);
               const discountOnItem = originalPrice - item.appliedPrice;
               return itemSum + (discountOnItem * item.quantity);
           }, 0);
@@ -199,7 +196,7 @@ export default function DayEndReportPage() {
 
   const handleExportPDF = () => {
     if (!reportSummary || !selectedDate) return;
-    const doc = new jsPDF() as jsPDFWithAutoTable;
+    const doc = new jsPDF();
     const reportDateFormatted = format(selectedDate, "PPP");
     let yPos = 35;
     const sectionSpacing = 10;
@@ -230,7 +227,7 @@ export default function DayEndReportPage() {
         [{ content: 'Net Outstanding From Today', styles: { fontStyle: 'bold' } }, { content: formatCurrency(reportSummary.netOutstandingFromToday), styles: { fontStyle: 'bold' } }],
     ];
 
-    doc.autoTable({
+    autoTable(doc, {
         startY: yPos,
         head: [['Financial Summary', 'Amount']],
         body: tableBody,
@@ -242,7 +239,7 @@ export default function DayEndReportPage() {
     yPos = (doc as any).lastAutoTable.finalY + sectionSpacing;
 
     if (reportSummary.samplesIssuedCount > 0) {
-        doc.autoTable({
+        autoTable(doc, {
             startY: yPos,
             head: [['Samples Summary', 'Count']],
             body: [

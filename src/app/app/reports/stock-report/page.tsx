@@ -13,7 +13,7 @@ import React, { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable'; 
+import autoTable from 'jspdf-autotable';
 import { GlobalPreloaderScreen } from "@/components/GlobalPreloaderScreen";
 import { Input } from "@/components/ui/input";
 import { DateRangePicker } from "@/components/ui/date-range-picker"; 
@@ -22,11 +22,6 @@ import { addDays, format } from "date-fns";
 import { useStockTransactions } from "@/hooks/useStockTransactions";
 import { useVehicles } from "@/hooks/useVehicles";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-
-interface jsPDFWithAutoTable extends jsPDF {
-  autoTable: (options: any) => jsPDF;
-}
-
 
 export default function StockReportPage() {
   const { currentUser } = useAuth();
@@ -121,10 +116,10 @@ export default function StockReportPage() {
   };
 
   const handleExportPDF = () => {
-    const doc = new jsPDF('landscape') as jsPDFWithAutoTable; 
+    const doc = new jsPDF('landscape'); 
     doc.text(`Stock Movement Report - ${format(new Date(), 'PP')}`, 14, 16);
     
-    doc.autoTable({
+    autoTable(doc, {
       startY: 20,
       head: [['Date', 'Product', 'Type', 'Qty', 'Prev. Stock', 'New Stock', 'User/Vehicle', 'Notes']],
       body: filteredData.map(tx => [

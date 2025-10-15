@@ -13,7 +13,7 @@ import React, { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable'; 
+import autoTable from 'jspdf-autotable';
 import { GlobalPreloaderScreen } from "@/components/GlobalPreloaderScreen";
 import { Input } from "@/components/ui/input";
 import { DateRangePicker } from "@/components/ui/date-range-picker"; 
@@ -24,10 +24,6 @@ import { useSalesData } from "@/hooks/useSalesData";
 import { useReturns } from "@/hooks/useReturns";
 import { useStockTransactions } from "@/hooks/useStockTransactions";
 import { useProducts } from "@/hooks/useProducts";
-
-interface jsPDFWithAutoTable extends jsPDF {
-  autoTable: (options: any) => jsPDF;
-}
 
 function transformTransactionsToFullReportEntries(
   sales: Sale[],
@@ -67,7 +63,9 @@ function transformTransactionsToFullReportEntries(
       : undefined;
 
     sale.items.forEach(item => {
-      const discountOnItem = item.price - item.appliedPrice;
+      const originalProduct = allProducts.find(p => p.id === item.id);
+      const originalPrice = (item.saleType === 'wholesale' && originalProduct?.wholesalePrice) ? originalProduct.wholesalePrice : (originalProduct?.price || item.appliedPrice);
+      const discountOnItem = originalPrice - item.appliedPrice;
       reportEntries.push({
         transactionId: sale.id,
         transactionType: 'Sale',
@@ -276,10 +274,10 @@ export default function FullReportPage() {
 
   const handleExportPDF = () => {
     try {
-      const doc = new jsPDF('landscape') as jsPDFWithAutoTable; 
+      const doc = new jsPDF('landscape'); 
       doc.text(`Full Transaction Report - ${format(new Date(), 'PP')}`, 14, 16);
       
-      doc.autoTable({
+      autoTable(doc, {
         startY: 20,
         head: [['ID', 'Type', 'Date', 'Time', 'Customer', 'Product', 'Qty', 'Unit Price', 'Total', 'Sale Type', 'Staff']],
         body: filteredData.map(entry => [
