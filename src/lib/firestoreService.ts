@@ -256,9 +256,8 @@ export const getExpenses = async (): Promise<Expense[]> => {
 // Return Services
 
 async function generateCustomReturnId(): Promise<string> {
-  const timestamp = Date.now().toString(36);
-  const randomPart = Math.random().toString(36).substring(2, 9);
-  return `ret-${timestamp}-${randomPart}`;
+  const randomNumber = Math.floor(10000000 + Math.random() * 90000000);
+  return randomNumber.toString();
 }
 
 interface ProcessReturnArgs {
@@ -335,14 +334,14 @@ export const processReturnTransaction = async ({
     
     // Handle exchanged items (stock out)
     for (const item of exchangedItems) {
+      const productRef = doc(db, 'products', item.id);
       if (!vehicleId) { // Main inventory exchange
-        const productRef = doc(db, 'products', item.id);
         transaction.update(productRef, { stock: increment(-item.quantity) });
       } else { // Vehicle exchange
         const stockTx: Omit<StockTransaction, 'id'> = {
           productId: item.id, productName: item.name, productSku: item.sku,
           type: 'UNLOAD_FROM_VEHICLE', quantity: item.quantity,
-          previousStock: 0, newStock: 0, // Not tracked for vehicle in this transaction
+          previousStock: -1, newStock: -1, // Not tracked directly here; relies on aggregate
           transactionDate: new Date(), notes: `Exchange in Return: ${returnId}`,
           vehicleId, userId: staffId,
         };
@@ -354,18 +353,18 @@ export const processReturnTransaction = async ({
     // Handle returned items (stock in)
     for (const item of returnedItems) {
       if (item.isResellable) {
+        const productRef = doc(db, 'products', item.id);
         if (vehicleId) { // Return to vehicle
           const stockTx: Omit<StockTransaction, 'id'> = {
             productId: item.id, productName: item.name, productSku: item.sku,
             type: 'LOAD_TO_VEHICLE', quantity: item.quantity,
-            previousStock: 0, newStock: 0, // Not tracked for vehicle in this transaction
+            previousStock: -1, newStock: -1, // Not tracked directly here
             transactionDate: new Date(), notes: `Resellable return to vehicle. Return ID: ${returnId}`,
             vehicleId, userId: staffId,
           };
           const txDocRef = doc(collection(db, "stockTransactions"));
           transaction.set(txDocRef, stockTransactionConverter.toFirestore({id: 'temp', ...stockTx}));
         } else { // Return to main inventory
-          const productRef = doc(db, 'products', item.id);
           transaction.update(productRef, { stock: increment(item.quantity) });
         }
       }
@@ -445,4 +444,3 @@ export const updateProductStockTransactional = async (productId: string, quantit
     throw e; 
   }
 };
-
