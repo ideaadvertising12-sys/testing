@@ -256,32 +256,9 @@ export const getExpenses = async (): Promise<Expense[]> => {
 // Return Services
 
 async function generateCustomReturnId(): Promise<string> {
-  checkFirebase();
-  const today = new Date();
-  const datePart = format(today, "MM.dd");
-  const counterDocId = format(today, "yyyy-MM-dd");
-
-  const counterRef = doc(db, "dailyReturnCounters", counterDocId);
-
-  try {
-    const newCount = await runTransaction(db, async (transaction) => {
-      const counterDoc = await transaction.get(counterRef);
-      if (!counterDoc.exists() || counterDoc.data()?.count === undefined) {
-        transaction.set(counterRef, { count: 1 });
-        return 1;
-      } else {
-        const currentCount = counterDoc.data()?.count;
-        const newCount = (typeof currentCount === 'number' ? currentCount : 0) + 1;
-        transaction.update(counterRef, { count: newCount });
-        return newCount;
-      }
-    });
-    return `return-${datePart}-${newCount}`;
-  } catch (e) {
-    console.error("Custom return ID transaction failed: ", e);
-    const randomPart = Math.random().toString(36).substring(2, 8);
-    return `return-${datePart}-err-${randomPart}`;
-  }
+  const timestamp = Date.now().toString(36);
+  const randomPart = Math.random().toString(36).substring(2, 9);
+  return `ret-${timestamp}-${randomPart}`;
 }
 
 interface ProcessReturnArgs {
@@ -468,3 +445,4 @@ export const updateProductStockTransactional = async (productId: string, quantit
     throw e; 
   }
 };
+
