@@ -27,6 +27,14 @@ interface SampleItem {
   quantity: number | string;
 }
 
+const getCustomerDisplayLabel = (customer: Customer | null): string => {
+    if (!customer) return "Select customer...";
+    if (customer.shopName) {
+      return `${customer.shopName} (${customer.name})`;
+    }
+    return customer.name;
+};
+
 export function SampleIssuingForm() {
   const { products: allProducts, isLoading: isLoadingProducts, refetch: refetchProducts } = useProducts();
   const { vehicles, isLoading: isLoadingVehicles } = useVehicles();
@@ -233,7 +241,7 @@ export function SampleIssuingForm() {
                     disabled={isLoadingCustomers}
                   >
                     <span className="truncate">
-                      {selectedCustomerId ? selectableCustomers.find(c => c.id === selectedCustomerId)?.name : "Select customer..."}
+                      {getCustomerDisplayLabel(selectableCustomers.find(c => c.id === selectedCustomerId) || null)}
                     </span>
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
@@ -247,11 +255,11 @@ export function SampleIssuingForm() {
                         {selectableCustomers.map((customer) => (
                           <CommandItem
                             key={customer.id}
-                            value={customer.name}
+                            value={getCustomerDisplayLabel(customer)}
                             onSelect={() => { setSelectedCustomerId(customer.id); setCustomerPopoverOpen(false); }}
                           >
                             <Check className={cn("mr-2 h-4 w-4", selectedCustomerId === customer.id ? "opacity-100" : "opacity-0")} />
-                            {customer.name} ({customer.shopName || customer.phone})
+                            {getCustomerDisplayLabel(customer)}
                           </CommandItem>
                         ))}
                       </CommandGroup>
