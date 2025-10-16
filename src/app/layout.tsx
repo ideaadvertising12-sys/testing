@@ -6,15 +6,12 @@ import { Toaster } from "@/components/ui/toaster";
 import { AppThemeProvider } from '@/components/providers/AppThemeProvider';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { FullscreenProvider } from '@/contexts/FullscreenContext';
-// Removed useState, useEffect, useRef, cn for footer logic
 
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // Removed showFooter, mounted states and mainElementRef
-  // Removed useEffect for footer logic
 
   return (
     <html lang="en" className="h-full" suppressHydrationWarning>
@@ -31,11 +28,10 @@ export default function RootLayout({
             <FullscreenProvider>
               <div className="flex flex-col h-full">
                 <main
-                  className="flex-grow overflow-y-auto" // Removed pb-16
+                  className="flex-grow overflow-y-auto"
                 >
                   {children}
                 </main>
-                {/* Footer element removed from here */}
               </div>
               <div className="toaster-wrapper-for-print-hide">
                 <Toaster />
