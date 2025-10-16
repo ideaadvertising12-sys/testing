@@ -42,7 +42,7 @@ export default function DayEndReportPage() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [reportSummary, setReportSummary] = useState<DayEndReportSummary | null>(null);
 
-  const { sales: allSales, isLoading: isLoadingSales, error: salesError } = useSalesData(true); 
+  const { sales: allSales, isLoading: isLoadingSales, error: salesError } = useSalesData(); 
   const { returns, isLoading: isLoadingReturns, error: returnsError } = useReturns();
   const { transactions: allTransactions, isLoading: isLoadingTransactions, error: transactionsError } = useStockTransactions();
   const { expenses, isLoading: isLoadingExpenses, error: expensesError } = useExpenses();

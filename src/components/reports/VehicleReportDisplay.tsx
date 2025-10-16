@@ -109,7 +109,7 @@ export function VehicleReportDisplay({ report, vehicleNumber, reportDate }: Vehi
     }
     
     doc.setFontSize(12);
-    doc.text("Stock Summary", 14, yPos);
+    doc.text("Stock Movement Summary", 14, yPos);
     yPos += 6;
 
     autoTable(doc, {

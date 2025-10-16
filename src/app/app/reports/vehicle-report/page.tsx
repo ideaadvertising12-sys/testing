@@ -19,6 +19,8 @@ import { Truck, Search, Loader2, CalendarIcon } from "lucide-react";
 import type { StockTransaction, VehicleReportItem } from "@/lib/types";
 import { startOfDay, endOfDay, format } from "date-fns";
 import { VehicleReportDisplay } from "@/components/reports/VehicleReportDisplay";
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface ReportState {
   items: VehicleReportItem[];
