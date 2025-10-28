@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Search, Package, Hash, Loader2, Users, ChevronsUpDown, Check, ArrowRight, Undo2, XCircle, PlusCircle, MinusCircle, Trash2, CalendarIcon, Wallet, Gift, Tag, Truck, Warehouse, Banknote } from "lucide-react";
-import type { Customer, Sale, CartItem, Product, ReturnTransaction, ChequeInfo, BankTransferInfo, StockTransaction } from "@/lib/types";
+import type { Customer, Sale, CartItem, Product, ReturnTransaction, ChequeInfo, BankTransferInfo, StockTransaction, Vehicle } from "@/lib/types";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useSalesData } from "@/hooks/useSalesData";
 import { useProducts } from "@/hooks/useProducts";
@@ -48,7 +48,8 @@ const getCustomerDisplayLabel = (customer: Customer | null): string => {
 
 export default function ReturnsPage() {
   const { customers, isLoading: isLoadingCustomers } = useCustomers();
-  const { sales, isLoading: isLoadingSales, refetchSales } = useSalesData();
+  // Fetch all sales initially to calculate credit balance, but we won't use it for the dropdown
+  const { sales: allSales, isLoading: isLoadingAllSales, refetchSales: refetchAllSales } = useSalesData(true);
   const { products: allProducts, isLoading: isLoadingProducts, refetch: refetchProducts } = useProducts();
   const { vehicles, isLoading: isLoadingVehicles } = useVehicles();
   const { returns, isLoading: isLoadingReturns, refetchReturns } = useReturns();
@@ -115,8 +116,9 @@ export default function ReturnsPage() {
   }, [customers]);
 
   useEffect(() => {
-    if (selectedCustomer && sales.length > 0) {
-      const filteredSales = sales
+    // We now filter from `allSales` instead of re-fetching
+    if (selectedCustomer && allSales.length > 0) {
+      const filteredSales = allSales
         .filter(sale => sale.customerId === selectedCustomer.id)
         .sort((a, b) => new Date(b.saleDate).getTime() - new Date(a.saleDate).getTime());
       setCustomerSales(filteredSales);
@@ -126,21 +128,21 @@ export default function ReturnsPage() {
     setSelectedSaleId("");
     setSelectedSale(null);
     setItemsToReturn([]);
-  }, [selectedCustomer, sales]);
+  }, [selectedCustomer, allSales]);
 
   const customerCreditBalance = useMemo(() => {
-    if (!selectedCustomer || !sales || !returns) return 0;
+    if (!selectedCustomer || !allSales || !returns) return 0;
 
     const totalRefundsNet = returns
       .filter(r => r.customerId === selectedCustomer.id)
       .reduce((sum, r) => sum + (r.refundAmount || 0), 0);
 
-    const totalCreditUsedOnSales = sales
+    const totalCreditUsedOnSales = allSales
       .filter(s => s.customerId === selectedCustomer.id)
       .reduce((sum, s) => sum + (s.creditUsed || 0), 0);
       
     return totalRefundsNet - totalCreditUsedOnSales;
-  }, [selectedCustomer, sales, returns]);
+  }, [selectedCustomer, allSales, returns]);
   
   const handleSearchSale = () => {
     if (!selectedSaleId) return;
@@ -524,7 +526,7 @@ export default function ReturnsPage() {
         setIsReceiptOpen(true);
 
         await refetchProducts();
-        await refetchSales();
+        await refetchAllSales();
         await refetchReturns();
 
     } catch (error: any) {
@@ -568,7 +570,7 @@ export default function ReturnsPage() {
         if (!response.ok) throw new Error(result.error || 'Failed to process refund.');
 
         toast({ title: "Success", description: "Direct cash refund processed." });
-        await Promise.all([refetchSales(), refetchReturns()]);
+        await Promise.all([refetchAllSales(), refetchReturns()]);
         setDirectRefundAmount("");
         // A receipt could be shown here too, but for now we reset.
         resetSearch();
@@ -579,7 +581,7 @@ export default function ReturnsPage() {
     }
   }
 
-  const isLoading = isLoadingCustomers || isLoadingSales || isLoadingProducts || isLoadingReturns;
+  const isLoading = isLoadingCustomers || isLoadingProducts || isLoadingReturns || isLoadingAllSales;
   const currentCustomerLabel = getCustomerDisplayLabel(selectedCustomer);
 
   const availableProductsForExchange = useMemo(() => {
@@ -601,8 +603,8 @@ export default function ReturnsPage() {
             <Label htmlFor="customer-search">Customer *</Label>
              <Popover open={openCustomerPopover} onOpenChange={setOpenCustomerPopover}>
               <PopoverTrigger asChild>
-                <Button variant="outline" role="combobox" aria-expanded={openCustomerPopover} className="w-full justify-between" disabled={isLoading}>
-                  <span className="truncate">{isLoading ? "Loading..." : currentCustomerLabel}</span>
+                <Button variant="outline" role="combobox" aria-expanded={openCustomerPopover} className="w-full justify-between" disabled={isLoadingCustomers}>
+                  <span className="truncate">{isLoadingCustomers ? "Loading..." : currentCustomerLabel}</span>
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
               </PopoverTrigger>
@@ -654,7 +656,7 @@ export default function ReturnsPage() {
                 {isSearchingSale ? <Loader2 className="h-4 w-4 animate-spin"/> : <Search className="h-4 w-4" />}
               </Button>
             </div>
-            {selectedCustomer && customerSales.length === 0 && !isLoadingSales && (
+            {selectedCustomer && customerSales.length === 0 && !isLoadingAllSales && (
               <p className="text-xs text-muted-foreground mt-1">No recent sales found for this customer.</p>
             )}
           </div>
@@ -992,5 +994,3 @@ export default function ReturnsPage() {
     </>
   );
 }
-
-    

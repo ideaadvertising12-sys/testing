@@ -6,9 +6,10 @@ import type { Sale } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { getSales } from "@/lib/firestoreService";
 
-export function useSalesData() {
+// By default, the hook will not fetch all sales unless specifically requested.
+export function useSalesData(fetchAll: boolean = false) {
   const [sales, setSales] = useState<Sale[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(fetchAll); // Only be in loading state if we are fetching all
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
@@ -32,8 +33,10 @@ export function useSalesData() {
   }, [toast]);
 
   useEffect(() => {
-    refetchSales();
-  }, [refetchSales]);
+    if (fetchAll) {
+      refetchSales();
+    }
+  }, [refetchSales, fetchAll]);
 
   const totalRevenue = sales.reduce((sum, sale) => sum + (sale.status !== 'cancelled' ? sale.totalAmount : 0), 0);
 
