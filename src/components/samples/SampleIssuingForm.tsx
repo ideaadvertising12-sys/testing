@@ -204,11 +204,11 @@ export function SampleIssuingForm() {
   };
 
   const availableProductsForSelection = useMemo(() => {
-    if (!vehicleStock) return [];
+    if (!vehicleStock || !allProducts) return [];
     return allProducts.filter(p => (vehicleStock.get(p.id) || 0) > 0);
   }, [vehicleStock, allProducts]);
 
-  const isLoading = isLoadingCustomers || isLoadingVehicles || isLoadingProducts;
+  const isLoading = isLoadingCustomers || isLoadingVehicles;
   
   if (isLoading && !customers.length && !vehicles.length) {
     return (
