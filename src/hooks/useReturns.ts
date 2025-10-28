@@ -8,7 +8,7 @@ import { getReturns } from "@/lib/firestoreService";
 import type { DateRange } from "react-day-picker";
 import type { QueryDocumentSnapshot } from "firebase/firestore";
 
-export function useReturns(fetchAll: boolean = false, dateRange?: DateRange) {
+export function useReturns(fetchAll: boolean = false, dateRange?: DateRange, staffId?: string) {
   const [returns, setReturns] = useState<ReturnTransaction[]>([]);
   const [isLoading, setIsLoading] = useState(fetchAll);
   const [error, setError] = useState<string | null>(null);
@@ -21,7 +21,7 @@ export function useReturns(fetchAll: boolean = false, dateRange?: DateRange) {
     setError(null);
     setHasMore(true);
     try {
-      const { returns: initialReturns, lastVisible: newLastVisible } = await getReturns(undefined, dateRange);
+      const { returns: initialReturns, lastVisible: newLastVisible } = await getReturns(undefined, dateRange, staffId);
       setReturns(initialReturns);
       setLastVisible(newLastVisible);
       if (!newLastVisible) {
@@ -38,13 +38,13 @@ export function useReturns(fetchAll: boolean = false, dateRange?: DateRange) {
     } finally {
         setIsLoading(false);
     }
-  }, [toast, dateRange]);
+  }, [toast, dateRange, staffId]);
   
   const loadMoreReturns = useCallback(async () => {
     if (!lastVisible || !hasMore || isLoading) return;
     setIsLoading(true);
     try {
-        const { returns: newReturns, lastVisible: newLastVisible } = await getReturns(lastVisible, dateRange);
+        const { returns: newReturns, lastVisible: newLastVisible } = await getReturns(lastVisible, dateRange, staffId);
         setReturns(prev => [...prev, ...newReturns]);
         setLastVisible(newLastVisible);
         if (!newLastVisible) {
@@ -56,20 +56,19 @@ export function useReturns(fetchAll: boolean = false, dateRange?: DateRange) {
     } finally {
         setIsLoading(false);
     }
-  }, [lastVisible, hasMore, isLoading, toast, dateRange]);
+  }, [lastVisible, hasMore, isLoading, toast, dateRange, staffId]);
 
 
   useEffect(() => {
-    // fetchAll is now just a trigger for the initial fetch on mount
     if (fetchAll) {
       fetchInitialReturns();
     }
   }, [fetchAll, fetchInitialReturns]);
 
-  // Refetch when dateRange changes
+  // Refetch when dependencies change
   useEffect(() => {
-    fetchInitialReturns();
-  }, [dateRange, fetchInitialReturns]);
+      fetchInitialReturns();
+  }, [dateRange, staffId, fetchInitialReturns]);
 
 
   return {

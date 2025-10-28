@@ -5,19 +5,21 @@ import { useState, useEffect, useCallback } from "react";
 import type { Expense } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { getExpenses } from "@/lib/firestoreService";
+import type { DateRange } from "react-day-picker";
 
 const API_BASE_URL = "/api/expenses";
 
-export function useExpenses() {
+export function useExpenses(fetchAll: boolean = true, dateRange?: DateRange, staffId?: string) {
   const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(fetchAll);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
   const refetchExpenses = useCallback(async () => {
     setIsLoading(true);
     try {
-      const fetchedExpenses = await getExpenses();
+      // Use the service directly for consistency with other hooks
+      const fetchedExpenses = await getExpenses(dateRange, staffId);
       setExpenses(fetchedExpenses);
       setError(null);
     } catch (err: any) {
@@ -26,11 +28,19 @@ export function useExpenses() {
     } finally {
       setIsLoading(false);
     }
-  }, [toast]);
+  }, [toast, dateRange, staffId]);
 
   useEffect(() => {
+    if(fetchAll) {
+        refetchExpenses();
+    }
+  }, [fetchAll, refetchExpenses]);
+
+  // Refetch when dependencies change
+  useEffect(() => {
     refetchExpenses();
-  }, [refetchExpenses]);
+  }, [dateRange, staffId, refetchExpenses]);
+
 
   const addExpense = async (expenseData: Omit<Expense, "id">): Promise<Expense | null> => {
     try {

@@ -13,7 +13,7 @@ import { AccessDenied } from "@/components/AccessDenied";
 import { useRouter } from "next/navigation";
 import { GlobalPreloaderScreen } from "@/components/GlobalPreloaderScreen";
 import type { Sale, ReturnTransaction, Expense } from "@/lib/types";
-import { format, isSameDay } from "date-fns";
+import { format, isSameDay, startOfDay, endOfDay } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useSalesData } from "@/hooks/useSalesData"; 
 import { useReturns } from "@/hooks/useReturns";
@@ -51,9 +51,18 @@ export default function DailyCountPage() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [reportSummary, setReportSummary] = useState<UserReportSummary | null>(null);
 
-  const { sales: allSales, isLoading: isLoadingSales, error: salesError } = useSalesData(true); 
-  const { returns, isLoading: isLoadingReturns, error: returnsError } = useReturns();
-  const { expenses, isLoading: isLoadingExpenses, error: expensesError } = useExpenses();
+  const dateRange = useMemo(() => {
+    if (!selectedDate) return undefined;
+    return { from: startOfDay(selectedDate), to: endOfDay(selectedDate) };
+  }, [selectedDate]);
+
+  // Fetch only the data needed for the current user and selected date
+  const { sales: salesToday, isLoading: isLoadingSales, error: salesError } = useSalesData(true, dateRange, currentUser?.username);
+  const { returns: returnsToday, isLoading: isLoadingReturns, error: returnsError } = useReturns(true, dateRange, currentUser?.username);
+  const { expenses: expensesTodayList, isLoading: isLoadingExpenses, error: expensesError } = useExpenses(true, dateRange, currentUser?.username);
+  
+  // Also fetch all sales to calculate credit payments made today
+  const { sales: allSales, isLoading: isLoadingAllSales, error: allSalesError } = useSalesData(true);
 
   useEffect(() => {
     if (!currentUser) {
@@ -62,11 +71,8 @@ export default function DailyCountPage() {
   }, [currentUser, router]);
 
   useEffect(() => {
-    if (selectedDate && currentUser && !isLoadingSales && allSales && !isLoadingReturns && returns && !isLoadingExpenses && expenses) {
-      
-      const salesToday = allSales.filter(s => s.staffId === currentUser.username && isSameDay(s.saleDate, selectedDate) && s.status !== 'cancelled');
-      const returnsToday = returns.filter(r => r.staffId === currentUser.username && isSameDay(r.returnDate, selectedDate));
-      const expensesTodayList = expenses.filter(e => e.staffId === currentUser.username && isSameDay(e.expenseDate, selectedDate));
+    // Data is now pre-filtered by the hooks, but we still need to process it
+    if (selectedDate && currentUser && !isLoadingSales && !isLoadingReturns && !isLoadingExpenses && !isLoadingAllSales) {
 
       let cashFromSales = 0;
       let chequeFromSales = 0;
@@ -115,7 +121,7 @@ export default function DailyCountPage() {
     } else {
       setReportSummary(null);
     }
-  }, [selectedDate, currentUser, allSales, isLoadingSales, returns, isLoadingReturns, expenses, isLoadingExpenses]);
+  }, [selectedDate, currentUser, salesToday, returnsToday, expensesTodayList, allSales, isLoadingSales, isLoadingReturns, isLoadingExpenses, isLoadingAllSales]);
 
   const reportActions = (
     <div className="flex flex-col sm:flex-row gap-2 items-center">
@@ -149,12 +155,14 @@ export default function DailyCountPage() {
     return <GlobalPreloaderScreen message="Loading..." />;
   }
   
-  const pageIsLoading = (isLoadingSales || isLoadingReturns || isLoadingExpenses) && !reportSummary;
+  const pageIsLoading = (isLoadingSales || isLoadingReturns || isLoadingExpenses || isLoadingAllSales) && !reportSummary;
 
   if (pageIsLoading) {
     return <GlobalPreloaderScreen message="Calculating daily count..." />
   }
   
+  const anyError = salesError || returnsError || expensesError || allSalesError;
+
   return (
     <>
       <PageHeader 
@@ -164,11 +172,11 @@ export default function DailyCountPage() {
         action={reportActions}
       />
 
-      {(salesError || returnsError || expensesError) && (
+      {anyError && (
         <Alert variant="destructive" className="mb-4">
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle>Error Loading Data</AlertTitle>
-          <AlertDescription>{salesError || returnsError || expensesError}</AlertDescription>
+          <AlertDescription>{anyError}</AlertDescription>
         </Alert>
       )}
 
