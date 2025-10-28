@@ -20,6 +20,9 @@ import {
   onSnapshot,
   orderBy,
   increment,
+  limit,
+  QueryDocumentSnapshot,
+  startAfter,
 } from "firebase/firestore";
 import { format } from 'date-fns';
 import { 
@@ -230,13 +233,23 @@ export const addSale = async (saleData: Omit<Sale, 'id'>): Promise<string> => {
   return newCustomId;
 };
 
-
-export const getSales = async (): Promise<Sale[]> => {
+const SALES_PAGE_SIZE = 50;
+export const getSales = async (lastVisible?: QueryDocumentSnapshot<Sale>): Promise<{ sales: Sale[], lastVisible: QueryDocumentSnapshot<Sale> | null }> => {
   checkFirebase();
-  const salesQuery = query(collection(db, "sales")).withConverter(saleConverter);
-  const salesSnapshot = await getDocs(salesQuery);
-  return salesSnapshot.docs.map(doc => doc.data());
+  const salesCol = collection(db, "sales").withConverter(saleConverter);
+  
+  const q = lastVisible 
+    ? query(salesCol, orderBy("saleDate", "desc"), startAfter(lastVisible), limit(SALES_PAGE_SIZE))
+    : query(salesCol, orderBy("saleDate", "desc"), limit(SALES_PAGE_SIZE));
+
+  const salesSnapshot = await getDocs(q);
+  
+  const sales = salesSnapshot.docs.map(doc => doc.data());
+  const newLastVisible = salesSnapshot.docs[salesSnapshot.docs.length - 1] || null;
+
+  return { sales, lastVisible: newLastVisible };
 };
+
 
 export const getReturns = async (): Promise<ReturnTransaction[]> => {
   checkFirebase();

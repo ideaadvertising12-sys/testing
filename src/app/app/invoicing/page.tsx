@@ -1,7 +1,7 @@
 
 "use client";
 
-import { ReceiptText, AlertTriangle } from "lucide-react";
+import { ReceiptText, AlertTriangle, Loader2 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { InvoiceDataTable } from "@/components/invoicing/InvoiceDataTable";
 import { useAuth } from "@/contexts/AuthContext";
@@ -11,16 +11,17 @@ import { GlobalPreloaderScreen } from "@/components/GlobalPreloaderScreen";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent } from "@/components/ui/card";
 import { useSalesData } from "@/hooks/useSalesData";
+import { Button } from "@/components/ui/button";
 
 export default function InvoicingPage() {
   const { currentUser } = useAuth();
   const router = useRouter();
   
-  // The hook now handles real-time updates by default.
-  const { sales, isLoading, error, totalRevenue, refetchSales } = useSalesData();
+  // The hook now fetches data paginated. `true` fetches the first page on load.
+  const { sales, isLoading, error, refetchSales, hasMore, loadMoreSales } = useSalesData(true);
 
   useEffect(() => {
-    if (currentUser === null) { // Explicitly check for not logged in
+    if (currentUser === null) { 
       router.replace("/");
     }
   }, [currentUser, router]);
@@ -33,35 +34,20 @@ export default function InvoicingPage() {
       return <GlobalPreloaderScreen message="Redirecting..." />;
   }
 
-  const revenueDisplay = new Intl.NumberFormat('en-LK', {
-    style: 'currency',
-    currency: 'LKR',
-    minimumFractionDigits: 2
-  }).format(totalRevenue).replace('LKR', 'Rs.');
-
   return (
     <div className="container mx-auto px-4 py-6">
       <PageHeader
         title="Invoice Management"
-        description={
-          <div>
-            <p>View, search, and manage past sales invoices.</p>
-            {!isLoading && !error && (
-              <p className="mt-1 text-sm font-medium text-primary">
-                Total Revenue: {revenueDisplay}
-              </p>
-            )}
-          </div>
-        }
+        description="View, search, and manage past sales invoices."
         icon={ReceiptText}
       />
 
-      {error && !isLoading && ( // Show error only if not in the middle of a loading cycle
+      {error && !isLoading && (
         <Alert variant="destructive" className="mb-6">
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle>Connection Error</AlertTitle>
           <AlertDescription>
-            {error}. The system will automatically keep trying to fetch data.
+            {error}. Data may be incomplete.
           </AlertDescription>
         </Alert>
       )}
@@ -70,10 +56,18 @@ export default function InvoicingPage() {
         <CardContent className="p-0">
           <InvoiceDataTable 
             sales={sales} 
-            isLoading={isLoading && sales.length === 0} // Show full loading screen only on initial load
+            isLoading={isLoading && sales.length === 0}
             error={error}
             refetchSales={refetchSales}
           />
+          {hasMore && (
+            <div className="p-4 border-t text-center">
+              <Button onClick={loadMoreSales} disabled={isLoading}>
+                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                {isLoading ? 'Loading...' : 'Load More Invoices'}
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
