@@ -23,6 +23,7 @@ import {
   limit,
   QueryDocumentSnapshot,
   startAfter,
+  where
 } from "firebase/firestore";
 import { format } from 'date-fns';
 import { 
@@ -51,6 +52,7 @@ import {
   expenseConverter,
   type Expense,
 } from "./types";
+import type { DateRange } from "react-day-picker";
 
 // Product Services
 export const getProducts = async (): Promise<Product[]> => {
@@ -233,14 +235,18 @@ export const addSale = async (saleData: Omit<Sale, 'id'>): Promise<string> => {
   return newCustomId;
 };
 
-const SALES_PAGE_SIZE = 50;
-export const getSales = async (lastVisible?: QueryDocumentSnapshot<Sale>): Promise<{ sales: Sale[], lastVisible: QueryDocumentSnapshot<Sale> | null }> => {
+const PAGE_SIZE = 50;
+export const getSales = async (lastVisible?: QueryDocumentSnapshot<Sale>, dateRange?: DateRange): Promise<{ sales: Sale[], lastVisible: QueryDocumentSnapshot<Sale> | null }> => {
   checkFirebase();
   const salesCol = collection(db, "sales").withConverter(saleConverter);
   
-  const q = lastVisible 
-    ? query(salesCol, orderBy("saleDate", "desc"), startAfter(lastVisible), limit(SALES_PAGE_SIZE))
-    : query(salesCol, orderBy("saleDate", "desc"), limit(SALES_PAGE_SIZE));
+  const constraints = [orderBy("saleDate", "desc")];
+  if(dateRange?.from) constraints.push(where("saleDate", ">=", dateRange.from));
+  if(dateRange?.to) constraints.push(where("saleDate", "<=", dateRange.to));
+  if (lastVisible) constraints.push(startAfter(lastVisible));
+  constraints.push(limit(PAGE_SIZE));
+
+  const q = query(salesCol, ...constraints);
 
   const salesSnapshot = await getDocs(q);
   
@@ -251,11 +257,24 @@ export const getSales = async (lastVisible?: QueryDocumentSnapshot<Sale>): Promi
 };
 
 
-export const getReturns = async (): Promise<ReturnTransaction[]> => {
+export const getReturns = async (lastVisible?: QueryDocumentSnapshot<ReturnTransaction>, dateRange?: DateRange): Promise<{ returns: ReturnTransaction[], lastVisible: QueryDocumentSnapshot<ReturnTransaction> | null }> => {
   checkFirebase();
   const returnsCol = collection(db, "returns").withConverter(returnTransactionConverter);
-  const returnsSnapshot = await getDocs(returnsCol);
-  return returnsSnapshot.docs.map(doc => doc.data());
+
+  const constraints = [orderBy("returnDate", "desc")];
+  if(dateRange?.from) constraints.push(where("returnDate", ">=", dateRange.from));
+  if(dateRange?.to) constraints.push(where("returnDate", "<=", dateRange.to));
+  if (lastVisible) constraints.push(startAfter(lastVisible));
+  constraints.push(limit(PAGE_SIZE));
+
+  const q = query(returnsCol, ...constraints);
+  
+  const returnsSnapshot = await getDocs(q);
+
+  const returns = returnsSnapshot.docs.map(doc => doc.data());
+  const newLastVisible = returnsSnapshot.docs[returnsSnapshot.docs.length - 1] || null;
+  
+  return { returns, lastVisible: newLastVisible };
 };
 
 export const getExpenses = async (): Promise<Expense[]> => {

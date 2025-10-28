@@ -1,7 +1,7 @@
 
 "use client";
 
-import { ClipboardList, FileText, Printer, DownloadCloud, Filter, Loader2, Beaker } from "lucide-react";
+import { ClipboardList, FileText, Printer, DownloadCloud, Filter, Loader2, Beaker, FilterX } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,11 +9,10 @@ import { FullReportTable } from "@/components/reports/FullReportTable";
 import type { FullReportEntry, Sale, ReturnTransaction, Product, StockTransaction } from "@/lib/types"; 
 import { useAuth } from "@/contexts/AuthContext";
 import { AccessDenied } from "@/components/AccessDenied";
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import * as XLSX from 'xlsx';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import jsPDF from 'jspdf-autotable';
 import { GlobalPreloaderScreen } from "@/components/GlobalPreloaderScreen";
 import { Input } from "@/components/ui/input";
 import { DateRangePicker } from "@/components/ui/date-range-picker"; 
@@ -36,6 +35,7 @@ function transformTransactionsToFullReportEntries(
   
   // Process Sales
   sales.forEach(sale => {
+    if (sale.status === 'cancelled') return;
     const paymentDetails: { date: Date; summary: string }[] = [];
     
     if (sale.paidAmountCash && sale.paidAmountCash > 0) {
@@ -89,7 +89,6 @@ function transformTransactionsToFullReportEntries(
 
   // Process Returns
   returns.forEach(ret => {
-    // Returned items (credit to customer, negative quantity)
     ret.returnedItems.forEach(item => {
       reportEntries.push({
         transactionId: ret.id,
@@ -108,7 +107,6 @@ function transformTransactionsToFullReportEntries(
       });
     });
 
-    // Exchanged items (debit from customer, positive quantity)
     ret.exchangedItems.forEach(item => {
         reportEntries.push({
             transactionId: ret.id,
@@ -161,35 +159,36 @@ export default function FullReportPage() {
   const { currentUser } = useAuth();
   const router = useRouter();
   
-  const { sales: liveSales, isLoading: isLoadingSales, error: salesError } = useSalesData();
-  const { returns, isLoading: isLoadingReturns, error: returnsError } = useReturns();
-  const { transactions: stockTransactions, isLoading: isLoadingStock, error: stockError } = useStockTransactions();
-  const { products: allProducts, isLoading: isLoadingProducts, error: productsError } = useProducts();
-
-  const [reportData, setReportData] = useState<FullReportEntry[]>([]);
-  const [filteredData, setFilteredData] = useState<FullReportEntry[]>([]);
-  const [searchTerm, setSearchTerm] = useState("");
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: addDays(new Date(), -30), 
     to: new Date(),
   });
+
+  const { sales, isLoading: isLoadingSales, error: salesError, loadMoreSales, hasMore: hasMoreSales } = useSalesData(false, dateRange);
+  const { returns, isLoading: isLoadingReturns, error: returnsError, loadMoreReturns, hasMore: hasMoreReturns } = useReturns(false, dateRange);
+  const { transactions: stockTransactions, isLoading: isLoadingStock, error: stockError, loadMoreTransactions, hasMore: hasMoreStock } = useStockTransactions(false, dateRange);
+  const { products: allProducts, isLoading: isLoadingProducts, error: productsError } = useProducts();
+
+  const [combinedData, setCombinedData] = useState<FullReportEntry[]>([]);
+  const [filteredData, setFilteredData] = useState<FullReportEntry[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
   const [saleTypeFilter, setSaleTypeFilter] = useState<string>("all");
   const [paymentSummaryFilter, setPaymentSummaryFilter] = useState<string>("all");
   const [transactionTypeFilter, setTransactionTypeFilter] = useState<string>("all");
 
-
+  // Transform data whenever source data changes
   useEffect(() => {
-    if (!isLoadingSales && !isLoadingReturns && !isLoadingStock && !isLoadingProducts && liveSales && returns && stockTransactions && allProducts) {
-      setReportData(transformTransactionsToFullReportEntries(liveSales, returns, stockTransactions, allProducts));
+    if (!isLoadingSales && !isLoadingReturns && !isLoadingStock && !isLoadingProducts && sales && returns && stockTransactions && allProducts) {
+      setCombinedData(transformTransactionsToFullReportEntries(sales, returns, stockTransactions, allProducts));
     }
-  }, [liveSales, returns, stockTransactions, allProducts, isLoadingSales, isLoadingReturns, isLoadingStock, isLoadingProducts]);
+  }, [sales, returns, stockTransactions, allProducts, isLoadingSales, isLoadingReturns, isLoadingStock, isLoadingProducts]);
 
 
-  // Apply filters
+  // Apply filters to the combined data
   useEffect(() => {
-    let result = [...reportData];
+    let result = [...combinedData];
     
-    // Date filter
+    // Date filter is already applied at the hook level, but we can do a client-side one just in case
     if (dateRange?.from && dateRange.to) {
       result = result.filter(entry => {
         const entryDate = parseISO(entry.transactionDate); 
@@ -197,7 +196,6 @@ export default function FullReportPage() {
       });
     }
     
-    // Search filter
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       result = result.filter(entry => 
@@ -209,23 +207,20 @@ export default function FullReportPage() {
       );
     }
     
-    // Transaction type filter
     if (transactionTypeFilter !== "all") {
         result = result.filter(entry => entry.transactionType === transactionTypeFilter);
     }
 
-    // Sale type filter
     if (saleTypeFilter !== "all") {
       result = result.filter(entry => entry.saleType === saleTypeFilter);
     }
     
-    // Payment summary filter
     if (paymentSummaryFilter !== "all") {
       result = result.filter(entry => entry.paymentSummary && entry.paymentSummary.toLowerCase().includes(paymentSummaryFilter.toLowerCase()));
     }
     
     setFilteredData(result);
-  }, [reportData, searchTerm, dateRange, saleTypeFilter, paymentSummaryFilter, transactionTypeFilter]);
+  }, [combinedData, searchTerm, dateRange, saleTypeFilter, paymentSummaryFilter, transactionTypeFilter]);
 
   useEffect(() => {
     if (!currentUser) {
@@ -238,6 +233,14 @@ export default function FullReportPage() {
   }, [currentUser, router]);
 
   const pageIsLoading = isLoadingSales || isLoadingReturns || isLoadingStock || isLoadingProducts;
+  const anyDataLoading = isLoadingSales || isLoadingReturns || isLoadingStock;
+  const hasMoreData = hasMoreSales || hasMoreReturns || hasMoreStock;
+
+  const handleLoadMore = () => {
+    if (hasMoreSales) loadMoreSales();
+    if (hasMoreReturns) loadMoreReturns();
+    if (hasMoreStock) loadMoreTransactions();
+  }
 
   if (!currentUser) {
      return <GlobalPreloaderScreen message="Loading report..." />;
@@ -327,10 +330,10 @@ export default function FullReportPage() {
   };
   
   const paymentSummaryOptions = useMemo(() => {
-    if (pageIsLoading || !reportData) return [{ value: "all", label: "All Payment Summaries" }];
-    const summaries = new Set(reportData.filter(e => e.transactionType === 'Sale' && e.paymentSummary).map(entry => entry.paymentSummary));
+    if (pageIsLoading || !combinedData) return [{ value: "all", label: "All Payment Summaries" }];
+    const summaries = new Set(combinedData.filter(e => e.transactionType === 'Sale' && e.paymentSummary).map(entry => entry.paymentSummary));
     return [{ value: "all", label: "All Payment Summaries" }, ...Array.from(summaries).map(s => ({ value: s!, label: s! }))];
-  }, [reportData, pageIsLoading]);
+  }, [combinedData, pageIsLoading]);
 
 
   const reportActions = (
@@ -339,27 +342,17 @@ export default function FullReportPage() {
         onClick={handleExportExcel} 
         variant="outline" 
         size="sm"
-        disabled={pageIsLoading || filteredData.length === 0}
+        disabled={anyDataLoading || filteredData.length === 0}
       >
-        {pageIsLoading ? ( 
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-        ) : (
-          <DownloadCloud className="mr-2 h-4 w-4" />
-        )}
-        Export Excel
+        <DownloadCloud className="mr-2 h-4 w-4" /> Export Excel
       </Button>
       <Button 
         onClick={handleExportPDF} 
         variant="outline" 
         size="sm"
-        disabled={pageIsLoading || filteredData.length === 0}
+        disabled={anyDataLoading || filteredData.length === 0}
       >
-        {pageIsLoading ? (
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-        ) : (
-          <FileText className="mr-2 h-4 w-4" />
-        )}
-        Export PDF
+        <FileText className="mr-2 h-4 w-4" /> Export PDF
       </Button>
       <Button 
         onClick={handlePrint} 
@@ -367,13 +360,12 @@ export default function FullReportPage() {
         size="sm"
         disabled={filteredData.length === 0}
       >
-        <Printer className="mr-2 h-4 w-4" /> 
-        Print
+        <Printer className="mr-2 h-4 w-4" /> Print
       </Button>
     </div>
   );
   
-  if (pageIsLoading && reportData.length === 0) { 
+  if (pageIsLoading && combinedData.length === 0) { 
     return <GlobalPreloaderScreen message="Loading full report data..." />;
   }
 
@@ -392,11 +384,11 @@ export default function FullReportPage() {
             <div>
               <CardTitle className="font-headline">Detailed Transaction Log</CardTitle>
               <CardDescription>
-                {filteredData.length} transactions found
-                {salesError && <span className="text-destructive ml-2"> (Sales Error: {salesError})</span>}
-                {returnsError && <span className="text-destructive ml-2"> (Returns Error: {returnsError})</span>}
-                {stockError && <span className="text-destructive ml-2"> (Stock Error: {stockError})</span>}
-                {productsError && <span className="text-destructive ml-2"> (Products Error: {productsError})</span>}
+                {anyDataLoading ? 'Loading...' : `${filteredData.length} transactions found`}
+                {salesError && <span className="text-destructive ml-2">(Sales Error)</span>}
+                {returnsError && <span className="text-destructive ml-2">(Returns Error)</span>}
+                {stockError && <span className="text-destructive ml-2">(Stock Error)</span>}
+                {productsError && <span className="text-destructive ml-2">(Products Error)</span>}
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
@@ -405,12 +397,12 @@ export default function FullReportPage() {
             </div>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <Input
               placeholder="Search transactions..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full lg:col-span-2"
+              className="w-full"
             />
             
             <DateRangePicker 
@@ -437,32 +429,37 @@ export default function FullReportPage() {
                 <SelectItem value="wholesale">Wholesale</SelectItem>
               </SelectContent>
             </Select>
+            <Button variant="ghost" className="flex items-center gap-1 text-sm text-muted-foreground" onClick={() => {
+                setSearchTerm('');
+                setSaleTypeFilter('all');
+                setTransactionTypeFilter('all');
+            }}>
+                <FilterX className="h-4 w-4"/>
+                Clear Filters
+            </Button>
 
           </div>
         </CardHeader>
         
         <CardContent className="print:p-0">
-          <FullReportTable data={filteredData} isLoading={pageIsLoading && reportData.length === 0} />
+          <FullReportTable data={filteredData} isLoading={pageIsLoading && combinedData.length === 0} />
+           {hasMoreData && (
+            <div className="p-4 border-t text-center">
+              <Button onClick={handleLoadMore} disabled={anyDataLoading}>
+                {anyDataLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                {anyDataLoading ? 'Loading...' : 'Load More Transactions'}
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
       
       <style jsx global>{`
         @media print {
-          body {
-            background: white;
-          }
-          .printable-report-container {
-            box-shadow: none;
-            border: none;
-          }
-          .table th, .table td {
-            padding: 4px 8px;
-            font-size: 10px;
-          }
-          .badge {
-            padding: 2px 6px;
-            font-size: 10px;
-          }
+          body { background: white; }
+          .printable-report-container { box-shadow: none; border: none; }
+          .table th, .table td { padding: 4px 8px; font-size: 10px; }
+          .badge { padding: 2px 6px; font-size: 10px; }
         }
       `}</style>
     </div>
