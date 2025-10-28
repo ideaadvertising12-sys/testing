@@ -6,9 +6,9 @@ import type { ReturnTransaction } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { getReturns } from "@/lib/firestoreService";
 
-export function useReturns() {
+export function useReturns(fetchAll: boolean = false) {
   const [returns, setReturns] = useState<ReturnTransaction[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(fetchAll);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
@@ -32,8 +32,10 @@ export function useReturns() {
   }, [toast]);
 
   useEffect(() => {
-    refetchReturns();
-  }, [refetchReturns]);
+    if (fetchAll) {
+      refetchReturns();
+    }
+  }, [refetchReturns, fetchAll]);
 
   return {
     returns,

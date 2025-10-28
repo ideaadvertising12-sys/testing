@@ -103,8 +103,9 @@ export default function SalesPage() {
   const { currentUser } = useAuth();
   const isCashier = currentUser?.role === 'cashier';
   
-  const { sales: allSales } = useSalesData(true); // Get all sales data
-  const { returns, isLoading: isLoadingReturns, error: returnsError } = useReturns();
+  // OPTIMIZATION: Set fetchAll to false by default for these hooks.
+  const { sales: allSales, refetchSales } = useSalesData(false);
+  const { returns, refetchReturns } = useReturns();
   
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
@@ -127,6 +128,14 @@ export default function SalesPage() {
 
   const { toast } = useToast();
   const isMobile = useMediaQuery("(max-width: 768px)");
+
+  // OPTIMIZATION: Fetch sales and returns data only when a customer is selected
+  useEffect(() => {
+    if (selectedCustomer) {
+      refetchSales();
+      refetchReturns();
+    }
+  }, [selectedCustomer, refetchSales, refetchReturns]);
   
   const categories: (Product["category"] | "All")[] = useMemo(() => {
     if (isLoadingProducts || !allProducts) return ["All"];
@@ -534,7 +543,7 @@ export default function SalesPage() {
     </Button>
   );
 
-  if ((isLoadingProducts || isLoadingReturns) && !allProducts?.length) { 
+  if (isLoadingProducts && !allProducts?.length) { 
     return (
         <div className="flex flex-col items-center justify-center h-screen">
             <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
