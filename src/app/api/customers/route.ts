@@ -42,12 +42,15 @@ export async function POST(request: NextRequest) {
     if (!customerData || !customerData.name || !customerData.phone) {
       return NextResponse.json({ error: 'Missing required customer fields (name, phone)' }, { status: 400 });
     }
+    
+    const customerToCreate = {
+        ...customerData,
+        name_lowercase: customerData.name.toLowerCase(),
+        shopName_lowercase: customerData.shopName?.toLowerCase(),
+    };
 
-    // Add any specific validation for customer data here if needed
-    // e.g., phone number format, etc.
-
-    const customerId = await addCustomer(customerData);
-    return NextResponse.json({ id: customerId, ...customerData }, { status: 201 });
+    const customerId = await addCustomer(customerToCreate);
+    return NextResponse.json({ id: customerId, ...customerToCreate }, { status: 201 });
   } catch (error) {
     console.error('Error adding customer:', error);
     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
@@ -70,8 +73,17 @@ export async function PUT(request: NextRequest) {
     if (customerUpdateData.name === '' || customerUpdateData.phone === '') {
        return NextResponse.json({ error: 'Name and phone cannot be empty if provided for update.' }, { status: 400 });
     }
+    
+    const dataToUpdate: Partial<Omit<Customer, 'id'>> = { ...customerUpdateData };
+    if (customerUpdateData.name) {
+        dataToUpdate.name_lowercase = customerUpdateData.name.toLowerCase();
+    }
+    if (customerUpdateData.shopName) {
+        dataToUpdate.shopName_lowercase = customerUpdateData.shopName.toLowerCase();
+    }
 
-    await updateCustomer(customerId, customerUpdateData);
+
+    await updateCustomer(customerId, dataToUpdate);
     return NextResponse.json({ message: 'Customer updated successfully' });
   } catch (error) {
     console.error('Error updating customer:', error);

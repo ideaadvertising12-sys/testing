@@ -106,7 +106,7 @@ export function CustomerDialog({
 
     setIsSubmitting(true);
     try {
-      const customerDataToSave: any = {
+      const customerDataToSave: Customer = {
         id: customer?.id || Date.now().toString(),
         avatar: customer?.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(formData.name!)}`,
         name: formData.name!,
@@ -114,8 +114,8 @@ export function CustomerDialog({
         address: formData.address,
         shopName: formData.shopName,
         status: formData.status,
-        name_lowercase: formData.name!.toLowerCase(),
-        shopName_lowercase: formData.shopName?.toLowerCase(),
+        name_lowercase: formData.name!.toLowerCase(), // Ensure lowercase field is added
+        shopName_lowercase: formData.shopName?.toLowerCase(), // Ensure lowercase field is added
       };
       await onSave(customerDataToSave);
     } catch (error) {
@@ -238,5 +238,3 @@ export function CustomerDialog({
     </Dialog>
   );
 }
-
-    

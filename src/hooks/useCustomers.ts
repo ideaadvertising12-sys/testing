@@ -72,7 +72,7 @@ export function useCustomers(fetchAll: boolean = true) {
       });
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ message: "Failed to add customer" }));
-        throw new Error(errorData.message || "Failed to add customer. Server responded with an error.");
+        throw new Error(errorData.details || errorData.error || "Failed to add customer. Server responded with an error.");
       }
       const newCustomer = await response.json();
       await refetchCustomers(); // Refetch after adding
@@ -88,7 +88,7 @@ export function useCustomers(fetchAll: boolean = true) {
     }
   };
 
-  const updateCustomer = async (id: string, customerData: Partial<Omit<Customer, "id" | "avatar">>): Promise<Customer | null> => {
+  const updateCustomer = async (id: string, customerData: Partial<Omit<Customer, "id">>): Promise<Customer | null> => {
     try {
       const response = await fetch(`${API_BASE_URL}?id=${id}`, {
         method: "PUT",
@@ -97,7 +97,7 @@ export function useCustomers(fetchAll: boolean = true) {
       });
       if (!response.ok) {
          const errorData = await response.json().catch(() => ({ message: "Failed to update customer" }));
-        throw new Error(errorData.message || `Failed to update customer. Server responded with status ${response.status}.`);
+        throw new Error(errorData.details || errorData.error || `Failed to update customer. Server responded with status ${response.status}.`);
       }
       await refetchCustomers(); // Refetch after updating
       const updatedCustomerState = customers.find(c => c.id === id);
@@ -121,7 +121,7 @@ export function useCustomers(fetchAll: boolean = true) {
       });
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ message: "Failed to delete customer" }));
-        throw new Error(errorData.message || `Failed to delete customer. Server responded with status ${response.status}.`);
+        throw new Error(errorData.details || errorData.error || `Failed to delete customer. Server responded with status ${response.status}.`);
       }
       await refetchCustomers(); // Refetch after deleting
       return true;
