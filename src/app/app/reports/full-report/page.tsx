@@ -164,9 +164,9 @@ export default function FullReportPage() {
     to: new Date(),
   });
 
-  const { sales, isLoading: isLoadingSales, error: salesError, loadMoreSales, hasMore: hasMoreSales } = useSalesData(false, dateRange);
-  const { returns, isLoading: isLoadingReturns, error: returnsError, loadMoreReturns, hasMore: hasMoreReturns } = useReturns(false, dateRange);
-  const { transactions: stockTransactions, isLoading: isLoadingStock, error: stockError, loadMoreTransactions, hasMore: hasMoreStock } = useStockTransactions(false, dateRange);
+  const { sales, isLoading: isLoadingSales, error: salesError } = useSalesData(true, dateRange);
+  const { returns, isLoading: isLoadingReturns, error: returnsError } = useReturns(true, dateRange);
+  const { transactions: stockTransactions, isLoading: isLoadingStock, error: stockError } = useStockTransactions(true, dateRange);
   const { products: allProducts, isLoading: isLoadingProducts, error: productsError } = useProducts();
 
   const [combinedData, setCombinedData] = useState<FullReportEntry[]>([]);
@@ -233,15 +233,7 @@ export default function FullReportPage() {
   }, [currentUser, router]);
 
   const pageIsLoading = isLoadingSales || isLoadingReturns || isLoadingStock || isLoadingProducts;
-  const anyDataLoading = isLoadingSales || isLoadingReturns || isLoadingStock;
-  const hasMoreData = hasMoreSales || hasMoreReturns || hasMoreStock;
-
-  const handleLoadMore = () => {
-    if (hasMoreSales) loadMoreSales();
-    if (hasMoreReturns) loadMoreReturns();
-    if (hasMoreStock) loadMoreTransactions();
-  }
-
+  
   if (!currentUser) {
      return <GlobalPreloaderScreen message="Loading report..." />;
   }
@@ -342,7 +334,7 @@ export default function FullReportPage() {
         onClick={handleExportExcel} 
         variant="outline" 
         size="sm"
-        disabled={anyDataLoading || filteredData.length === 0}
+        disabled={pageIsLoading || filteredData.length === 0}
       >
         <DownloadCloud className="mr-2 h-4 w-4" /> Export Excel
       </Button>
@@ -350,7 +342,7 @@ export default function FullReportPage() {
         onClick={handleExportPDF} 
         variant="outline" 
         size="sm"
-        disabled={anyDataLoading || filteredData.length === 0}
+        disabled={pageIsLoading || filteredData.length === 0}
       >
         <FileText className="mr-2 h-4 w-4" /> Export PDF
       </Button>
@@ -384,7 +376,7 @@ export default function FullReportPage() {
             <div>
               <CardTitle className="font-headline">Detailed Transaction Log</CardTitle>
               <CardDescription>
-                {anyDataLoading ? 'Loading...' : `${filteredData.length} transactions found`}
+                {pageIsLoading ? 'Loading...' : `${filteredData.length} transactions found`}
                 {salesError && <span className="text-destructive ml-2">(Sales Error)</span>}
                 {returnsError && <span className="text-destructive ml-2">(Returns Error)</span>}
                 {stockError && <span className="text-destructive ml-2">(Stock Error)</span>}
@@ -443,14 +435,6 @@ export default function FullReportPage() {
         
         <CardContent className="print:p-0">
           <FullReportTable data={filteredData} isLoading={pageIsLoading && combinedData.length === 0} />
-           {hasMoreData && (
-            <div className="p-4 border-t text-center">
-              <Button onClick={handleLoadMore} disabled={anyDataLoading}>
-                {anyDataLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                {anyDataLoading ? 'Loading...' : 'Load More Transactions'}
-              </Button>
-            </div>
-          )}
         </CardContent>
       </Card>
       

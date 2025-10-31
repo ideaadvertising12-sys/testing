@@ -12,8 +12,7 @@ import { AccessDenied } from "@/components/AccessDenied";
 import React, { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import * as XLSX from 'xlsx';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import jsPDF from 'jspdf-autotable';
 import { GlobalPreloaderScreen } from "@/components/GlobalPreloaderScreen";
 import { Input } from "@/components/ui/input";
 import { DateRangePicker } from "@/components/ui/date-range-picker"; 
@@ -32,7 +31,7 @@ export default function StockReportPage() {
     to: new Date(),
   });
   
-  const { transactions: allTransactions, isLoading, error, hasMore, loadMoreTransactions } = useStockTransactions(true, dateRange);
+  const { transactions: allTransactions, isLoading, error } = useStockTransactions(true, dateRange);
   const { vehicles, isLoading: isLoadingVehicles } = useVehicles();
 
   const [filteredData, setFilteredData] = useState<(StockTransaction & { vehicleNumber?: string })[]>([]);
@@ -230,14 +229,6 @@ export default function StockReportPage() {
         
         <CardContent>
           <StockReportTable data={filteredData} isLoading={pageIsLoading && allTransactions.length === 0} />
-           {hasMore && (
-            <div className="p-4 border-t text-center">
-              <Button onClick={loadMoreTransactions} disabled={isLoading}>
-                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                {isLoading ? 'Loading...' : 'Load More Transactions'}
-              </Button>
-            </div>
-          )}
         </CardContent>
       </Card>
     </div>

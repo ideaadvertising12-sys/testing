@@ -235,7 +235,6 @@ export const addSale = async (saleData: Omit<Sale, 'id'>): Promise<string> => {
   return newCustomId;
 };
 
-const PAGE_SIZE = 50;
 export const getSales = async (lastVisible?: QueryDocumentSnapshot<Sale>, dateRange?: DateRange, staffId?: string): Promise<{ sales: Sale[], lastVisible: QueryDocumentSnapshot<Sale> | null }> => {
   checkFirebase();
   const salesCol = collection(db, "sales").withConverter(saleConverter);
@@ -244,8 +243,6 @@ export const getSales = async (lastVisible?: QueryDocumentSnapshot<Sale>, dateRa
   if(dateRange?.from) constraints.push(where("saleDate", ">=", dateRange.from));
   if(dateRange?.to) constraints.push(where("saleDate", "<=", dateRange.to));
   if(staffId) constraints.push(where("staffId", "==", staffId));
-  if (lastVisible) constraints.push(startAfter(lastVisible));
-  constraints.push(limit(PAGE_SIZE));
 
   const q = query(salesCol, ...constraints);
 
@@ -266,9 +263,7 @@ export const getReturns = async (lastVisible?: QueryDocumentSnapshot<ReturnTrans
   if(dateRange?.from) constraints.push(where("returnDate", ">=", dateRange.from));
   if(dateRange?.to) constraints.push(where("returnDate", "<=", dateRange.to));
   if(staffId) constraints.push(where("staffId", "==", staffId));
-  if (lastVisible) constraints.push(startAfter(lastVisible));
-  constraints.push(limit(PAGE_SIZE));
-
+  
   const q = query(returnsCol, ...constraints);
   
   const returnsSnapshot = await getDocs(q);

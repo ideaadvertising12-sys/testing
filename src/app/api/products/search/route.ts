@@ -4,8 +4,6 @@ import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { productConverter, type Product } from '@/lib/types';
 
-export const revalidate = 60; // Cache API response for 60 seconds
-
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const searchTerm = searchParams.get('q')?.toLowerCase();

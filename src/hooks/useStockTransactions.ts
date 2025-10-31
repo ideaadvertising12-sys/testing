@@ -10,17 +10,12 @@ import { query, collection, orderBy, where, limit, getDocs, startAfter, QueryDoc
 import { db } from "@/lib/firebase";
 import { stockTransactionConverter } from "@/lib/types";
 
-
-const PAGE_SIZE = 50;
-
 async function getStockTransactions(lastVisible?: QueryDocumentSnapshot<StockTransaction>, dateRange?: DateRange): Promise<{ transactions: StockTransaction[], lastVisible: QueryDocumentSnapshot<StockTransaction> | null }> {
   const transCol = collection(db, 'stockTransactions').withConverter(stockTransactionConverter as any);
   
   const constraints = [orderBy("transactionDate", "desc")];
   if(dateRange?.from) constraints.push(where("transactionDate", ">=", dateRange.from));
   if(dateRange?.to) constraints.push(where("transactionDate", "<=", dateRange.to));
-  if (lastVisible) constraints.push(startAfter(lastVisible));
-  constraints.push(limit(PAGE_SIZE));
 
   const q = query(transCol, ...constraints);
   
@@ -36,21 +31,14 @@ export function useStockTransactions(fetchAll: boolean = false, dateRange?: Date
   const [transactions, setTransactions] = useState<StockTransaction[]>([]);
   const [isLoading, setIsLoading] = useState(fetchAll);
   const [error, setError] = useState<string | null>(null);
-  const [lastVisible, setLastVisible] = useState<QueryDocumentSnapshot<StockTransaction> | null>(null);
-  const [hasMore, setHasMore] = useState(true);
   const { toast } = useToast();
 
-  const fetchInitialTransactions = useCallback(async () => {
+  const refetchTransactions = useCallback(async () => {
     setIsLoading(true);
     setError(null);
-    setHasMore(true);
     try {
-      const { transactions: initial, lastVisible: newLastVisible } = await getStockTransactions(undefined, dateRange);
+      const { transactions: initial } = await getStockTransactions(undefined, dateRange);
       setTransactions(initial);
-      setLastVisible(newLastVisible);
-      if (!newLastVisible) {
-        setHasMore(false);
-      }
     } catch (err: any) {
       const errorMessage = err.message || "An unknown error occurred.";
       setError(errorMessage);
@@ -64,41 +52,22 @@ export function useStockTransactions(fetchAll: boolean = false, dateRange?: Date
     }
   }, [toast, dateRange]);
 
-  const loadMoreTransactions = useCallback(async () => {
-    if (!lastVisible || !hasMore || isLoading) return;
-    setIsLoading(true);
-    try {
-        const { transactions: newTransactions, lastVisible: newLastVisible } = await getStockTransactions(lastVisible, dateRange);
-        setTransactions(prev => [...prev, ...newTransactions]);
-        setLastVisible(newLastVisible);
-        if (!newLastVisible) {
-            setHasMore(false);
-        }
-    } catch (err: any) {
-        setError(err.message);
-        toast({ variant: "destructive", title: "Error", description: "Could not load more stock transactions." });
-    } finally {
-        setIsLoading(false);
-    }
-  }, [lastVisible, hasMore, isLoading, toast, dateRange]);
-
-
   useEffect(() => {
     if(fetchAll){
-        fetchInitialTransactions();
+        refetchTransactions();
     }
-  }, [fetchAll, fetchInitialTransactions]);
+  }, [fetchAll, refetchTransactions]);
   
   useEffect(() => {
-    fetchInitialTransactions();
-  }, [dateRange, fetchInitialTransactions]);
+    refetchTransactions();
+  }, [dateRange, refetchTransactions]);
 
   return {
     transactions,
     isLoading,
     error,
-    hasMore,
-    loadMoreTransactions,
-    refetchTransactions: fetchInitialTransactions
+    hasMore: false, // Temporarily disabled
+    loadMoreTransactions: () => {}, // No-op
+    refetchTransactions,
   };
 }

@@ -17,8 +17,8 @@ export default function InvoicingPage() {
   const { currentUser } = useAuth();
   const router = useRouter();
   
-  // The hook now fetches data paginated. `true` fetches the first page on load.
-  const { sales, isLoading, error, refetchSales, hasMore, loadMoreSales } = useSalesData(true);
+  // The hook now fetches all data at once.
+  const { sales, isLoading, error, refetchSales } = useSalesData(true);
 
   useEffect(() => {
     if (currentUser === null) { 
@@ -60,14 +60,6 @@ export default function InvoicingPage() {
             error={error}
             refetchSales={refetchSales}
           />
-          {hasMore && (
-            <div className="p-4 border-t text-center">
-              <Button onClick={loadMoreSales} disabled={isLoading}>
-                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                {isLoading ? 'Loading...' : 'Load More Invoices'}
-              </Button>
-            </div>
-          )}
         </CardContent>
       </Card>
     </div>

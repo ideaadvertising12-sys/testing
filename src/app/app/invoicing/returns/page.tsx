@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 export default function ReturnInvoicesPage() {
   const { currentUser } = useAuth();
   const router = useRouter();
-  const { returns, isLoading, error, loadMoreReturns, hasMore } = useReturns(true);
+  const { returns, isLoading, error } = useReturns(true);
 
   React.useEffect(() => {
     if (!currentUser) {
@@ -47,14 +47,6 @@ export default function ReturnInvoicesPage() {
                 isLoading={isLoading && returns.length === 0}
                 error={error}
             />
-             {hasMore && (
-              <div className="p-4 border-t text-center">
-                <Button onClick={loadMoreReturns} disabled={isLoading}>
-                  {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                  {isLoading ? 'Loading...' : 'Load More Returns'}
-                </Button>
-              </div>
-            )}
         </CardContent>
       </Card>
     </>
