@@ -20,7 +20,6 @@ import type { Product, CartItem, Customer, Sale, ChequeInfo, BankTransferInfo, S
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useProducts } from "@/hooks/useProducts";
-import { useCustomers } from "@/hooks/useCustomers";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertTriangle } from "lucide-react";
 import { useVehicles } from "@/hooks/useVehicles";
@@ -93,19 +92,14 @@ export default function SalesPage() {
     refetch: refetchProducts 
   } = useProducts();
   
-  const { 
-    customers: allCustomersFromHook, 
-    isLoading: isLoadingHookCustomers, 
-    error: hookCustomersError 
-  } = useCustomers();
-
+  
   const { vehicles, isLoading: isLoadingVehicles } = useVehicles();
   const { currentUser } = useAuth();
   const isCashier = currentUser?.role === 'cashier';
   
   // OPTIMIZATION: Set fetchAll to false by default for these hooks.
-  const { sales: allSales, refetchSales } = useSalesData(false);
-  const { returns, refetchReturns } = useReturns();
+  const { sales: allSales, refetchSales } = useSalesData(true); // Still fetch all for balance calculation
+  const { returns, refetchReturns } = useReturns(true); // Still fetch all for balance calculation
   
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
@@ -129,13 +123,9 @@ export default function SalesPage() {
   const { toast } = useToast();
   const isMobile = useMediaQuery("(max-width: 768px)");
 
-  // OPTIMIZATION: Fetch sales and returns data only when a customer is selected
-  useEffect(() => {
-    if (selectedCustomer) {
-      refetchSales();
-      refetchReturns();
-    }
-  }, [selectedCustomer, refetchSales, refetchReturns]);
+  // OPTIMIZATION: Fetch sales and returns data only when a customer is selected is not fully possible
+  // as we need all of them to calculate balance correctly across all sales.
+  // We will keep fetching them on page load for now to ensure balance accuracy.
   
   const categories: (Product["category"] | "All")[] = useMemo(() => {
     if (isLoadingProducts || !allProducts) return ["All"];
@@ -147,7 +137,7 @@ export default function SalesPage() {
       return 0;
     }
     return allSales
-      .filter(sale => sale.customerId === selectedCustomer.id)
+      .filter(sale => sale.customerId === selectedCustomer.id && sale.status !== 'cancelled')
       .reduce((total, sale) => total + (sale.outstandingBalance || 0), 0);
   }, [selectedCustomer, allSales]);
 
@@ -509,6 +499,7 @@ export default function SalesPage() {
 
       handleCancelOrder(); 
       await refetchProducts();
+      await Promise.all([refetchSales(), refetchReturns()]);
       if (viewMode === 'vehicle' && selectedVehicleId) {
         await handleFetchVehicleStock(selectedVehicleId); // Refresh vehicle stock after sale
       }

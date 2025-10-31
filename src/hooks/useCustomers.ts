@@ -9,9 +9,9 @@ import { getCustomers } from "@/lib/firestoreService";
 const API_BASE_URL = "/api/customers";
 const CACHE_KEY = "customersCache";
 
-export function useCustomers() {
+export function useCustomers(fetchAll: boolean = true) {
   const [customers, setCustomers] = useState<Customer[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(fetchAll);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
@@ -44,18 +44,24 @@ export function useCustomers() {
         const cachedData = localStorage.getItem(CACHE_KEY);
         if (cachedData) {
           setCustomers(JSON.parse(cachedData));
-          setIsLoading(false); // We have data to show, so we are not "loading"
+          if(fetchAll) {
+             setIsLoading(false); // We have data to show, so we are not "loading"
+          } else {
+             setIsLoading(true); // if we don't fetch all, we should still show loading until we do
+          }
         }
       } catch (e) {
         console.warn("Could not read customers from cache", e);
       }
       
-      // 2. Fetch fresh data from Firestore
-      await refetchCustomers();
+      // 2. Fetch fresh data from Firestore if requested
+      if (fetchAll) {
+        await refetchCustomers();
+      }
     };
 
     loadData();
-  }, [refetchCustomers]);
+  }, [fetchAll, refetchCustomers]);
 
   const addCustomer = async (customerData: Omit<Customer, "id" | "avatar">): Promise<Customer | null> => {
     try {

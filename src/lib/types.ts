@@ -61,6 +61,8 @@ export interface Customer {
   status?: 'active' | 'pending';
   createdAt?: Date;
   updatedAt?: Date;
+  name_lowercase?: string;
+  shopName_lowercase?: string;
 }
 
 export interface CartItem {
@@ -230,6 +232,8 @@ export interface FirestoreCustomer extends Omit<Customer, 'id' | 'createdAt' | '
   status?: 'active' | 'pending';
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
+  name_lowercase?: string;
+  shopName_lowercase?: string;
 }
 
 export interface FirestoreVehicle extends Omit<Vehicle, 'id' | 'createdAt' | 'updatedAt'> {
@@ -339,10 +343,14 @@ export const customerConverter = {
       phone: data.phone,
       status: data.status || 'active',
       updatedAt: Timestamp.now(),
+      name_lowercase: data.name.toLowerCase(),
     };
     if (data.avatar) firestoreCustomer.avatar = data.avatar;
     if (data.address) firestoreCustomer.address = data.address;
-    if (data.shopName) firestoreCustomer.shopName = data.shopName;
+    if (data.shopName) {
+      firestoreCustomer.shopName = data.shopName;
+      firestoreCustomer.shopName_lowercase = data.shopName.toLowerCase();
+    }
     if (!data.createdAt) firestoreCustomer.createdAt = Timestamp.now();
     return firestoreCustomer as FirestoreCustomer;
   },
@@ -358,6 +366,8 @@ export const customerConverter = {
       status: data.status || 'active',
       createdAt: safeTimestampToDate(data.createdAt),
       updatedAt: safeTimestampToDate(data.updatedAt),
+      name_lowercase: data.name_lowercase,
+      shopName_lowercase: data.shopName_lowercase,
     };
   }
 };

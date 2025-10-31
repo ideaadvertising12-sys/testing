@@ -48,7 +48,7 @@ export function CustomerDialog({
   onOpenChange,
   initialStatus = 'active'
 }: CustomerDialogProps) {
-  const [formData, setFormData] = useState<Partial<Omit<Customer, 'id' | 'avatar'>>>(defaultCustomerData);
+  const [formData, setFormData] = useState<Partial<Omit<Customer, 'id' | 'avatar'>>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { currentUser } = useAuth();
   const { toast } = useToast();
@@ -106,7 +106,7 @@ export function CustomerDialog({
 
     setIsSubmitting(true);
     try {
-      const customerDataToSave: Customer = {
+      const customerDataToSave: any = {
         id: customer?.id || Date.now().toString(),
         avatar: customer?.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(formData.name!)}`,
         name: formData.name!,
@@ -114,6 +114,8 @@ export function CustomerDialog({
         address: formData.address,
         shopName: formData.shopName,
         status: formData.status,
+        name_lowercase: formData.name!.toLowerCase(),
+        shopName_lowercase: formData.shopName?.toLowerCase(),
       };
       await onSave(customerDataToSave);
     } catch (error) {

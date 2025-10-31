@@ -13,7 +13,6 @@ import Image from "next/image";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
-import { useCustomers } from "@/hooks/useCustomers";
 
 const formatCurrency = (amount: number): string => {
   if (typeof amount !== 'number' || isNaN(amount)) return 'Rs. 0.00';
@@ -59,9 +58,39 @@ export function CartView({
   totalAmount,
   className
 }: CartViewProps) {
-  const { customers: allCustomers, isLoading: isLoadingCustomers, error: customersError } = useCustomers();
-  
   const [openCustomerPopover, setOpenCustomerPopover] = React.useState(false);
+  const [customerSearch, setCustomerSearch] = React.useState("");
+  const [searchedCustomers, setSearchedCustomers] = React.useState<Customer[]>([]);
+  const [isSearching, setIsSearching] = React.useState(false);
+
+  React.useEffect(() => {
+    const handler = setTimeout(async () => {
+      if (customerSearch.length < 2) {
+        setSearchedCustomers([]);
+        return;
+      }
+      setIsSearching(true);
+      try {
+        const response = await fetch(`/api/customers/search?q=${customerSearch}`);
+        if (response.ok) {
+          const data: Customer[] = await response.json();
+          setSearchedCustomers(data);
+        } else {
+          setSearchedCustomers([]);
+        }
+      } catch (error) {
+        console.error("Failed to search customers:", error);
+        setSearchedCustomers([]);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300); // Debounce search by 300ms
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [customerSearch]);
+
 
   const getCustomerDisplayLabel = (customer: Customer | null): string => {
     if (!customer) return "Walk-in / Guest";
@@ -70,22 +99,6 @@ export function CartView({
     }
     return customer.name;
   };
-
-  const customerOptions = React.useMemo(() => {
-    const options = [{ value: "guest", label: "Walk-in / Guest", customerObject: null as Customer | null }];
-    if (allCustomers) {
-      allCustomers
-        .filter(c => c.status !== 'pending')
-        .forEach(customer => {
-          options.push({
-            value: customer.id,
-            label: getCustomerDisplayLabel(customer),
-            customerObject: customer
-          });
-        });
-    }
-    return options;
-  }, [allCustomers]);
 
   const currentCustomerLabel = getCustomerDisplayLabel(selectedCustomer);
 
@@ -103,56 +116,59 @@ export function CartView({
                 role="combobox"
                 aria-expanded={openCustomerPopover}
                 className="w-full justify-between flex-1 h-9 text-sm"
-                disabled={isLoadingCustomers || !!customersError}
               >
                 <span className="truncate">
-                  {isLoadingCustomers ? "Loading customers..." : customersError ? "Error loading" : (currentCustomerLabel || "Select Customer...")}
+                  {currentCustomerLabel || "Select Customer..."}
                 </span>
-                {isLoadingCustomers ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />}
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-              <Command
-                 filter={(value, search) => {
-                  const option = customerOptions.find(opt => opt.value === value);
-                  if (!option) return 0;
-                  const label = typeof option.label === 'string' ? option.label.toLowerCase() : '';
-                  const name = option.customerObject?.name ? option.customerObject.name.toLowerCase() : '';
-                  const shopName = option.customerObject?.shopName ? option.customerObject.shopName.toLowerCase() : '';
-                  const searchableString = `${label} ${name} ${shopName}`;
-                  return searchableString.includes(search.toLowerCase()) ? 1 : 0;
-                }}
-              >
-                <CommandInput placeholder="Search customer..." className="h-9"/>
-                {isLoadingCustomers && <div className="p-2 text-center text-sm text-muted-foreground">Loading...</div>}
-                {customersError && <div className="p-2 text-center text-sm text-destructive flex items-center justify-center gap-1"><AlertTriangle className="h-4 w-4" /> Error</div>}
-                {!isLoadingCustomers && !customersError && (
-                  <CommandList>
-                    <CommandEmpty>No customer found.</CommandEmpty>
-                    <CommandGroup>
-                      {customerOptions.map((option) => (
-                        <CommandItem
-                          key={option.value}
-                          value={option.value} 
-                          onSelect={() => {
-                            onSelectCustomer(option.customerObject); 
-                            setOpenCustomerPopover(false);
-                          }}
-                        >
-                          <Check
-                            className={cn(
-                              "mr-2 h-4 w-4",
-                              (selectedCustomer?.id === option.value && option.value !== "guest") || (!selectedCustomer && option.value === "guest")
-                                ? "opacity-100"
-                                : "opacity-0"
-                            )}
-                          />
-                          {option.label}
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </CommandList>
-                )}
+              <Command shouldFilter={false}>
+                <CommandInput 
+                  placeholder="Search by name, shop, or phone..." 
+                  className="h-9"
+                  value={customerSearch}
+                  onValueChange={setCustomerSearch}
+                />
+                <CommandList>
+                  {isSearching && <div className="p-2 text-center text-sm text-muted-foreground">Searching...</div>}
+                  <CommandEmpty>{!isSearching && "No customer found."}</CommandEmpty>
+                  <CommandGroup>
+                     <CommandItem
+                        value="guest"
+                        onSelect={() => {
+                          onSelectCustomer(null);
+                          setOpenCustomerPopover(false);
+                        }}
+                      >
+                         <Check className={cn("mr-2 h-4 w-4", !selectedCustomer ? "opacity-100" : "opacity-0")}/>
+                         Walk-in / Guest
+                      </CommandItem>
+                    {searchedCustomers.map((customer) => (
+                      <CommandItem
+                        key={customer.id}
+                        value={getCustomerDisplayLabel(customer)}
+                        onSelect={() => {
+                          onSelectCustomer(customer);
+                          setOpenCustomerPopover(false);
+                          setCustomerSearch("");
+                          setSearchedCustomers([]);
+                        }}
+                      >
+                        <Check
+                          className={cn(
+                            "mr-2 h-4 w-4",
+                            selectedCustomer?.id === customer.id
+                              ? "opacity-100"
+                              : "opacity-0"
+                          )}
+                        />
+                        {getCustomerDisplayLabel(customer)}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
               </Command>
             </PopoverContent>
           </Popover>
