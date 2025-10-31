@@ -55,7 +55,7 @@ export function CustomerDataTable() {
     deleteCustomer,
     hasMore,
     loadMoreCustomers,
-  } = useCustomers();
+  } = useCustomers(true); // Use paginated fetching
   
   const [isMounted, setIsMounted] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);

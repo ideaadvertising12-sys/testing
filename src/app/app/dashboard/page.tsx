@@ -54,7 +54,7 @@ export default function DashboardPage() {
     error: productsError 
   } = useProducts();
   const { returns, isLoading: isLoadingReturns, error: returnsError } = useReturns(true);
-  const { expenses, isLoading: isLoadingExpenses, error: expensesError } = useExpenses(true);
+  const { expenses, isLoading: isLoadingExpenses, error: expensesError } = useExpenses();
   const { transactions: stockTransactions, isLoading: isLoadingStock, error: stockError } = useStockTransactions(true);
 
   const {

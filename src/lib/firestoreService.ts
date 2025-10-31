@@ -95,7 +95,16 @@ export const deleteProduct = async (id: string): Promise<void> => {
 };
 
 // Customer Services
-export const getCustomers = async (lastVisible?: QueryDocumentSnapshot<Customer>): Promise<{ customers: Customer[], lastVisible: QueryDocumentSnapshot<Customer> | null }> => {
+export const getCustomers = async (): Promise<Customer[]> => {
+  checkFirebase();
+  const customersCol = collection(db, "customers").withConverter(customerConverter);
+  const q = query(customersCol, orderBy("createdAt", "desc"));
+  const customerSnapshot = await getDocs(q);
+  return customerSnapshot.docs.map(doc => doc.data());
+};
+
+
+export const getPaginatedCustomers = async (lastVisible?: QueryDocumentSnapshot<Customer>): Promise<{ customers: Customer[], lastVisible: QueryDocumentSnapshot<Customer> | null }> => {
   checkFirebase();
   const customersCol = collection(db, "customers").withConverter(customerConverter);
   const constraints = [
