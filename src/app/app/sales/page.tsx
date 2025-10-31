@@ -19,7 +19,6 @@ import { useMediaQuery } from "@/hooks/use-media-query";
 import type { Product, CartItem, Customer, Sale, ChequeInfo, BankTransferInfo, StockTransaction, Vehicle, ReturnTransaction } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { useProducts } from "@/hooks/useProducts";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertTriangle } from "lucide-react";
 import { useVehicles } from "@/hooks/useVehicles";
@@ -85,14 +84,6 @@ function reconcileOfferItems(
 
 
 export default function SalesPage() {
-  const { 
-    products: allProducts, 
-    isLoading: isLoadingProducts, 
-    error: productsError,
-    refetch: refetchProducts 
-  } = useProducts();
-  
-  
   const { vehicles, isLoading: isLoadingVehicles } = useVehicles();
   const { currentUser } = useAuth();
   const isCashier = currentUser?.role === 'cashier';
@@ -101,9 +92,14 @@ export default function SalesPage() {
   const { sales: allSales, refetchSales } = useSalesData(true); // Still fetch all for balance calculation
   const { returns, refetchReturns } = useReturns(true); // Still fetch all for balance calculation
   
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(true);
+  const [productsError, setProductsError] = useState<string | null>(null);
+
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<Product["category"] | "All">("All");
   const [isBillOpen, setIsBillOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
@@ -123,13 +119,50 @@ export default function SalesPage() {
   const { toast } = useToast();
   const isMobile = useMediaQuery("(max-width: 768px)");
 
-  // OPTIMIZATION: Fetch sales and returns data only when a customer is selected is not fully possible
-  // as we need all of them to calculate balance correctly across all sales.
-  // We will keep fetching them on page load for now to ensure balance accuracy.
+  // Debounce search term
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 300); // 300ms delay
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [searchTerm]);
+
+  const fetchProducts = useCallback(async (search = '', category: typeof selectedCategory = 'All') => {
+    setIsLoadingProducts(true);
+    setProductsError(null);
+    try {
+      const queryParams = new URLSearchParams();
+      if (search) queryParams.append('q', search);
+      if (category !== 'All') queryParams.append('category', category);
+
+      const response = await fetch(`/api/products/search?${queryParams.toString()}`);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to fetch products');
+      }
+      const products: Product[] = await response.json();
+      setAllProducts(products); // Keep a copy of all fetched products for reconciliation
+      setFilteredProducts(products);
+    } catch (err: any) {
+      setProductsError(err.message);
+    } finally {
+      setIsLoadingProducts(false);
+    }
+  }, []);
+
+  // Fetch products when search term or category changes
+  useEffect(() => {
+    fetchProducts(debouncedSearchTerm, selectedCategory);
+  }, [debouncedSearchTerm, selectedCategory, fetchProducts]);
   
   const categories: (Product["category"] | "All")[] = useMemo(() => {
     if (isLoadingProducts || !allProducts) return ["All"];
-    return ["All", ...new Set(allProducts.map(p => p.category))];
+    // Derive categories from the initially fetched full list to avoid flickering
+    const allFetchedCats = allProducts.map(p => p.category);
+    return ["All", ...Array.from(new Set(allFetchedCats))];
   }, [allProducts, isLoadingProducts]);
 
   const customerOutstandingBalance = useMemo(() => {
@@ -164,23 +197,6 @@ export default function SalesPage() {
     }
   }, [isCashier]);
   
-  useEffect(() => {
-    if (!isLoadingProducts && allProducts) {
-      let tempProducts = [...allProducts];
-      if (selectedCategory !== "All") {
-        tempProducts = tempProducts.filter(p => p.category === selectedCategory);
-      }
-      if (searchTerm) {
-        tempProducts = tempProducts.filter(p =>
-          p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (p.sku && p.sku.toLowerCase().includes(searchTerm.toLowerCase()))
-        );
-      }
-      setFilteredProducts(tempProducts);
-    } else if (!isLoadingProducts && !allProducts) {
-      setFilteredProducts([]); 
-    }
-  }, [searchTerm, selectedCategory, allProducts, isLoadingProducts]);
 
   const handleToggleOffer = (checked: boolean) => {
     setIsBuy12Get1FreeActive(checked);
@@ -237,17 +253,22 @@ export default function SalesPage() {
           stockMap.set(tx.productId, currentQty - tx.quantity);
         }
       });
+      
+      // We need to fetch the full product details for the stock in the vehicle
+      const stockIds = Array.from(stockMap.keys());
+      const productDetailsResponse = await fetch(`/api/products/search?ids=${stockIds.join(',')}`);
+      if(!productDetailsResponse.ok) throw new Error("Could not fetch vehicle product details.");
+      const vehicleProductDetails: Product[] = await productDetailsResponse.json();
+
 
       const vehicleProducts: Product[] = [];
-      for (const [productId, vehicleQty] of stockMap.entries()) {
-        const baseProduct = allProducts.find(p => p.id === productId);
-        if (baseProduct && vehicleQty > 0) {
-          vehicleProducts.push({
-            ...baseProduct,
-            stock: vehicleQty,
-          });
-        }
+      for (const product of vehicleProductDetails) {
+          const vehicleQty = stockMap.get(product.id);
+          if(vehicleQty && vehicleQty > 0) {
+              vehicleProducts.push({ ...product, stock: vehicleQty });
+          }
       }
+      
       setVehicleStock(vehicleProducts);
 
     } catch (error: any) {
@@ -498,7 +519,7 @@ export default function SalesPage() {
       });
 
       handleCancelOrder(); 
-      await refetchProducts();
+      await fetchProducts(debouncedSearchTerm, selectedCategory);
       await Promise.all([refetchSales(), refetchReturns()]);
       if (viewMode === 'vehicle' && selectedVehicleId) {
         await handleFetchVehicleStock(selectedVehicleId); // Refresh vehicle stock after sale
@@ -554,7 +575,7 @@ export default function SalesPage() {
             <p className="text-xs mt-1">{productsError}</p>
           </AlertDescription>
         </Alert>
-         <Button onClick={() => refetchProducts()} className="mt-4">Try Again</Button>
+         <Button onClick={() => fetchProducts()} className="mt-4">Try Again</Button>
       </div>
     );
   }
@@ -690,10 +711,10 @@ export default function SalesPage() {
           </div>
 
           <ScrollArea className="flex-1 p-3 sm:p-4 bg-white dark:bg-transparent">
-            { isVehicleStockLoading ? (
+            { (isLoadingProducts || isVehicleStockLoading) ? (
                <div className="flex flex-col items-center justify-center text-muted-foreground pt-10 h-full">
                   <Loader2 className="w-12 h-12 animate-spin text-primary mb-4" />
-                  <p className="text-lg">Loading stock for {vehicles.find(v => v.id === selectedVehicleId)?.vehicleNumber}...</p>
+                  <p className="text-lg">Loading products...</p>
               </div>
             ) : viewMode === 'vehicle' && vehicleStock === null ? (
                <div className="flex flex-col items-center justify-center text-muted-foreground pt-10 h-full">
@@ -815,3 +836,5 @@ export default function SalesPage() {
     </div>
   );
 }
+
+    
