@@ -48,11 +48,9 @@ const getCustomerDisplayLabel = (customer: Customer | null): string => {
 
 export default function ReturnsPage() {
   const { customers, isLoading: isLoadingCustomers } = useCustomers();
-  // Fetch all sales initially to calculate credit balance, but we won't use it for the dropdown
   const { sales: allSales, isLoading: isLoadingAllSales, refetchSales: refetchAllSales } = useSalesData(true);
   const { products: allProducts, isLoading: isLoadingProducts, refetch: refetchProducts } = useProducts();
   const { vehicles, isLoading: isLoadingVehicles } = useVehicles();
-  const { returns, isLoading: isLoadingReturns, refetchReturns } = useReturns();
   const { currentUser } = useAuth();
   const { toast } = useToast();
 
@@ -65,6 +63,8 @@ export default function ReturnsPage() {
   const [openCustomerPopover, setOpenCustomerPopover] = useState(false);
   const [isSearchingSale, setIsSearchingSale] = useState(false);
   const [directRefundAmount, setDirectRefundAmount] = useState<string>("");
+  const [customerCreditBalance, setCustomerCreditBalance] = useState(0);
+  const [isCreditLoading, setIsCreditLoading] = useState(false);
 
 
   // Return Processing State
@@ -116,7 +116,28 @@ export default function ReturnsPage() {
   }, [customers]);
 
   useEffect(() => {
-    // We now filter from `allSales` instead of re-fetching
+    const fetchCreditBalance = async () => {
+        if (!selectedCustomer) {
+            setCustomerCreditBalance(0);
+            return;
+        }
+        setIsCreditLoading(true);
+        try {
+            const response = await fetch(`/api/customers/credit?id=${selectedCustomer.id}`);
+            if (!response.ok) throw new Error('Failed to fetch credit balance.');
+            const data = await response.json();
+            setCustomerCreditBalance(data.availableCredit || 0);
+        } catch (error) {
+            console.error(error);
+            toast({ variant: 'destructive', title: 'Error', description: 'Could not fetch customer credit balance.' });
+            setCustomerCreditBalance(0);
+        } finally {
+            setIsCreditLoading(false);
+        }
+    };
+    
+    fetchCreditBalance();
+
     if (selectedCustomer && allSales.length > 0) {
       const filteredSales = allSales
         .filter(sale => sale.customerId === selectedCustomer.id)
@@ -128,21 +149,7 @@ export default function ReturnsPage() {
     setSelectedSaleId("");
     setSelectedSale(null);
     setItemsToReturn([]);
-  }, [selectedCustomer, allSales]);
-
-  const customerCreditBalance = useMemo(() => {
-    if (!selectedCustomer || !allSales || !returns) return 0;
-
-    const totalRefundsNet = returns
-      .filter(r => r.customerId === selectedCustomer.id)
-      .reduce((sum, r) => sum + (r.refundAmount || 0), 0);
-
-    const totalCreditUsedOnSales = allSales
-      .filter(s => s.customerId === selectedCustomer.id)
-      .reduce((sum, s) => sum + (s.creditUsed || 0), 0);
-      
-    return totalRefundsNet - totalCreditUsedOnSales;
-  }, [selectedCustomer, allSales, returns]);
+  }, [selectedCustomer, allSales, toast]);
   
   const handleSearchSale = () => {
     if (!selectedSaleId) return;
@@ -527,7 +534,6 @@ export default function ReturnsPage() {
 
         await refetchProducts();
         await refetchAllSales();
-        await refetchReturns();
 
     } catch (error: any) {
         toast({
@@ -570,7 +576,7 @@ export default function ReturnsPage() {
         if (!response.ok) throw new Error(result.error || 'Failed to process refund.');
 
         toast({ title: "Success", description: "Direct cash refund processed." });
-        await Promise.all([refetchAllSales(), refetchReturns()]);
+        await refetchAllSales();
         setDirectRefundAmount("");
         // A receipt could be shown here too, but for now we reset.
         resetSearch();
@@ -581,7 +587,7 @@ export default function ReturnsPage() {
     }
   }
 
-  const isLoading = isLoadingCustomers || isLoadingProducts || isLoadingReturns || isLoadingAllSales;
+  const isLoading = isLoadingCustomers || isLoadingProducts || isLoadingAllSales;
   const currentCustomerLabel = getCustomerDisplayLabel(selectedCustomer);
 
   const availableProductsForExchange = useMemo(() => {
@@ -939,7 +945,7 @@ export default function ReturnsPage() {
         ) : (
           <>
             {renderInitialSearchView()}
-            {selectedCustomer && customerCreditBalance > 0 && (
+            {selectedCustomer && (isCreditLoading ? <Loader2 className="animate-spin" /> : customerCreditBalance > 0) && (
                 <Card className="lg:col-span-3 mt-6">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2"><Banknote className="h-5 w-5 text-green-600" /> Direct Cash Refund</CardTitle>

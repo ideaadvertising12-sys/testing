@@ -25,7 +25,6 @@ import { useVehicles } from "@/hooks/useVehicles";
 import { useAuth } from "@/contexts/AuthContext";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useSalesData } from "@/hooks/useSalesData";
-import { useReturns } from "@/hooks/useReturns";
 
 // Helper function to reconcile offer items in the cart
 function reconcileOfferItems(
@@ -88,9 +87,7 @@ export default function SalesPage() {
   const { currentUser } = useAuth();
   const isCashier = currentUser?.role === 'cashier';
   
-  // OPTIMIZATION: Set fetchAll to false by default for these hooks.
-  const { sales: allSales, refetchSales } = useSalesData(true); // Still fetch all for balance calculation
-  const { returns, refetchReturns } = useReturns(true); // Still fetch all for balance calculation
+  const { sales: allSales, refetchSales } = useSalesData(true);
   
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
@@ -109,6 +106,9 @@ export default function SalesPage() {
   const [isProcessingSale, setIsProcessingSale] = useState(false);
   const [isBuy12Get1FreeActive, setIsBuy12Get1FreeActive] = useState(false);
   const [excludedOfferProductIds, setExcludedOfferProductIds] = useState<Set<string>>(new Set<string>());
+
+  const [customerCreditBalance, setCustomerCreditBalance] = useState(0);
+  const [isCreditLoading, setIsCreditLoading] = useState(false);
 
   // New states for vehicle stock view
   const [viewMode, setViewMode] = useState<'main' | 'vehicle'>(isCashier ? 'vehicle' : 'main');
@@ -174,19 +174,29 @@ export default function SalesPage() {
       .reduce((total, sale) => total + (sale.outstandingBalance || 0), 0);
   }, [selectedCustomer, allSales]);
 
-  const customerCreditBalance = useMemo(() => {
-    if (!selectedCustomer || !allSales || !returns) return 0;
-
-    const totalRefunds = returns
-      .filter(r => r.customerId === selectedCustomer.id && r.refundAmount)
-      .reduce((sum, r) => sum + r.refundAmount!, 0);
-
-    const totalCreditUsed = allSales
-      .filter(s => s.customerId === selectedCustomer.id && s.creditUsed)
-      .reduce((sum, s) => sum + s.creditUsed!, 0);
-      
-    return totalRefunds - totalCreditUsed;
-  }, [selectedCustomer, allSales, returns]);
+  const handleSelectCustomer = useCallback(async (customer: Customer | null) => {
+    setSelectedCustomer(customer);
+    if (customer) {
+        setIsCreditLoading(true);
+        try {
+            const response = await fetch(`/api/customers/credit?id=${customer.id}`);
+            if (!response.ok) {
+                setCustomerCreditBalance(0);
+                throw new Error('Failed to fetch credit balance.');
+            }
+            const data = await response.json();
+            setCustomerCreditBalance(data.availableCredit || 0);
+        } catch (error) {
+            console.error(error);
+            setCustomerCreditBalance(0);
+            toast({ variant: 'destructive', title: 'Error', description: 'Could not fetch customer credit balance.' });
+        } finally {
+            setIsCreditLoading(false);
+        }
+    } else {
+        setCustomerCreditBalance(0);
+    }
+  }, [toast]);
 
 
   const toggleSalesPageFullScreen = () => setIsSalesPageFullScreen(!isSalesPageFullScreen);
@@ -380,11 +390,6 @@ export default function SalesPage() {
     });
   };
 
-
-  const handleSelectCustomer = (customer: Customer | null) => {
-    setSelectedCustomer(customer);
-  };
-
   const handleCheckout = () => {
     const actualCartItems = cartItems.filter(item => !item.isOfferItem || (item.isOfferItem && item.quantity > 0));
     if (actualCartItems.length === 0) {
@@ -520,7 +525,7 @@ export default function SalesPage() {
 
       handleCancelOrder(); 
       await fetchProducts(debouncedSearchTerm, selectedCategory);
-      await Promise.all([refetchSales(), refetchReturns()]);
+      await refetchSales();
       if (viewMode === 'vehicle' && selectedVehicleId) {
         await handleFetchVehicleStock(selectedVehicleId); // Refresh vehicle stock after sale
       }
