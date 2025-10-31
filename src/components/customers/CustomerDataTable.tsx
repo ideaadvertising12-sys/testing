@@ -115,6 +115,8 @@ export function CustomerDataTable() {
         address: customerToSave.address,
         shopName: customerToSave.shopName,
         status: customerToSave.status || 'active',
+        createdAt: new Date(),
+        updatedAt: new Date(),
       });
        action = 'add';
     }

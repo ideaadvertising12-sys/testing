@@ -99,7 +99,7 @@ export const getCustomers = async (lastVisible?: QueryDocumentSnapshot<Customer>
   checkFirebase();
   const customersCol = collection(db, "customers").withConverter(customerConverter);
   const constraints = [
-      orderBy("name"),
+      orderBy("createdAt", "desc"),
       limit(PAGE_SIZE)
   ];
   if (lastVisible) {
@@ -123,7 +123,7 @@ export const getCustomer = async (id: string): Promise<Customer | null> => {
 
 export const addCustomer = async (customerData: Omit<Customer, 'id'>): Promise<string> => {
   checkFirebase();
-  const tempCustomerForConversion: Customer = { id: 'temp', ...customerData };
+  const tempCustomerForConversion: Customer = { id: 'temp', ...customerData, createdAt: new Date(), updatedAt: new Date() };
   const docRef = await addDoc(collection(db, "customers").withConverter(customerConverter), tempCustomerForConversion);
   return docRef.id;
 };

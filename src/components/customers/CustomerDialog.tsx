@@ -27,6 +27,8 @@ const defaultCustomerData: Omit<Customer, 'id' | 'avatar'> = {
   address: "",
   shopName: "",
   status: 'active',
+  createdAt: new Date(),
+  updatedAt: new Date(),
 };
 
 interface CustomerDialogProps {
@@ -68,6 +70,8 @@ export function CustomerDialog({
           address: customer.address || "",
           shopName: customer.shopName || "",
           status: customer.status || 'active',
+          createdAt: customer.createdAt,
+          updatedAt: customer.updatedAt,
         });
       } else {
         setFormData({ ...defaultCustomerData, status: initialStatus });
@@ -114,6 +118,8 @@ export function CustomerDialog({
         address: formData.address,
         shopName: formData.shopName,
         status: formData.status,
+        createdAt: formData.createdAt || new Date(),
+        updatedAt: new Date(),
         name_lowercase: formData.name!.toLowerCase(), // Ensure lowercase field is added
         shopName_lowercase: formData.shopName?.toLowerCase(), // Ensure lowercase field is added
       };
