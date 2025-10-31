@@ -1,8 +1,11 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs, limit, orderBy } from 'firebase/firestore';
+import { collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { customerConverter, type Customer } from '@/lib/types';
+
+// Cache the API response for 60 seconds to reduce reads for frequent, identical searches
+export const revalidate = 60;
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -14,51 +17,55 @@ export async function GET(request: NextRequest) {
   }
 
   const lowerCaseSearchTerm = searchTerm.toLowerCase();
+  const isNumeric = /^\d+$/.test(searchTerm);
   
   try {
     const customersCol = collection(db, 'customers').withConverter(customerConverter);
     
-    // As Firestore doesn't support case-insensitive `in` or `array-contains-any` for this kind of search,
-    // and full-text search is a more complex setup (e.g., with Algolia/Typesense),
-    // we'll perform a few targeted queries and merge the results. This is more efficient than reading all documents.
+    // --- START: Optimized Query Logic ---
+    const queries = [];
 
-    const nameQuery = query(
-        customersCol, 
-        where('name_lowercase', '>=', lowerCaseSearchTerm),
-        where('name_lowercase', '<=', lowerCaseSearchTerm + '\uf8ff'),
-        limit(searchLimit)
-    );
-    const shopNameQuery = query(
-        customersCol,
-        where('shopName_lowercase', '>=', lowerCaseSearchTerm),
-        where('shopName_lowercase', '<=', lowerCaseSearchTerm + '\uf8ff'),
-        limit(searchLimit)
-    );
-    const phoneQuery = query(
-        customersCol,
-        where('phone', '>=', lowerCaseSearchTerm),
-        where('phone', '<=', lowerCaseSearchTerm + '\uf8ff'),
-        limit(searchLimit)
-    );
+    if (isNumeric) {
+      // If the search term is purely numeric, it's most likely a phone number.
+      // Only query the phone field.
+      const phoneQuery = query(
+          customersCol,
+          where('phone', '>=', lowerCaseSearchTerm),
+          where('phone', '<=', lowerCaseSearchTerm + '\uf8ff'),
+          limit(searchLimit)
+      );
+      queries.push(getDocs(phoneQuery));
 
-    const [nameSnapshot, shopNameSnapshot, phoneSnapshot] = await Promise.all([
-        getDocs(nameQuery),
-        getDocs(shopNameQuery),
-        getDocs(phoneQuery),
-    ]);
+    } else {
+      // If it's not numeric, it's a name or shop name.
+      // Query only the text-based fields.
+      const nameQuery = query(
+          customersCol, 
+          where('name_lowercase', '>=', lowerCaseSearchTerm),
+          where('name_lowercase', '<=', lowerCaseSearchTerm + '\uf8ff'),
+          limit(searchLimit)
+      );
+      const shopNameQuery = query(
+          customersCol,
+          where('shopName_lowercase', '>=', lowerCaseSearchTerm),
+          where('shopName_lowercase', '<=', lowerCaseSearchTerm + '\uf8ff'),
+          limit(searchLimit)
+      );
+      queries.push(getDocs(nameQuery), getDocs(shopNameQuery));
+    }
+    // --- END: Optimized Query Logic ---
+
+
+    const querySnapshots = await Promise.all(queries);
 
     const customersMap = new Map<string, Customer>();
 
-    nameSnapshot.docs.forEach(doc => {
-      if(doc.data().status !== 'pending') customersMap.set(doc.id, doc.data());
+    querySnapshots.forEach(snapshot => {
+        snapshot.docs.forEach(doc => {
+            if(doc.data().status !== 'pending') customersMap.set(doc.id, doc.data());
+        });
     });
-    shopNameSnapshot.docs.forEach(doc => {
-        if(doc.data().status !== 'pending') customersMap.set(doc.id, doc.data());
-    });
-    phoneSnapshot.docs.forEach(doc => {
-        if(doc.data().status !== 'pending') customersMap.set(doc.id, doc.data());
-    });
-
+    
     const results = Array.from(customersMap.values());
     
     return NextResponse.json(results);
