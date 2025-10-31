@@ -95,11 +95,23 @@ export const deleteProduct = async (id: string): Promise<void> => {
 };
 
 // Customer Services
-export const getCustomers = async (): Promise<Customer[]> => {
+export const getCustomers = async (lastVisible?: QueryDocumentSnapshot<Customer>): Promise<{ customers: Customer[], lastVisible: QueryDocumentSnapshot<Customer> | null }> => {
   checkFirebase();
   const customersCol = collection(db, "customers").withConverter(customerConverter);
-  const customerSnapshot = await getDocs(customersCol);
-  return customerSnapshot.docs.map(doc => doc.data());
+  const constraints = [
+      orderBy("name"),
+      limit(PAGE_SIZE)
+  ];
+  if (lastVisible) {
+      constraints.splice(1, 0, startAfter(lastVisible));
+  }
+  const q = query(customersCol, ...constraints);
+  const customerSnapshot = await getDocs(q);
+  
+  const customers = customerSnapshot.docs.map(doc => doc.data());
+  const newLastVisible = customerSnapshot.docs[customerSnapshot.docs.length - 1] || null;
+
+  return { customers, lastVisible: newLastVisible };
 };
 
 export const getCustomer = async (id: string): Promise<Customer | null> => {

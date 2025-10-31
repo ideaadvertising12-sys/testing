@@ -52,7 +52,9 @@ export function CustomerDataTable() {
     error: customersError, 
     addCustomer, 
     updateCustomer, 
-    deleteCustomer 
+    deleteCustomer,
+    hasMore,
+    loadMoreCustomers,
   } = useCustomers();
   
   const [isMounted, setIsMounted] = useState(false);
@@ -181,7 +183,7 @@ export function CustomerDataTable() {
       });
   }, [customers, searchTerm, activeTab]);
 
-  const isLoading = !isMounted || isLoadingCustomers;
+  const isLoading = !isMounted || (isLoadingCustomers && customers.length === 0);
 
   if (customersError && isMounted) {
     return (
@@ -438,6 +440,20 @@ export function CustomerDataTable() {
                   </Table>
                 </div>
               </div>
+              {hasMore && (
+                <div className="text-center mt-6">
+                  <Button
+                    onClick={loadMoreCustomers}
+                    disabled={isLoadingCustomers}
+                    variant="outline"
+                  >
+                    {isLoadingCustomers ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : null}
+                    Load More
+                  </Button>
+                </div>
+              )}
             </TabsContent>
           </CardContent>
         </Tabs>
