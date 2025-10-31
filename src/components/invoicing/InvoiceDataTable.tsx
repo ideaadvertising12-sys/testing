@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
@@ -465,11 +464,6 @@ export function InvoiceDataTable({ sales: initialSales, isLoading, error, refetc
                 </Table>
               )}
             </ScrollArea>
-          )}
-          {filteredSales.length > 0 && !isLoading && (
-            <div className="mt-2 text-sm text-muted-foreground text-center">
-              Showing {filteredSales.length} invoice{filteredSales.length !== 1 ? 's' : ''}
-            </div>
           )}
         </CardContent>
       </Card>
