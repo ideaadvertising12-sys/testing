@@ -18,7 +18,7 @@ export default function InvoicingPage() {
   const router = useRouter();
   
   // The hook now fetches all data at once.
-  const { sales, isLoading, error, refetchSales } = useSalesData(true);
+  const { sales, isLoading, error, refetchSales, hasMore, loadMoreSales } = useSalesData(true);
 
   useEffect(() => {
     if (currentUser === null) { 
@@ -62,6 +62,14 @@ export default function InvoicingPage() {
           />
         </CardContent>
       </Card>
+      {hasMore && (
+        <div className="text-center mt-4">
+            <Button onClick={loadMoreSales} disabled={isLoading}>
+                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
+                Load More
+            </Button>
+        </div>
+      )}
     </div>
   );
 }

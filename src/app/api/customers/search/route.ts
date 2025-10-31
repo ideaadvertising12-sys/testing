@@ -4,6 +4,8 @@ import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { customerConverter, type Customer } from '@/lib/types';
 
+export const revalidate = 60; // Re-add server-side caching for 60 seconds
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const searchTerm = searchParams.get('q');
@@ -19,12 +21,9 @@ export async function GET(request: NextRequest) {
   try {
     const customersCol = collection(db, 'customers').withConverter(customerConverter);
     
-    // --- START: Optimized Query Logic ---
     const queries = [];
 
     if (isNumeric) {
-      // If the search term is purely numeric, it's most likely a phone number.
-      // Only query the phone field.
       const phoneQuery = query(
           customersCol,
           where('phone', '>=', lowerCaseSearchTerm),
@@ -34,8 +33,6 @@ export async function GET(request: NextRequest) {
       queries.push(getDocs(phoneQuery));
 
     } else {
-      // If it's not numeric, it's a name or shop name.
-      // Query only the text-based fields.
       const nameQuery = query(
           customersCol, 
           where('name_lowercase', '>=', lowerCaseSearchTerm),
@@ -50,8 +47,6 @@ export async function GET(request: NextRequest) {
       );
       queries.push(getDocs(nameQuery), getDocs(shopNameQuery));
     }
-    // --- END: Optimized Query Logic ---
-
 
     const querySnapshots = await Promise.all(queries);
 
@@ -73,5 +68,3 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to search for customers', details: errorMessage }, { status: 500 });
   }
 }
-
-    

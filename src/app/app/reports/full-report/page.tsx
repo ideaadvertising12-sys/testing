@@ -164,9 +164,9 @@ export default function FullReportPage() {
     to: new Date(),
   });
 
-  const { sales, isLoading: isLoadingSales, error: salesError } = useSalesData(true, dateRange);
-  const { returns, isLoading: isLoadingReturns, error: returnsError } = useReturns(true, dateRange);
-  const { transactions: stockTransactions, isLoading: isLoadingStock, error: stockError } = useStockTransactions(true, dateRange);
+  const { sales, isLoading: isLoadingSales, error: salesError, loadMoreSales, hasMore: hasMoreSales } = useSalesData(true, dateRange);
+  const { returns, isLoading: isLoadingReturns, error: returnsError, loadMoreReturns, hasMore: hasMoreReturns } = useReturns(true, dateRange);
+  const { transactions: stockTransactions, isLoading: isLoadingStock, error: stockError, loadMoreTransactions, hasMore: hasMoreStock } = useStockTransactions(true, dateRange);
   const { products: allProducts, isLoading: isLoadingProducts, error: productsError } = useProducts();
 
   const [combinedData, setCombinedData] = useState<FullReportEntry[]>([]);
@@ -360,6 +360,8 @@ export default function FullReportPage() {
   if (pageIsLoading && combinedData.length === 0) { 
     return <GlobalPreloaderScreen message="Loading full report data..." />;
   }
+  
+  const hasMoreData = hasMoreSales || hasMoreReturns || hasMoreStock;
 
   return (
     <div className="space-y-6 print:space-y-0">
@@ -435,6 +437,18 @@ export default function FullReportPage() {
         
         <CardContent className="print:p-0">
           <FullReportTable data={filteredData} isLoading={pageIsLoading && combinedData.length === 0} />
+          {hasMoreData && (
+             <div className="text-center py-4">
+                <Button onClick={() => {
+                    if (hasMoreSales) loadMoreSales();
+                    if (hasMoreReturns) loadMoreReturns();
+                    if (hasMoreStock) loadMoreTransactions();
+                }} disabled={isLoading}>
+                    {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
+                    Load More
+                </Button>
+             </div>
+          )}
         </CardContent>
       </Card>
       

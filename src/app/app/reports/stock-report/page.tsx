@@ -31,7 +31,7 @@ export default function StockReportPage() {
     to: new Date(),
   });
   
-  const { transactions: allTransactions, isLoading, error } = useStockTransactions(true, dateRange);
+  const { transactions: allTransactions, isLoading, error, hasMore, loadMoreTransactions } = useStockTransactions(true, dateRange);
   const { vehicles, isLoading: isLoadingVehicles } = useVehicles();
 
   const [filteredData, setFilteredData] = useState<(StockTransaction & { vehicleNumber?: string })[]>([]);
@@ -229,6 +229,14 @@ export default function StockReportPage() {
         
         <CardContent>
           <StockReportTable data={filteredData} isLoading={pageIsLoading && allTransactions.length === 0} />
+           {hasMore && (
+             <div className="text-center py-4">
+                <Button onClick={loadMoreTransactions} disabled={isLoading}>
+                    {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
+                    Load More Transactions
+                </Button>
+             </div>
+           )}
         </CardContent>
       </Card>
     </div>

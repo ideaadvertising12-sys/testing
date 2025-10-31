@@ -4,11 +4,12 @@
 import { useState, useEffect, useCallback } from "react";
 import type { StockTransaction } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
-import { StockService } from "@/lib/stockService";
 import type { DateRange } from "react-day-picker";
 import { query, collection, orderBy, where, limit, getDocs, startAfter, QueryDocumentSnapshot } from 'firebase/firestore';
 import { db } from "@/lib/firebase";
 import { stockTransactionConverter } from "@/lib/types";
+
+const PAGE_SIZE = 50;
 
 async function getStockTransactions(lastVisible?: QueryDocumentSnapshot<StockTransaction>, dateRange?: DateRange): Promise<{ transactions: StockTransaction[], lastVisible: QueryDocumentSnapshot<StockTransaction> | null }> {
   const transCol = collection(db, 'stockTransactions').withConverter(stockTransactionConverter as any);
@@ -16,6 +17,8 @@ async function getStockTransactions(lastVisible?: QueryDocumentSnapshot<StockTra
   const constraints = [orderBy("transactionDate", "desc")];
   if(dateRange?.from) constraints.push(where("transactionDate", ">=", dateRange.from));
   if(dateRange?.to) constraints.push(where("transactionDate", "<=", dateRange.to));
+  if (lastVisible) constraints.push(startAfter(lastVisible));
+  constraints.push(limit(PAGE_SIZE));
 
   const q = query(transCol, ...constraints);
   
@@ -31,14 +34,21 @@ export function useStockTransactions(fetchAll: boolean = false, dateRange?: Date
   const [transactions, setTransactions] = useState<StockTransaction[]>([]);
   const [isLoading, setIsLoading] = useState(fetchAll);
   const [error, setError] = useState<string | null>(null);
+  const [lastVisible, setLastVisible] = useState<QueryDocumentSnapshot<StockTransaction> | null>(null);
+  const [hasMore, setHasMore] = useState(true);
   const { toast } = useToast();
 
-  const refetchTransactions = useCallback(async () => {
+  const fetchInitialTransactions = useCallback(async () => {
     setIsLoading(true);
     setError(null);
+    setHasMore(true);
     try {
-      const { transactions: initial } = await getStockTransactions(undefined, dateRange);
+      const { transactions: initial, lastVisible: newLastVisible } = await getStockTransactions(undefined, dateRange);
       setTransactions(initial);
+      setLastVisible(newLastVisible);
+      if (initial.length < PAGE_SIZE) {
+        setHasMore(false);
+      }
     } catch (err: any) {
       const errorMessage = err.message || "An unknown error occurred.";
       setError(errorMessage);
@@ -51,23 +61,46 @@ export function useStockTransactions(fetchAll: boolean = false, dateRange?: Date
       setIsLoading(false);
     }
   }, [toast, dateRange]);
+  
+  const loadMoreTransactions = useCallback(async () => {
+    if (!hasMore || isLoading) return;
+    setIsLoading(true);
+    try {
+      const { transactions: newTransactions, lastVisible: newLastVisible } = await getStockTransactions(lastVisible, dateRange);
+      setTransactions(prev => [...prev, ...newTransactions]);
+      setLastVisible(newLastVisible);
+      if (newTransactions.length < PAGE_SIZE) {
+        setHasMore(false);
+      }
+    } catch (err: any) {
+      const errorMessage = err.message || "An unknown error occurred.";
+      setError(errorMessage);
+      toast({
+        variant: "destructive",
+        title: "Error Loading More Transactions",
+        description: errorMessage,
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [lastVisible, hasMore, isLoading, toast, dateRange]);
 
   useEffect(() => {
     if(fetchAll){
-        refetchTransactions();
+        fetchInitialTransactions();
     }
-  }, [fetchAll, refetchTransactions]);
+  }, [fetchAll, fetchInitialTransactions]);
   
   useEffect(() => {
-    refetchTransactions();
-  }, [dateRange, refetchTransactions]);
+    fetchInitialTransactions();
+  }, [dateRange, fetchInitialTransactions]);
 
   return {
     transactions,
     isLoading,
     error,
-    hasMore: false, // Temporarily disabled
-    loadMoreTransactions: () => {}, // No-op
-    refetchTransactions,
+    hasMore,
+    loadMoreTransactions,
+    refetchTransactions: fetchInitialTransactions,
   };
 }

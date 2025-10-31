@@ -54,6 +54,8 @@ import {
 } from "./types";
 import type { DateRange } from "react-day-picker";
 
+const PAGE_SIZE = 50;
+
 // Product Services
 export const getProducts = async (): Promise<Product[]> => {
   checkFirebase();
@@ -169,7 +171,6 @@ export const addSale = async (saleData: Omit<Sale, 'id'>): Promise<string> => {
   await runTransaction(db, async (transaction) => {
     const saleDocRef = doc(db, "sales", newCustomId);
     
-    // --- START: New Robust Stock Update Logic ---
     const productQuantities = new Map<string, number>();
     for (const item of saleData.items) {
       if (!item.isOfferItem) {
@@ -178,7 +179,6 @@ export const addSale = async (saleData: Omit<Sale, 'id'>): Promise<string> => {
       }
     }
   
-    // Pre-read all product documents to check stock availability
     const productReads: Promise<any>[] = [];
     const productRefs: DocumentReference[] = [];
     for (const productId of productQuantities.keys()) {
@@ -188,7 +188,6 @@ export const addSale = async (saleData: Omit<Sale, 'id'>): Promise<string> => {
     }
     const productDocs = await Promise.all(productReads);
 
-    // Now, write updates
     for (let i = 0; i < productDocs.length; i++) {
         const productDoc = productDocs[i];
         const productRef = productRefs[i];
@@ -207,7 +206,7 @@ export const addSale = async (saleData: Omit<Sale, 'id'>): Promise<string> => {
               productSku: currentProduct.sku,
               type: 'UNLOAD_FROM_VEHICLE',
               quantity: totalQuantitySold,
-              previousStock: currentProduct.stock, // Main inventory stock is unchanged
+              previousStock: currentProduct.stock,
               newStock: currentProduct.stock,
               transactionDate: saleData.saleDate,
               notes: `Sale: ${newCustomId}`,
@@ -226,7 +225,6 @@ export const addSale = async (saleData: Omit<Sale, 'id'>): Promise<string> => {
         }
     }
     
-    // Set the sale document
     const saleObjectForConversion: Sale = { id: newCustomId, ...saleData };
     const firestoreSaleData = saleConverter.toFirestore(saleObjectForConversion);
     transaction.set(saleDocRef, firestoreSaleData);
@@ -243,6 +241,8 @@ export const getSales = async (lastVisible?: QueryDocumentSnapshot<Sale>, dateRa
   if(dateRange?.from) constraints.push(where("saleDate", ">=", dateRange.from));
   if(dateRange?.to) constraints.push(where("saleDate", "<=", dateRange.to));
   if(staffId) constraints.push(where("staffId", "==", staffId));
+  if(lastVisible) constraints.push(startAfter(lastVisible));
+  constraints.push(limit(PAGE_SIZE));
 
   const q = query(salesCol, ...constraints);
 
@@ -263,6 +263,8 @@ export const getReturns = async (lastVisible?: QueryDocumentSnapshot<ReturnTrans
   if(dateRange?.from) constraints.push(where("returnDate", ">=", dateRange.from));
   if(dateRange?.to) constraints.push(where("returnDate", "<=", dateRange.to));
   if(staffId) constraints.push(where("staffId", "==", staffId));
+  if(lastVisible) constraints.push(startAfter(lastVisible));
+  constraints.push(limit(PAGE_SIZE));
   
   const q = query(returnsCol, ...constraints);
   

@@ -12,16 +12,22 @@ export function useReturns(fetchAll: boolean = false, dateRange?: DateRange, sta
   const [returns, setReturns] = useState<ReturnTransaction[]>([]);
   const [isLoading, setIsLoading] = useState(fetchAll);
   const [error, setError] = useState<string | null>(null);
+  const [lastVisible, setLastVisible] = useState<QueryDocumentSnapshot<ReturnTransaction> | null>(null);
+  const [hasMore, setHasMore] = useState(true);
   
   const { toast } = useToast();
 
-  const refetchReturns = useCallback(async () => {
+  const fetchInitialReturns = useCallback(async () => {
     setIsLoading(true);
     setError(null);
+    setHasMore(true);
     try {
-      // For now, we fetch all. Pagination can be re-added if needed.
-      const { returns: fetchedReturns } = await getReturns(undefined, dateRange, staffId);
-      setReturns(fetchedReturns);
+      const { returns: initialReturns, lastVisible: newLastVisible } = await getReturns(undefined, dateRange, staffId);
+      setReturns(initialReturns);
+      setLastVisible(newLastVisible);
+      if (!newLastVisible) {
+        setHasMore(false);
+      }
     } catch (err: any) {
       const errorMessage = err.message || "An unknown error occurred while fetching returns.";
       setError(errorMessage);
@@ -35,21 +41,42 @@ export function useReturns(fetchAll: boolean = false, dateRange?: DateRange, sta
     }
   }, [toast, dateRange, staffId]);
   
+  const loadMoreReturns = useCallback(async () => {
+    if (!hasMore || isLoading) return;
+    setIsLoading(true);
+    try {
+      const { returns: newReturns, lastVisible: newLastVisible } = await getReturns(lastVisible, dateRange, staffId);
+      setReturns(prev => [...prev, ...newReturns]);
+      setLastVisible(newLastVisible);
+      if (!newLastVisible) {
+        setHasMore(false);
+      }
+    } catch (err: any) {
+      const errorMessage = err.message || "An unknown error occurred while fetching more returns.";
+      setError(errorMessage);
+      toast({
+        variant: "destructive",
+        title: "Error Loading More Returns",
+        description: errorMessage,
+      });
+    } finally {
+        setIsLoading(false);
+    }
+  }, [lastVisible, hasMore, isLoading, toast, dateRange, staffId]);
 
-  // This single effect handles both initial fetching and refetching on dependency change.
   useEffect(() => {
     if (fetchAll || dateRange || staffId) {
-      refetchReturns();
+      fetchInitialReturns();
     }
-  }, [fetchAll, dateRange, staffId, refetchReturns]);
+  }, [fetchAll, dateRange, staffId, fetchInitialReturns]);
 
 
   return {
     returns,
     isLoading,
     error,
-    hasMore: false, // Temporarily disabled
-    loadMoreReturns: () => {}, // No-op
-    refetchReturns,
+    hasMore,
+    loadMoreReturns,
+    refetchReturns: fetchInitialReturns,
   };
 }

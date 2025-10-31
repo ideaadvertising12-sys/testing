@@ -4,6 +4,8 @@ import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { productConverter, type Product } from '@/lib/types';
 
+export const revalidate = 60; // Re-add server-side caching for 60 seconds
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const searchTerm = searchParams.get('q')?.toLowerCase();
@@ -17,7 +19,6 @@ export async function GET(request: NextRequest) {
     let q;
     
     if (ids && ids.length > 0) {
-      // Fetch specific products by ID, up to 30 as per 'in' query limit
       q = query(productsCol, where('__name__', 'in', ids.slice(0, 30)));
     } else {
       const constraints = [];
@@ -42,5 +43,3 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to search for products', details: errorMessage }, { status: 500 });
   }
 }
-
-    
