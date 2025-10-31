@@ -190,11 +190,26 @@ export async function POST(request: NextRequest) {
 
       const returnDocRef = doc(db, 'returns', returnId);
       
+      // Carefully construct the final return data to avoid any 'undefined' values
       finalReturnData = {
         id: returnId,
-        originalSaleId: saleId, returnDate: new Date(), staffId, customerId, customerName,
-        customerShopName, returnedItems: returnedItems, exchangedItems: exchangedItems,
-        settleOutstandingAmount, refundAmount, cashPaidOut, ...payment
+        originalSaleId: saleId,
+        returnDate: new Date(),
+        staffId,
+        returnedItems: returnedItems,
+        exchangedItems: exchangedItems,
+        customerId: customerId || undefined,
+        customerName: customerName || undefined,
+        customerShopName: customerShopName || undefined,
+        settleOutstandingAmount: settleOutstandingAmount || undefined,
+        refundAmount: refundAmount || undefined,
+        cashPaidOut: cashPaidOut || undefined,
+        // Safely add payment details
+        amountPaid: payment?.amountPaid,
+        paymentSummary: payment?.paymentSummary,
+        changeGiven: payment?.changeGiven,
+        chequeDetails: payment?.chequeDetails,
+        bankTransferDetails: payment?.bankTransferDetails,
       };
 
       transaction.set(returnDocRef, returnTransactionConverter.toFirestore(finalReturnData));
