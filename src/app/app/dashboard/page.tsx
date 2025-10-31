@@ -143,8 +143,9 @@ export default function DashboardPage() {
 
   const { monthlySalesData, monthlyComparison } = useMemo(() => {
     const activeSales = allSales ? allSales.filter(s => s.status !== 'cancelled') : [];
-    if (!activeSales || activeSales.length === 0) {
-      const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+    if (isLoadingAllSales || !activeSales || activeSales.length === 0) {
       return {
         monthlySalesData: monthNames.map(name => ({ name, sales: 0 })),
         monthlyComparison: Array(12).fill(0)
@@ -166,13 +167,14 @@ export default function DashboardPage() {
         monthlyTotalsPrevYear[month] = (monthlyTotalsPrevYear[month] || 0) + (sale.totalAmount || 0);
       }
     });
-
-    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     
     const comparison = monthNames.map((_, index) => {
       const current = monthlyTotals[index] || 0;
       const previous = monthlyTotalsPrevYear[index] || 0;
-      return previous > 0 ? ((current - previous) / previous) * 100 : (current > 0 ? 100 : 0);
+      if (previous === 0) {
+        return current > 0 ? 100 : 0; // If there were no sales last year, any sale is a 100% increase
+      }
+      return ((current - previous) / previous) * 100;
     });
 
     return {
@@ -182,7 +184,7 @@ export default function DashboardPage() {
       })),
       monthlyComparison: comparison
     };
-  }, [allSales]);
+  }, [allSales, isLoadingAllSales]);
 
   const customerGrowth = useMemo(() => {
     if (isLoadingCustomers || !customers) return 0;

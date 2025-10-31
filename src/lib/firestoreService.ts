@@ -25,7 +25,7 @@ import {
   startAfter,
   where
 } from "firebase/firestore";
-import { format } from 'date-fns';
+import { format, startOfYear, endOfYear } from 'date-fns';
 import { 
   productConverter, 
   type Product, 
@@ -291,18 +291,27 @@ export const getSales = async (lastVisible?: QueryDocumentSnapshot<Sale> | undef
   const salesCol = collection(db, "sales").withConverter(saleConverter);
   
   const constraints: any[] = [orderBy("saleDate", "desc")];
-  if(dateRange?.from) constraints.push(where("saleDate", ">=", dateRange.from));
-  if(dateRange?.to) constraints.push(where("saleDate", "<=", dateRange.to));
-  if(staffId) constraints.push(where("staffId", "==", staffId));
-  
-  // If lastVisible is not provided, we don't paginate (fetch all)
-  if (lastVisible !== undefined) {
-    constraints.push(limit(PAGE_SIZE));
-    if (lastVisible) {
-      constraints.push(startAfter(lastVisible));
-    }
-  }
 
+  // Logic to fetch specific date ranges, for example, for charts
+  const now = new Date();
+  const currentYearStart = startOfYear(now);
+  const previousYearStart = startOfYear(new Date(now.getFullYear() - 1, 0, 1));
+  const previousYearEnd = endOfYear(previousYearStart);
+
+  // If useSalesData requests all data, we might want to limit it for chart performance
+  // This logic is now handled in the useSalesData hook itself.
+  if (dateRange?.from) constraints.push(where("saleDate", ">=", dateRange.from));
+  if (dateRange?.to) constraints.push(where("saleDate", "<=", dateRange.to));
+  
+  if (staffId) constraints.push(where("staffId", "==", staffId));
+  
+  if (lastVisible) {
+      constraints.push(startAfter(lastVisible));
+  }
+  // Only apply page size limit if paginating
+  if (lastVisible !== undefined) {
+      constraints.push(limit(PAGE_SIZE));
+  }
 
   const q = query(salesCol, ...constraints);
 

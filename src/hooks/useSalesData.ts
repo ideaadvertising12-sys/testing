@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -7,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { getSales } from "@/lib/firestoreService";
 import type { QueryDocumentSnapshot } from "firebase/firestore";
 import type { DateRange } from "react-day-picker";
+import { startOfYear } from "date-fns";
 
 const CACHE_KEY = "salesCache";
 const PAGE_SIZE = 50; 
@@ -26,14 +28,17 @@ export function useSalesData(fetchAllInitially: boolean = false, dateRange?: Dat
     setHasMore(true);
     
     try {
-      // For a full refetch, we want all data, not just the first page.
-      // We will fetch pages until hasMore is false.
+      // For a full refetch for dashboard, we want current and previous year's data.
+      // For other pages, it will use the provided dateRange or fetch paginated.
+      const now = new Date();
+      const fetchRange = dateRange ?? { from: startOfYear(new Date(now.getFullYear() - 1, 0, 1)), to: now };
+      
       let allSales: Sale[] = [];
       let lastDoc: QueryDocumentSnapshot<Sale> | undefined = undefined;
       let moreToFetch = true;
 
       while(moreToFetch) {
-        const { sales: fetchedSales, lastVisible: newLastVisible } = await getSales(lastDoc, dateRange, staffId);
+        const { sales: fetchedSales, lastVisible: newLastVisible } = await getSales(lastDoc, fetchRange, staffId);
         allSales.push(...fetchedSales);
         if (newLastVisible) {
             lastDoc = newLastVisible;
@@ -43,10 +48,11 @@ export function useSalesData(fetchAllInitially: boolean = false, dateRange?: Dat
       }
       
       setSales(allSales);
-      setLastVisible(null); // Reset pagination tracking as we have all data
-      setHasMore(false); // We have fetched everything
+      setLastVisible(null); // Reset pagination tracking
+      setHasMore(false); // We have fetched everything for this context
       
-      if (!dateRange && !staffId) { // Only cache if we are fetching all data
+      // Only cache if we are fetching all data (no specific filters)
+      if (fetchAllInitially && !dateRange && !staffId) {
         localStorage.setItem(CACHE_KEY, JSON.stringify(allSales));
       }
 
@@ -61,7 +67,7 @@ export function useSalesData(fetchAllInitially: boolean = false, dateRange?: Dat
     } finally {
       setIsLoading(false);
     }
-  }, [toast, dateRange, staffId]);
+  }, [toast, dateRange, staffId, fetchAllInitially]);
 
   useEffect(() => {
     if (fetchAllInitially) {
