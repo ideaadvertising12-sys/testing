@@ -176,9 +176,15 @@ export async function POST(request: NextRequest) {
         newSaleItems[saleItemIndex] = { ...originalSaleItem, returnedQuantity: alreadyReturned + item.quantity };
       }
       
+      // Ensure all items have a defined returnedQuantity to prevent undefined errors.
+      const finalSaleItems = newSaleItems.map(item => ({
+        ...item,
+        returnedQuantity: item.returnedQuantity || 0
+      }));
+
       // 4. WRITE UPDATED SALE AND NEW RETURN DOCUMENT
       transaction.update(saleRef, {
-        items: newSaleItems,
+        items: finalSaleItems,
         updatedAt: Timestamp.now(),
       });
 
