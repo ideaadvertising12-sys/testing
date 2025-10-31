@@ -76,3 +76,5 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to search for customers', details: errorMessage }, { status: 500 });
   }
 }
+
+    

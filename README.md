@@ -1,4 +1,4 @@
-A complete web app for n Group products .. 
+wA complete web app for n Group products .. 
 To get started, take a look at src/app/page.tsx.
 
 

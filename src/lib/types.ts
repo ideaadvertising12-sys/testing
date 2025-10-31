@@ -921,3 +921,5 @@ export interface VehicleReportItem {
   totalUnloaded: number;
   netChange: number;
 }
+
+    
