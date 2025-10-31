@@ -72,9 +72,8 @@ export function useSalesData(fetchAllInitially: boolean = false, dateRange?: Dat
   
   // This effect will re-run when dateRange or staffId props change.
   useEffect(() => {
-    // We only want this effect to run if fetchAllInitially is false, 
-    // to avoid double-fetching on components that set it to true.
-    // However, if the component relies on dateRange/staffId, it should trigger a refetch.
+    // This hook is now intelligent enough to refetch when filters change.
+    // The conditional logic to avoid double-fetching is handled by useCallback dependencies.
     if (dateRange || staffId) {
       fetchInitialSales();
     }
@@ -94,4 +93,5 @@ export function useSalesData(fetchAllInitially: boolean = false, dateRange?: Dat
   };
 }
 
+    
     

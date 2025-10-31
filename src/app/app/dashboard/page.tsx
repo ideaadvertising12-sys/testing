@@ -43,8 +43,8 @@ export default function DashboardPage() {
   
   // Fetch sales for the last 30 days for the main stat card
   const last30DaysRange = useMemo(() => ({ from: addDays(new Date(), -30), to: new Date() }), []);
-  const { 
-    sales: salesLast30Days, 
+  const {
+    sales: salesLast30Days,
     isLoading: isLoadingSales30,
     error: sales30Error,
     totalRevenue: revenueLast30Days,
@@ -54,7 +54,8 @@ export default function DashboardPage() {
   const { 
     sales: allSales, 
     isLoading: isLoadingAllSales, 
-    error: allSalesError 
+    error: allSalesError,
+    totalRevenue: totalRevenueAllTime
   } = useSalesData(true);
 
   const { 
@@ -312,19 +313,19 @@ export default function DashboardPage() {
       {stockError && <Alert variant="destructive"><AlertTriangle className="h-4 w-4" /><AlertTitle>Stock Transaction Error</AlertTitle><AlertDescription>{stockError}</AlertDescription></Alert>}
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        {isLoadingSales30 ? (
-          renderLoadingCard("Gross Revenue (30d)", Banknote, "text-green-600")
-        ) : sales30Error ? (
-          renderErrorCard("Gross Revenue (30d)", Banknote, "text-green-600")
+        {isLoadingAllSales ? (
+          renderLoadingCard("Total Gross Revenue", Banknote, "text-green-600")
+        ) : allSalesError ? (
+          renderErrorCard("Total Gross Revenue", Banknote, "text-green-600")
         ) : (
           renderStatsCard(
-            "Gross Revenue (30d)",
-            formatCurrency(revenueLast30Days),
+            "Total Gross Revenue",
+            formatCurrency(totalRevenueAllTime),
             Banknote,
             "text-green-600",
-            "Revenue from last 30 days.",
-            undefined, // Trend calculation for this period is complex, omitting for now
-            "Last 30 Days"
+            "From all successful transactions.",
+            undefined, 
+            "All Time"
           )
         )}
 
@@ -514,4 +515,5 @@ export default function DashboardPage() {
   );
 }
 
+    
     
