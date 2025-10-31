@@ -70,9 +70,16 @@ export function useSalesData(fetchAllInitially: boolean = false, dateRange?: Dat
     }
   }, [fetchAllInitially, fetchInitialSales]);
   
+  // This effect will re-run when dateRange or staffId props change.
   useEffect(() => {
-    fetchInitialSales();
+    // We only want this effect to run if fetchAllInitially is false, 
+    // to avoid double-fetching on components that set it to true.
+    // However, if the component relies on dateRange/staffId, it should trigger a refetch.
+    if (dateRange || staffId) {
+      fetchInitialSales();
+    }
   }, [dateRange, staffId, fetchInitialSales]);
+
 
   const totalRevenue = sales.reduce((sum, sale) => sum + (sale.status !== 'cancelled' ? sale.totalAmount : 0), 0);
 
@@ -86,3 +93,5 @@ export function useSalesData(fetchAllInitially: boolean = false, dateRange?: Dat
     refetchSales: fetchInitialSales,
   };
 }
+
+    
