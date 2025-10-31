@@ -41,16 +41,6 @@ export default function DashboardPage() {
   
   const { customers, isLoading: isLoadingCustomers, error: customersError } = useCustomers();
   
-  // Fetch sales for the last 30 days for the main stat card
-  const last30DaysRange = useMemo(() => ({ from: addDays(new Date(), -30), to: new Date() }), []);
-  const {
-    sales: salesLast30Days,
-    isLoading: isLoadingSales30,
-    error: sales30Error,
-    totalRevenue: revenueLast30Days,
-  } = useSalesData(true, last30DaysRange);
-  
-  // Fetch all sales for other calculations (this could be further optimized if needed)
   const { 
     sales: allSales, 
     isLoading: isLoadingAllSales, 
@@ -303,9 +293,7 @@ export default function DashboardPage() {
         icon={Activity}
       />
       
-      {/* Error alerts */}
       {customersError && <Alert variant="destructive"><AlertTriangle className="h-4 w-4" /><AlertTitle>Customer Data Error</AlertTitle><AlertDescription>{customersError}</AlertDescription></Alert>}
-      {sales30Error && <Alert variant="destructive"><AlertTriangle className="h-4 w-4" /><AlertTitle>Sales Data Error</AlertTitle><AlertDescription>{sales30Error}</AlertDescription></Alert>}
       {allSalesError && <Alert variant="destructive"><AlertTriangle className="h-4 w-4" /><AlertTitle>All Sales Data Error</AlertTitle><AlertDescription>{allSalesError}</AlertDescription></Alert>}
       {productsError && <Alert variant="destructive"><AlertTriangle className="h-4 w-4" /><AlertTitle>Product Data Error</AlertTitle><AlertDescription>{productsError}</AlertDescription></Alert>}
       {returnsError && <Alert variant="destructive"><AlertTriangle className="h-4 w-4" /><AlertTitle>Returns Data Error</AlertTitle><AlertDescription>{returnsError}</AlertDescription></Alert>}
@@ -313,7 +301,7 @@ export default function DashboardPage() {
       {stockError && <Alert variant="destructive"><AlertTriangle className="h-4 w-4" /><AlertTitle>Stock Transaction Error</AlertTitle><AlertDescription>{stockError}</AlertDescription></Alert>}
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        {isLoadingAllSales ? (
+        {isLoadingAllSales && !allSales.length ? (
           renderLoadingCard("Total Gross Revenue", Banknote, "text-green-600")
         ) : allSalesError ? (
           renderErrorCard("Total Gross Revenue", Banknote, "text-green-600")
@@ -329,7 +317,7 @@ export default function DashboardPage() {
           )
         )}
 
-        {isLoadingAllSales ? (
+        {isLoadingAllSales && !allSales.length ? (
           renderLoadingCard("Today's Gross Revenue", TrendingUp, "text-purple-600")
         ) : allSalesError ? (
           renderErrorCard("Today's Gross Revenue", TrendingUp, "text-purple-600")
@@ -371,7 +359,6 @@ export default function DashboardPage() {
             Package,
             "text-orange-600",
             `${criticalStockItemsCount} critical items`,
-            undefined,
             undefined
           )
         )}
@@ -382,7 +369,7 @@ export default function DashboardPage() {
           <SalesChart
             data={monthlySalesData} 
             title="Monthly Sales Performance"
-            description={isLoadingAllSales ? "Loading sales data..." : "Current year vs previous year"}
+            description={isLoadingAllSales && !allSales.length ? "Loading sales data..." : "Current year vs previous year"}
             comparisonData={monthlyComparison}
           />
           
@@ -393,11 +380,11 @@ export default function DashboardPage() {
                 Recent Transactions
               </CardTitle>
               <CardDescription>
-                {isLoadingAllSales ? 'Loading...' : 'Latest five sales activities'}
+                {isLoadingAllSales && !allSales.length ? 'Loading...' : 'Latest five sales activities'}
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {isLoadingAllSales ? (
+              {isLoadingAllSales && !allSales.length ? (
                 <div className="space-y-4">
                   {[...Array(5)].map((_, i) => (
                     <div key={i} className="flex items-center space-x-4">
@@ -469,7 +456,7 @@ export default function DashboardPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {(isLoadingAllSales || isLoadingProducts) ? (
+              {(isLoadingAllSales && !allSales.length) || (isLoadingProducts && !allProducts.length) ? (
                 <div className="space-y-4">
                   {[...Array(5)].map((_, i) => (
                     <div key={i} className="flex items-center space-x-4">
@@ -514,5 +501,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-    
