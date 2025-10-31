@@ -27,15 +27,17 @@ export default function StockReportPage() {
   const { currentUser } = useAuth();
   const router = useRouter();
   
-  const { transactions: allTransactions, isLoading, error } = useStockTransactions();
-  const { vehicles, isLoading: isLoadingVehicles } = useVehicles();
-
-  const [filteredData, setFilteredData] = useState<(StockTransaction & { vehicleNumber?: string })[]>([]);
-  const [searchTerm, setSearchTerm] = useState("");
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: addDays(new Date(), -7), 
     to: new Date(),
   });
+  
+  const { transactions: allTransactions, isLoading, error, hasMore, loadMoreTransactions } = useStockTransactions(true, dateRange);
+  const { vehicles, isLoading: isLoadingVehicles } = useVehicles();
+
+  const [filteredData, setFilteredData] = useState<(StockTransaction & { vehicleNumber?: string })[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  
   const [transactionTypeFilter, setTransactionTypeFilter] = useState<string>("all");
 
   const enrichedTransactions = useMemo(() => {
@@ -51,13 +53,7 @@ export default function StockReportPage() {
   useEffect(() => {
     let result = [...enrichedTransactions];
     
-    if (dateRange?.from && dateRange.to) {
-      result = result.filter(entry => {
-        const entryDate = entry.transactionDate; 
-        return entryDate >= dateRange.from! && entryDate <= dateRange.to!;
-      });
-    }
-    
+    // Date filter is already applied by the hook, this is for client-side text search
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       result = result.filter(entry => 
@@ -75,7 +71,7 @@ export default function StockReportPage() {
     }
 
     setFilteredData(result);
-  }, [enrichedTransactions, searchTerm, dateRange, transactionTypeFilter]);
+  }, [enrichedTransactions, searchTerm, transactionTypeFilter]);
 
   useEffect(() => {
     if (!currentUser) {
@@ -234,6 +230,14 @@ export default function StockReportPage() {
         
         <CardContent>
           <StockReportTable data={filteredData} isLoading={pageIsLoading && allTransactions.length === 0} />
+           {hasMore && (
+            <div className="p-4 border-t text-center">
+              <Button onClick={loadMoreTransactions} disabled={isLoading}>
+                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                {isLoading ? 'Loading...' : 'Load More Transactions'}
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

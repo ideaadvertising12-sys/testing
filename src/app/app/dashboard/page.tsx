@@ -32,7 +32,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { isSameDay } from "date-fns";
+import { isSameDay, addDays } from "date-fns";
 
 
 export default function DashboardPage() {
@@ -40,26 +40,37 @@ export default function DashboardPage() {
   const router = useRouter();
   
   const { customers, isLoading: isLoadingCustomers, error: customersError } = useCustomers();
+  
+  // Fetch sales for the last 30 days for the main stat card
+  const last30DaysRange = useMemo(() => ({ from: addDays(new Date(), -30), to: new Date() }), []);
+  const { 
+    sales: salesLast30Days, 
+    isLoading: isLoadingSales30,
+    error: sales30Error,
+    totalRevenue: revenueLast30Days,
+  } = useSalesData(true, last30DaysRange);
+  
+  // Fetch all sales for other calculations (this could be further optimized if needed)
   const { 
     sales: allSales, 
-    isLoading: isLoadingSales, 
-    error: salesError, 
-    totalRevenue: netTotalRevenue,
-  } = useSalesData();
+    isLoading: isLoadingAllSales, 
+    error: allSalesError 
+  } = useSalesData(true);
+
   const { 
     products: allProducts, 
     isLoading: isLoadingProducts, 
     error: productsError 
   } = useProducts();
-  const { returns, isLoading: isLoadingReturns, error: returnsError } = useReturns();
-  const { expenses, isLoading: isLoadingExpenses, error: expensesError } = useExpenses();
-  const { transactions: stockTransactions, isLoading: isLoadingStock, error: stockError } = useStockTransactions();
+  const { returns, isLoading: isLoadingReturns, error: returnsError } = useReturns(true);
+  const { expenses, isLoading: isLoadingExpenses, error: expensesError } = useExpenses(true);
+  const { transactions: stockTransactions, isLoading: isLoadingStock, error: stockError } = useStockTransactions(true);
 
   const {
     revenueToday,
     salesCountToday,
   } = useMemo(() => {
-    if (isLoadingSales || !allSales) {
+    if (isLoadingAllSales || !allSales) {
       return { revenueToday: 0, salesCountToday: 0 };
     }
   
@@ -70,7 +81,7 @@ export default function DashboardPage() {
       revenueToday: activeSalesToday.reduce((sum, sale) => sum + sale.totalAmount, 0),
       salesCountToday: activeSalesToday.length,
     };
-  }, [allSales, isLoadingSales]);
+  }, [allSales, isLoadingAllSales]);
   
   const { liveLowStockItemsCount, criticalStockItemsCount } = useMemo(() => {
     if (isLoadingProducts || !allProducts || allProducts.length === 0) {
@@ -87,7 +98,7 @@ export default function DashboardPage() {
   }, [allProducts, isLoadingProducts]);
 
   const topSellingProducts = useMemo(() => {
-    if (isLoadingSales || isLoadingProducts || !allSales || !allProducts) {
+    if (isLoadingAllSales || isLoadingProducts || !allSales || !allProducts) {
       return [];
     }
 
@@ -128,7 +139,7 @@ export default function DashboardPage() {
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 5);
 
-  }, [allSales, allProducts, isLoadingSales, isLoadingProducts]);
+  }, [allSales, allProducts, isLoadingAllSales, isLoadingProducts]);
 
   const recentFiveSales = useMemo(() => {
     if (!allSales) return [];
@@ -292,69 +303,34 @@ export default function DashboardPage() {
       />
       
       {/* Error alerts */}
-      {customersError && (
-        <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Customer Data Error</AlertTitle>
-          <AlertDescription>{customersError}</AlertDescription>
-        </Alert>
-      )}
-      {salesError && (
-        <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Sales Data Error</AlertTitle>
-          <AlertDescription>{salesError}</AlertDescription>
-        </Alert>
-      )}
-      {productsError && (
-        <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Product Data Error</AlertTitle>
-          <AlertDescription>{productsError}</AlertDescription>
-        </Alert>
-      )}
-      {returnsError && (
-        <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Returns Data Error</AlertTitle>
-          <AlertDescription>{returnsError}</AlertDescription>
-        </Alert>
-      )}
-      {expensesError && (
-        <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Expenses Data Error</AlertTitle>
-          <AlertDescription>{expensesError}</AlertDescription>
-        </Alert>
-      )}
-      {stockError && (
-        <Alert variant="destructive">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Stock Transaction Error</AlertTitle>
-            <AlertDescription>{stockError}</AlertDescription>
-        </Alert>
-      )}
+      {customersError && <Alert variant="destructive"><AlertTriangle className="h-4 w-4" /><AlertTitle>Customer Data Error</AlertTitle><AlertDescription>{customersError}</AlertDescription></Alert>}
+      {sales30Error && <Alert variant="destructive"><AlertTriangle className="h-4 w-4" /><AlertTitle>Sales Data Error</AlertTitle><AlertDescription>{sales30Error}</AlertDescription></Alert>}
+      {allSalesError && <Alert variant="destructive"><AlertTriangle className="h-4 w-4" /><AlertTitle>All Sales Data Error</AlertTitle><AlertDescription>{allSalesError}</AlertDescription></Alert>}
+      {productsError && <Alert variant="destructive"><AlertTriangle className="h-4 w-4" /><AlertTitle>Product Data Error</AlertTitle><AlertDescription>{productsError}</AlertDescription></Alert>}
+      {returnsError && <Alert variant="destructive"><AlertTriangle className="h-4 w-4" /><AlertTitle>Returns Data Error</AlertTitle><AlertDescription>{returnsError}</AlertDescription></Alert>}
+      {expensesError && <Alert variant="destructive"><AlertTriangle className="h-4 w-4" /><AlertTitle>Expenses Data Error</AlertTitle><AlertDescription>{expensesError}</AlertDescription></Alert>}
+      {stockError && <Alert variant="destructive"><AlertTriangle className="h-4 w-4" /><AlertTitle>Stock Transaction Error</AlertTitle><AlertDescription>{stockError}</AlertDescription></Alert>}
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        {isLoadingSales ? (
-          renderLoadingCard("Total Gross Revenue", Banknote, "text-green-600")
-        ) : salesError ? (
-          renderErrorCard("Total Gross Revenue", Banknote, "text-green-600")
+        {isLoadingSales30 ? (
+          renderLoadingCard("Gross Revenue (30d)", Banknote, "text-green-600")
+        ) : sales30Error ? (
+          renderErrorCard("Gross Revenue (30d)", Banknote, "text-green-600")
         ) : (
           renderStatsCard(
-            "Total Gross Revenue",
-            formatCurrency(netTotalRevenue),
+            "Gross Revenue (30d)",
+            formatCurrency(revenueLast30Days),
             Banknote,
             "text-green-600",
-            "Revenue from all completed sales.",
-            monthlyComparison[new Date().getMonth()],
-            "All time"
+            "Revenue from last 30 days.",
+            undefined, // Trend calculation for this period is complex, omitting for now
+            "Last 30 Days"
           )
         )}
 
-        {isLoadingSales ? (
+        {isLoadingAllSales ? (
           renderLoadingCard("Today's Gross Revenue", TrendingUp, "text-purple-600")
-        ) : salesError ? (
+        ) : allSalesError ? (
           renderErrorCard("Today's Gross Revenue", TrendingUp, "text-purple-600")
         ) : (
           renderStatsCard(
@@ -405,7 +381,7 @@ export default function DashboardPage() {
           <SalesChart
             data={monthlySalesData} 
             title="Monthly Sales Performance"
-            description={isLoadingSales ? "Loading sales data..." : "Current year vs previous year"}
+            description={isLoadingAllSales ? "Loading sales data..." : "Current year vs previous year"}
             comparisonData={monthlyComparison}
           />
           
@@ -416,11 +392,11 @@ export default function DashboardPage() {
                 Recent Transactions
               </CardTitle>
               <CardDescription>
-                {isLoadingSales ? 'Loading...' : 'Latest five sales activities'}
+                {isLoadingAllSales ? 'Loading...' : 'Latest five sales activities'}
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {isLoadingSales ? (
+              {isLoadingAllSales ? (
                 <div className="space-y-4">
                   {[...Array(5)].map((_, i) => (
                     <div key={i} className="flex items-center space-x-4">
@@ -432,7 +408,7 @@ export default function DashboardPage() {
                     </div>
                   ))}
                 </div>
-              ) : salesError ? (
+              ) : allSalesError ? (
                 <div className="text-center text-destructive py-10">
                   <p>Could not load transactions.</p>
                 </div>
@@ -488,11 +464,11 @@ export default function DashboardPage() {
                 Top Selling Products
               </CardTitle>
               <CardDescription>
-                {isLoadingSales || isLoadingProducts ? 'Calculating...' : 'By revenue'}
+                {isLoadingAllSales || isLoadingProducts ? 'Calculating...' : 'By revenue'}
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {(isLoadingSales || isLoadingProducts) ? (
+              {(isLoadingAllSales || isLoadingProducts) ? (
                 <div className="space-y-4">
                   {[...Array(5)].map((_, i) => (
                     <div key={i} className="flex items-center space-x-4">
@@ -504,7 +480,7 @@ export default function DashboardPage() {
                     </div>
                   ))}
                 </div>
-              ) : salesError || productsError ? (
+              ) : allSalesError || productsError ? (
                 <div className="text-center text-destructive py-10">
                   <p>Could not load products.</p>
                 </div>

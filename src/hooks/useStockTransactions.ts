@@ -14,7 +14,7 @@ import { stockTransactionConverter } from "@/lib/types";
 const PAGE_SIZE = 50;
 
 async function getStockTransactions(lastVisible?: QueryDocumentSnapshot<StockTransaction>, dateRange?: DateRange): Promise<{ transactions: StockTransaction[], lastVisible: QueryDocumentSnapshot<StockTransaction> | null }> {
-  const transCol = collection(db, 'stockTransactions').withConverter(stockTransactionConverter);
+  const transCol = collection(db, 'stockTransactions').withConverter(stockTransactionConverter as any);
   
   const constraints = [orderBy("transactionDate", "desc")];
   if(dateRange?.from) constraints.push(where("transactionDate", ">=", dateRange.from));
