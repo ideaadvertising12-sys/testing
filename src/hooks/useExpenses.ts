@@ -70,4 +70,4 @@ export function useExpenses() {
   };
 
   return { expenses, isLoading, error, addExpense, deleteExpense, fetchExpenses };
-}
+}//es
