@@ -60,15 +60,12 @@ export function useReturns(fetchAll: boolean = false, dateRange?: DateRange, sta
 
 
   useEffect(() => {
-    if (fetchAll) {
+    // This single effect handles both initial fetching and refetching on dependency change.
+    // It will trigger if `fetchAll` is true on mount, or if `dateRange` or `staffId` change.
+    if (fetchAll || dateRange || staffId) {
       fetchInitialReturns();
     }
-  }, [fetchAll, fetchInitialReturns]);
-
-  // Refetch when dependencies change
-  useEffect(() => {
-      fetchInitialReturns();
-  }, [dateRange, staffId, fetchInitialReturns]);
+  }, [fetchAll, dateRange, staffId, fetchInitialReturns]);
 
 
   return {
