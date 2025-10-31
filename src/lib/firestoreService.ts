@@ -254,7 +254,7 @@ export const addSale = async (saleData: Omit<Sale, 'id'>): Promise<string> => {
   return newCustomId;
 };
 
-export const getSales = async (lastVisible?: QueryDocumentSnapshot<Sale>, dateRange?: DateRange, staffId?: string): Promise<{ sales: Sale[], lastVisible: QueryDocumentSnapshot<Sale> | null }> => {
+export const getSales = async (lastVisible?: QueryDocumentSnapshot<Sale> | undefined, dateRange?: DateRange, staffId?: string): Promise<{ sales: Sale[], lastVisible: QueryDocumentSnapshot<Sale> | null }> => {
   checkFirebase();
   const salesCol = collection(db, "sales").withConverter(saleConverter);
   
@@ -262,8 +262,15 @@ export const getSales = async (lastVisible?: QueryDocumentSnapshot<Sale>, dateRa
   if(dateRange?.from) constraints.push(where("saleDate", ">=", dateRange.from));
   if(dateRange?.to) constraints.push(where("saleDate", "<=", dateRange.to));
   if(staffId) constraints.push(where("staffId", "==", staffId));
-  if(lastVisible) constraints.push(startAfter(lastVisible));
-  constraints.push(limit(PAGE_SIZE));
+  
+  // If lastVisible is not provided, we don't paginate (fetch all)
+  if (lastVisible !== undefined) {
+    constraints.push(limit(PAGE_SIZE));
+    if (lastVisible) {
+      constraints.push(startAfter(lastVisible));
+    }
+  }
+
 
   const q = query(salesCol, ...constraints);
 

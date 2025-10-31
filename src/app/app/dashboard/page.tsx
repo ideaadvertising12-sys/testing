@@ -39,7 +39,7 @@ export default function DashboardPage() {
   const { currentUser } = useAuth();
   const router = useRouter();
   
-  const { customers, isLoading: isLoadingCustomers, error: customersError } = useCustomers();
+  const { customers, isLoading: isLoadingCustomers, error: customersError } = useCustomers(true);
   
   const { 
     sales: allSales, 

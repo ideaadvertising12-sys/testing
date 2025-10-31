@@ -13,24 +13,43 @@ const PAGE_SIZE = 50;
 
 export function useSalesData(fetchAllInitially: boolean = false, dateRange?: DateRange, staffId?: string) {
   const [sales, setSales] = useState<Sale[]>([]);
-  const [isLoading, setIsLoading] = useState(fetchAllInitially);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastVisible, setLastVisible] = useState<QueryDocumentSnapshot<Sale> | null>(null);
   const [hasMore, setHasMore] = useState(true);
   
   const { toast } = useToast();
 
-  const fetchInitialSales = useCallback(async () => {
+  const refetchSales = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     setHasMore(true);
+    
     try {
-      const { sales: initialSales, lastVisible: newLastVisible } = await getSales(undefined, dateRange, staffId);
-      setSales(initialSales);
-      setLastVisible(newLastVisible);
-      if (!newLastVisible || initialSales.length < PAGE_SIZE) {
-        setHasMore(false);
+      // For a full refetch, we want all data, not just the first page.
+      // We will fetch pages until hasMore is false.
+      let allSales: Sale[] = [];
+      let lastDoc: QueryDocumentSnapshot<Sale> | undefined = undefined;
+      let moreToFetch = true;
+
+      while(moreToFetch) {
+        const { sales: fetchedSales, lastVisible: newLastVisible } = await getSales(lastDoc, dateRange, staffId);
+        allSales.push(...fetchedSales);
+        if (newLastVisible) {
+            lastDoc = newLastVisible;
+        } else {
+            moreToFetch = false;
+        }
       }
+      
+      setSales(allSales);
+      setLastVisible(null); // Reset pagination tracking as we have all data
+      setHasMore(false); // We have fetched everything
+      
+      if (!dateRange && !staffId) { // Only cache if we are fetching all data
+        localStorage.setItem(CACHE_KEY, JSON.stringify(allSales));
+      }
+
     } catch (err: any) {
       const errorMessage = err.message || "An unknown error occurred while fetching sales.";
       setError(errorMessage);
@@ -43,7 +62,28 @@ export function useSalesData(fetchAllInitially: boolean = false, dateRange?: Dat
       setIsLoading(false);
     }
   }, [toast, dateRange, staffId]);
-  
+
+  useEffect(() => {
+    if (fetchAllInitially) {
+        const loadData = async () => {
+            // Only use cache if we are fetching ALL data (no filters)
+            if (!dateRange && !staffId) {
+                try {
+                    const cachedData = localStorage.getItem(CACHE_KEY);
+                    if (cachedData) {
+                        setSales(JSON.parse(cachedData).map((s: any) => ({...s, saleDate: new Date(s.saleDate)})));
+                        setIsLoading(false);
+                    }
+                } catch (e) {
+                    console.warn("Could not read sales from cache", e);
+                }
+            }
+            await refetchSales();
+        };
+        loadData();
+    }
+  }, [fetchAllInitially, refetchSales, dateRange, staffId]);
+
   const loadMoreSales = useCallback(async () => {
     if (!hasMore || isLoading) return;
     setIsLoading(true);
@@ -66,19 +106,7 @@ export function useSalesData(fetchAllInitially: boolean = false, dateRange?: Dat
         setIsLoading(false);
     }
   }, [lastVisible, hasMore, isLoading, toast, dateRange, staffId]);
-
-  useEffect(() => {
-    if (fetchAllInitially) {
-      fetchInitialSales();
-    }
-  }, [fetchAllInitially, fetchInitialSales]);
   
-  useEffect(() => {
-    if (dateRange || staffId) {
-      fetchInitialSales();
-    }
-  }, [dateRange, staffId, fetchInitialSales]);
-
   const totalRevenue = sales.reduce((sum, sale) => sum + (sale.status !== 'cancelled' ? sale.totalAmount : 0), 0);
 
   return {
@@ -88,6 +116,6 @@ export function useSalesData(fetchAllInitially: boolean = false, dateRange?: Dat
     totalRevenue,
     hasMore, 
     loadMoreSales,
-    refetchSales: fetchInitialSales,
+    refetchSales,
   };
 }
