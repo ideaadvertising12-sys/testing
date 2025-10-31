@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -8,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { getProducts } from "@/lib/firestoreService";
 
 const API_BASE_URL = "/api/products";
+const CACHE_KEY = "productsCache";
 
 export function useProducts() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -21,6 +21,8 @@ export function useProducts() {
       const fetchedProducts = await getProducts();
       setProducts(fetchedProducts);
       setError(null);
+      // Cache the fresh data
+      localStorage.setItem(CACHE_KEY, JSON.stringify(fetchedProducts));
     } catch (err: any) {
       const errorMessage = err.message || "An unknown error occurred while fetching products.";
       setError(errorMessage);
@@ -35,7 +37,23 @@ export function useProducts() {
   }, [toast]);
 
   useEffect(() => {
-    refetch();
+    const loadData = async () => {
+      // 1. Try to load from cache first
+      try {
+        const cachedData = localStorage.getItem(CACHE_KEY);
+        if (cachedData) {
+          setProducts(JSON.parse(cachedData));
+          setIsLoading(false); // We have data to show, so we are not "loading"
+        }
+      } catch (e) {
+        console.warn("Could not read products from cache", e);
+      }
+      
+      // 2. Fetch fresh data from Firestore
+      await refetch();
+    };
+
+    loadData();
   }, [refetch]);
 
   const addProduct = async (productData: Omit<Product, "id">): Promise<Product | null> => {

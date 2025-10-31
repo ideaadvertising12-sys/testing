@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -6,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { getCustomers } from "@/lib/firestoreService";
 
 const API_BASE_URL = "/api/customers";
+const CACHE_KEY = "customersCache";
 
 export function useCustomers() {
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -13,28 +15,47 @@ export function useCustomers() {
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const fetchCustomers = useCallback(async () => {
-      setIsLoading(true);
-      try {
-        const fetchedCustomers = await getCustomers();
-        setCustomers(fetchedCustomers.sort((a, b) => a.name.localeCompare(b.name)));
-        setError(null);
-      } catch (err: any) {
-        const errorMessage = err.message || "An unknown error occurred while fetching customers.";
-        setError(errorMessage);
-        toast({
-          variant: "destructive",
-          title: "Error Fetching Customers",
-          description: errorMessage,
-        });
-      } finally {
-        setIsLoading(false);
-      }
+  const refetchCustomers = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const fetchedCustomers = await getCustomers();
+      const sortedCustomers = fetchedCustomers.sort((a, b) => a.name.localeCompare(b.name));
+      setCustomers(sortedCustomers);
+      setError(null);
+      // Cache the fresh data
+      localStorage.setItem(CACHE_KEY, JSON.stringify(sortedCustomers));
+    } catch (err: any) {
+      const errorMessage = err.message || "An unknown error occurred while fetching customers.";
+      setError(errorMessage);
+      toast({
+        variant: "destructive",
+        title: "Error Fetching Customers",
+        description: errorMessage,
+      });
+    } finally {
+      setIsLoading(false);
+    }
   }, [toast]);
 
   useEffect(() => {
-    fetchCustomers();
-  }, [fetchCustomers]);
+    const loadData = async () => {
+      // 1. Try to load from cache first
+      try {
+        const cachedData = localStorage.getItem(CACHE_KEY);
+        if (cachedData) {
+          setCustomers(JSON.parse(cachedData));
+          setIsLoading(false); // We have data to show, so we are not "loading"
+        }
+      } catch (e) {
+        console.warn("Could not read customers from cache", e);
+      }
+      
+      // 2. Fetch fresh data from Firestore
+      await refetchCustomers();
+    };
+
+    loadData();
+  }, [refetchCustomers]);
 
   const addCustomer = async (customerData: Omit<Customer, "id" | "avatar">): Promise<Customer | null> => {
     try {
@@ -48,7 +69,7 @@ export function useCustomers() {
         throw new Error(errorData.message || "Failed to add customer. Server responded with an error.");
       }
       const newCustomer = await response.json();
-      await fetchCustomers(); // Refetch after adding
+      await refetchCustomers(); // Refetch after adding
       return newCustomer;
     } catch (err: any) {
       console.error("Error adding customer:", err);
@@ -72,7 +93,7 @@ export function useCustomers() {
          const errorData = await response.json().catch(() => ({ message: "Failed to update customer" }));
         throw new Error(errorData.message || `Failed to update customer. Server responded with status ${response.status}.`);
       }
-      await fetchCustomers(); // Refetch after updating
+      await refetchCustomers(); // Refetch after updating
       const updatedCustomerState = customers.find(c => c.id === id);
       return updatedCustomerState ? { ...updatedCustomerState, ...customerData } as Customer : null;
 
@@ -96,7 +117,7 @@ export function useCustomers() {
         const errorData = await response.json().catch(() => ({ message: "Failed to delete customer" }));
         throw new Error(errorData.message || `Failed to delete customer. Server responded with status ${response.status}.`);
       }
-      await fetchCustomers(); // Refetch after deleting
+      await refetchCustomers(); // Refetch after deleting
       return true;
     } catch (err: any) {
       console.error("Error deleting customer:", err);
@@ -116,6 +137,6 @@ export function useCustomers() {
     addCustomer,
     updateCustomer,
     deleteCustomer,
-    refetchCustomers: fetchCustomers,
+    refetchCustomers,
   };
 }

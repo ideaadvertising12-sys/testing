@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { VehicleService } from "@/lib/vehicleService";
 
 const API_BASE_URL = "/api/vehicles";
+const CACHE_KEY = "vehiclesCache";
 
 export function useVehicles() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -19,7 +20,9 @@ export function useVehicles() {
     setError(null);
     try {
         const fetchedVehicles = await VehicleService.getAllVehicles();
-        setVehicles(fetchedVehicles.sort((a, b) => a.vehicleNumber.localeCompare(b.vehicleNumber)));
+        const sortedVehicles = fetchedVehicles.sort((a, b) => a.vehicleNumber.localeCompare(b.vehicleNumber));
+        setVehicles(sortedVehicles);
+        localStorage.setItem(CACHE_KEY, JSON.stringify(sortedVehicles));
     } catch (err: any) {
         const errorMessage = err.message || "An unknown error occurred while fetching vehicles.";
         setError(errorMessage);
@@ -34,7 +37,20 @@ export function useVehicles() {
   }, [toast]);
 
   useEffect(() => {
-    fetchVehicles();
+    const loadData = async () => {
+      try {
+        const cachedData = localStorage.getItem(CACHE_KEY);
+        if (cachedData) {
+          setVehicles(JSON.parse(cachedData));
+          setIsLoading(false);
+        }
+      } catch (e) {
+        console.warn("Could not read vehicles from cache", e);
+      }
+      await fetchVehicles();
+    };
+
+    loadData();
   }, [fetchVehicles]);
 
   const addVehicle = async (vehicleData: Omit<Vehicle, "id">): Promise<Vehicle | null> => {

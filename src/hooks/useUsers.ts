@@ -6,6 +6,7 @@ import type { ManagedUser, User } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 
 const API_BASE_URL = "/api/users";
+const CACHE_KEY = "usersCache";
 
 export function useUsers() {
   const [users, setUsers] = useState<ManagedUser[]>([]);
@@ -21,6 +22,7 @@ export function useUsers() {
       if (!response.ok) throw new Error("Failed to fetch users");
       const data = await response.json();
       setUsers(data);
+      localStorage.setItem(CACHE_KEY, JSON.stringify(data));
     } catch (err: any) {
       setError(err.message);
       toast({ variant: "destructive", title: "Error", description: err.message });
@@ -30,7 +32,20 @@ export function useUsers() {
   }, [toast]);
 
   useEffect(() => {
-    fetchUsers();
+    const loadData = async () => {
+      try {
+        const cachedData = localStorage.getItem(CACHE_KEY);
+        if (cachedData) {
+          setUsers(JSON.parse(cachedData));
+          setIsLoading(false);
+        }
+      } catch (e) {
+        console.warn("Could not read users from cache", e);
+      }
+      await fetchUsers();
+    };
+
+    loadData();
   }, [fetchUsers]);
 
   const addUser = async (userData: ManagedUser): Promise<boolean> => {
