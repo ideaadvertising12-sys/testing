@@ -372,7 +372,7 @@ export default function DashboardPage() {
             "text-orange-600",
             `${criticalStockItemsCount} critical items`,
             undefined,
-            allProducts ? `${allProducts.length} total products` : undefined
+            undefined
           )
         )}
       </div>
@@ -515,5 +515,4 @@ export default function DashboardPage() {
   );
 }
 
-    
     
