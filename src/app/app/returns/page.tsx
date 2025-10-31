@@ -10,7 +10,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Search, Package, Hash, Loader2, Users, ChevronsUpDown, Check, ArrowRight, Undo2, XCircle, PlusCircle, MinusCircle, Trash2, CalendarIcon, Wallet, Gift, Tag, Truck, Warehouse, Banknote } from "lucide-react";
 import type { Customer, Sale, CartItem, Product, ReturnTransaction, ChequeInfo, BankTransferInfo, StockTransaction, Vehicle } from "@/lib/types";
-import { useCustomers } from "@/hooks/useCustomers";
 import { useSalesData } from "@/hooks/useSalesData";
 import { useProducts } from "@/hooks/useProducts";
 import { cn } from "@/lib/utils";
@@ -47,7 +46,6 @@ const getCustomerDisplayLabel = (customer: Customer | null): string => {
 
 
 export default function ReturnsPage() {
-  const { customers, isLoading: isLoadingCustomers } = useCustomers();
   const { sales: allSales, isLoading: isLoadingAllSales, refetchSales: refetchAllSales } = useSalesData(true);
   const { products: allProducts, isLoading: isLoadingProducts, refetch: refetchProducts } = useProducts();
   const { vehicles, isLoading: isLoadingVehicles } = useVehicles();
@@ -65,6 +63,10 @@ export default function ReturnsPage() {
   const [directRefundAmount, setDirectRefundAmount] = useState<string>("");
   const [customerCreditBalance, setCustomerCreditBalance] = useState(0);
   const [isCreditLoading, setIsCreditLoading] = useState(false);
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [searchedCustomers, setSearchedCustomers] = useState<Customer[]>([]);
+  const [isSearchingCustomers, setIsSearchingCustomers] = useState(false);
 
 
   // Return Processing State
@@ -104,16 +106,41 @@ export default function ReturnsPage() {
     }
   }, [isCashier]);
 
-  const customerOptions = useMemo(() => {
-    if (!customers) return [];
-    return customers
-      .filter(c => c.status !== 'pending')
-      .map(customer => ({
-      value: customer.id,
-      label: getCustomerDisplayLabel(customer),
-      customerObject: customer
-    }));
-  }, [customers]);
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(customerSearch);
+    }, 400);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [customerSearch]);
+
+  useEffect(() => {
+    const searchApi = async () => {
+      if (debouncedSearch.length < 2) {
+        setSearchedCustomers([]);
+        return;
+      }
+      setIsSearchingCustomers(true);
+      try {
+        const response = await fetch(`/api/customers/search?q=${debouncedSearch}`);
+        if (response.ok) {
+          const data: Customer[] = await response.json();
+          setSearchedCustomers(data);
+        } else {
+          setSearchedCustomers([]);
+        }
+      } catch (error) {
+        console.error("Failed to search customers:", error);
+        setSearchedCustomers([]);
+      } finally {
+        setIsSearchingCustomers(false);
+      }
+    };
+    searchApi();
+  }, [debouncedSearch]);
+
 
   useEffect(() => {
     const fetchCreditBalance = async () => {
@@ -587,7 +614,7 @@ export default function ReturnsPage() {
     }
   }
 
-  const isLoading = isLoadingCustomers || isLoadingProducts || isLoadingAllSales;
+  const isLoading = isLoadingProducts || isLoadingAllSales;
   const currentCustomerLabel = getCustomerDisplayLabel(selectedCustomer);
 
   const availableProductsForExchange = useMemo(() => {
@@ -609,32 +636,26 @@ export default function ReturnsPage() {
             <Label htmlFor="customer-search">Customer *</Label>
              <Popover open={openCustomerPopover} onOpenChange={setOpenCustomerPopover}>
               <PopoverTrigger asChild>
-                <Button variant="outline" role="combobox" aria-expanded={openCustomerPopover} className="w-full justify-between" disabled={isLoadingCustomers}>
-                  <span className="truncate">{isLoadingCustomers ? "Loading..." : currentCustomerLabel}</span>
+                <Button variant="outline" role="combobox" aria-expanded={openCustomerPopover} className="w-full justify-between">
+                  <span className="truncate">{currentCustomerLabel}</span>
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                <Command 
-                  filter={(value, search) => {
-                    const option = customerOptions.find(opt => opt.value === value);
-                    if (!option) return 0;
-                    const label = typeof option.label === 'string' ? option.label.toLowerCase() : '';
-                    const name = option.customerObject?.name ? option.customerObject.name.toLowerCase() : '';
-                    const shopName = option.customerObject?.shopName ? option.customerObject.shopName.toLowerCase() : '';
-                    const phone = option.customerObject?.phone ? option.customerObject.phone.toLowerCase() : '';
-                    const searchableString = `${label} ${name} ${shopName} ${phone}`;
-                    return searchableString.includes(search.toLowerCase()) ? 1 : 0;
-                  }}
-                >
-                  <CommandInput placeholder="Search by name, shop, or phone..." />
+                <Command shouldFilter={false}>
+                  <CommandInput 
+                    placeholder="Search by name, shop, or phone..." 
+                    value={customerSearch}
+                    onValueChange={setCustomerSearch}
+                  />
                   <CommandList>
-                    <CommandEmpty>No customer found.</CommandEmpty>
+                    {isSearchingCustomers && <div className="p-2 text-center text-sm">Searching...</div>}
+                    <CommandEmpty>{!isSearchingCustomers && "No customer found."}</CommandEmpty>
                     <CommandGroup>
-                       {customerOptions.map((option) => (
-                        <CommandItem key={option.value} value={option.value} onSelect={() => { setSelectedCustomer(option.customerObject); setOpenCustomerPopover(false); }}>
-                           <Check className={cn("mr-2 h-4 w-4", selectedCustomer?.id === option.value ? "opacity-100" : "opacity-0")} />
-                          {option.label}
+                       {searchedCustomers.map((customer) => (
+                        <CommandItem key={customer.id} value={getCustomerDisplayLabel(customer)} onSelect={() => { setSelectedCustomer(customer); setOpenCustomerPopover(false); setCustomerSearch(""); }}>
+                           <Check className={cn("mr-2 h-4 w-4", selectedCustomer?.id === customer.id ? "opacity-100" : "opacity-0")} />
+                          {getCustomerDisplayLabel(customer)}
                         </CommandItem>
                       ))}
                     </CommandGroup>
