@@ -176,15 +176,29 @@ export async function POST(request: NextRequest) {
         newSaleItems[saleItemIndex] = { ...originalSaleItem, returnedQuantity: alreadyReturned + item.quantity };
       }
       
-      // Ensure all items have a defined returnedQuantity to prevent undefined errors.
-      const finalSaleItems = newSaleItems.map(item => ({
-        ...item,
-        returnedQuantity: item.returnedQuantity || 0
-      }));
+      // Defensively rebuild the items array to ensure no `undefined` values are saved.
+      const finalSaleItems = newSaleItems.map(item => {
+        const cleanItem: CartItem = {
+          id: item.id,
+          quantity: item.quantity,
+          appliedPrice: item.appliedPrice,
+          saleType: item.saleType,
+          name: item.name,
+          category: item.category,
+          price: item.price,
+          isOfferItem: item.isOfferItem || false,
+          returnedQuantity: item.returnedQuantity || 0,
+        };
+        // Only include SKU if it exists
+        if (item.sku) {
+          cleanItem.sku = item.sku;
+        }
+        return cleanItem;
+      });
 
       // 4. WRITE UPDATED SALE AND NEW RETURN DOCUMENT
       transaction.update(saleRef, {
-        items: finalSaleItems,
+        items: finalSaleItems.map(item => ({...item})), // Spread to satisfy Firestore type checks
         updatedAt: Timestamp.now(),
       });
 
@@ -204,7 +218,6 @@ export async function POST(request: NextRequest) {
         settleOutstandingAmount: settleOutstandingAmount || undefined,
         refundAmount: refundAmount || undefined,
         cashPaidOut: cashPaidOut || undefined,
-        // Safely add payment details
         amountPaid: payment?.amountPaid,
         paymentSummary: payment?.paymentSummary,
         changeGiven: payment?.changeGiven,
