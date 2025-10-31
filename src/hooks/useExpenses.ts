@@ -9,38 +9,26 @@ import type { DateRange } from "react-day-picker";
 
 const API_BASE_URL = "/api/expenses";
 
-export function useExpenses(fetchAll: boolean = true, dateRange?: DateRange, staffId?: string) {
+export function useExpenses() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [isLoading, setIsLoading] = useState(fetchAll);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const refetchExpenses = useCallback(async () => {
+  const fetchExpenses = useCallback(async (dateRange?: DateRange, staffId?: string) => {
     setIsLoading(true);
+    setError(null);
     try {
-      // Use the service directly for consistency with other hooks
       const fetchedExpenses = await getExpenses(dateRange, staffId);
       setExpenses(fetchedExpenses);
-      setError(null);
     } catch (err: any) {
-      setError(err.message);
-      toast({ variant: "destructive", title: "Error", description: "Could not load expenses." });
+      const errorMessage = err.message || "Could not load expenses.";
+      setError(errorMessage);
+      toast({ variant: "destructive", title: "Error", description: errorMessage });
     } finally {
       setIsLoading(false);
     }
-  }, [toast, dateRange, staffId]);
-
-  useEffect(() => {
-    if(fetchAll) {
-        refetchExpenses();
-    }
-  }, [fetchAll, refetchExpenses]);
-
-  // Refetch when dependencies change
-  useEffect(() => {
-    refetchExpenses();
-  }, [dateRange, staffId, refetchExpenses]);
-
+  }, [toast]);
 
   const addExpense = async (expenseData: Omit<Expense, "id">): Promise<Expense | null> => {
     try {
@@ -54,7 +42,7 @@ export function useExpenses(fetchAll: boolean = true, dateRange?: DateRange, sta
         throw new Error(errorData.error || "Failed to add expense");
       }
       const newExpense = await response.json();
-      await refetchExpenses(); // Refetch after adding
+      // No automatic refetch, let the component decide when to call fetchExpenses
       toast({ title: "Success", description: "Expense added successfully." });
       return newExpense;
     } catch (err: any) {
@@ -72,7 +60,7 @@ export function useExpenses(fetchAll: boolean = true, dateRange?: DateRange, sta
             const errorData = await response.json();
             throw new Error(errorData.error || "Failed to delete expense");
         }
-        await refetchExpenses(); // Refetch after deleting
+        // No automatic refetch
         toast({ title: "Success", description: "Expense deleted." });
         return true;
     } catch (err: any) {
@@ -81,5 +69,5 @@ export function useExpenses(fetchAll: boolean = true, dateRange?: DateRange, sta
     }
   };
 
-  return { expenses, isLoading, error, addExpense, deleteExpense, refetchExpenses };
+  return { expenses, isLoading, error, addExpense, deleteExpense, fetchExpenses };
 }

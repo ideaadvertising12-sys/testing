@@ -249,7 +249,7 @@ export const getSales = async (lastVisible?: QueryDocumentSnapshot<Sale>, dateRa
   checkFirebase();
   const salesCol = collection(db, "sales").withConverter(saleConverter);
   
-  const constraints = [orderBy("saleDate", "desc")];
+  const constraints: any[] = [orderBy("saleDate", "desc")];
   if(dateRange?.from) constraints.push(where("saleDate", ">=", dateRange.from));
   if(dateRange?.to) constraints.push(where("saleDate", "<=", dateRange.to));
   if(staffId) constraints.push(where("staffId", "==", staffId));
@@ -271,7 +271,7 @@ export const getReturns = async (lastVisible?: QueryDocumentSnapshot<ReturnTrans
   checkFirebase();
   const returnsCol = collection(db, "returns").withConverter(returnTransactionConverter);
 
-  const constraints = [orderBy("returnDate", "desc")];
+  const constraints: any[] = [orderBy("returnDate", "desc")];
   if(dateRange?.from) constraints.push(where("returnDate", ">=", dateRange.from));
   if(dateRange?.to) constraints.push(where("returnDate", "<=", dateRange.to));
   if(staffId) constraints.push(where("staffId", "==", staffId));
@@ -292,10 +292,10 @@ export const getExpenses = async (dateRange?: DateRange, staffId?: string): Prom
   checkFirebase();
   const expensesCol = collection(db, "expenses").withConverter(expenseConverter);
 
-  const constraints = [orderBy("expenseDate", "desc")];
-  if(dateRange?.from) constraints.push(where("expenseDate", ">=", dateRange.from));
-  if(dateRange?.to) constraints.push(where("expenseDate", "<=", dateRange.to));
-  if(staffId) constraints.push(where("staffId", "==", staffId));
+  const constraints: any[] = [orderBy("expenseDate", "desc")];
+  if (dateRange?.from) constraints.push(where("expenseDate", ">=", dateRange.from));
+  if (dateRange?.to) constraints.push(where("expenseDate", "<=", dateRange.to));
+  if (staffId) constraints.push(where("staffId", "==", staffId));
 
   const q = query(expensesCol, ...constraints);
   const snapshot = await getDocs(q);

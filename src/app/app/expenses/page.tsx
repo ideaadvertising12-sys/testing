@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -14,10 +14,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import { GlobalPreloaderScreen } from "@/components/GlobalPreloaderScreen";
 import { AccessDenied } from "@/components/AccessDenied";
-import { PlusCircle, Wallet, Loader2, Trash2, Truck, UserCircle } from "lucide-react";
+import { PlusCircle, Wallet, Loader2, Trash2, Truck, UserCircle, Search } from "lucide-react";
 import { useExpenses } from "@/hooks/useExpenses";
 import { useVehicles } from "@/hooks/useVehicles";
-import { format, isWithinInterval, startOfDay, endOfDay } from "date-fns";
+import { format } from "date-fns";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,7 +39,7 @@ const formatCurrency = (amount: number) => new Intl.NumberFormat('en-LK', { styl
 export default function ExpensesPage() {
   const { currentUser } = useAuth();
   const router = useRouter();
-  const { expenses, isLoading: isLoadingExpenses, addExpense, deleteExpense } = useExpenses();
+  const { expenses, isLoading: isLoadingExpenses, addExpense, deleteExpense, fetchExpenses } = useExpenses();
   const { vehicles, isLoading: isLoadingVehicles } = useVehicles();
   const { toast } = useToast();
   const isMobile = useMediaQuery("(max-width: 768px)");
@@ -54,7 +54,7 @@ export default function ExpensesPage() {
 
   const canAccessPage = currentUser?.role === 'admin' || currentUser?.role === 'cashier';
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (!currentUser) {
       router.replace("/");
       return;
@@ -64,15 +64,13 @@ export default function ExpensesPage() {
     }
   }, [currentUser, router, canAccessPage]);
 
-  const filteredExpenses = useMemo(() => {
-    if (!dateRange || !dateRange.from) return expenses;
-    const from = startOfDay(dateRange.from);
-    const to = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from);
-    return expenses.filter(expense => {
-        const expenseDate = new Date(expense.expenseDate);
-        return isWithinInterval(expenseDate, { start: from, end: to });
-    });
-  }, [expenses, dateRange]);
+  const handleFetchExpenses = () => {
+    if (!dateRange || !dateRange.from) {
+      toast({ variant: "destructive", title: "Date Range Required", description: "Please select a date range to view expenses." });
+      return;
+    }
+    fetchExpenses(dateRange);
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -100,11 +98,19 @@ export default function ExpensesPage() {
 
     const result = await addExpense(newExpense);
     if (result) {
-      toast({ title: "Success", description: "Expense added successfully." });
       setCategory("Fuel");
       setCustomCategory("");
       setAmount("");
       setSelectedVehicleId("");
+      // Refetch expenses if the new expense is within the current date range
+      if (dateRange && dateRange.from) {
+        const from = dateRange.from;
+        const to = dateRange.to || from;
+        const expenseDate = new Date(result.expenseDate);
+        if (expenseDate >= from && expenseDate <= to) {
+            fetchExpenses(dateRange);
+        }
+      }
     }
     setIsSubmitting(false);
   };
@@ -119,20 +125,21 @@ export default function ExpensesPage() {
 
   const confirmDelete = async () => {
     if (expenseToDelete) {
-      await deleteExpense(expenseToDelete.id);
+      const success = await deleteExpense(expenseToDelete.id);
+      if (success) {
+        // Optimistically remove from state or refetch
+        setExpenses(prev => prev.filter(exp => exp.id !== expenseToDelete.id));
+      }
       setExpenseToDelete(null);
     }
   };
 
   const totalExpenses = useMemo(() => {
-    return filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);
-  }, [filteredExpenses]);
+    return expenses.reduce((sum, expense) => sum + expense.amount, 0);
+  }, [expenses]);
 
-  const isLoading = isLoadingExpenses || isLoadingVehicles;
-
-  const vehicleMap = useMemo(() => {
-    return new Map(vehicles.map(v => [v.id, v.vehicleNumber]));
-  }, [vehicles]);
+  const isLoading = isLoadingVehicles; // Only vehicles loading blocks the form initially
+  const vehicleMap = useMemo(() => new Map(vehicles.map(v => [v.id, v.vehicleNumber])), [vehicles]);
 
 
   if (!currentUser) return <GlobalPreloaderScreen message="Loading expenses page..." />;
@@ -235,24 +242,29 @@ export default function ExpensesPage() {
                       <span className="font-bold text-primary">{formatCurrency(totalExpenses)}</span>
                     </CardDescription>
                 </div>
-                <div className="w-full sm:w-auto">
-                    <DateRangePicker dateRange={dateRange} onDateRangeChange={setDateRange} />
+                <div className="flex gap-2 items-center w-full sm:w-auto">
+                    <DateRangePicker dateRange={dateRange} onDateRangeChange={setDateRange} className="flex-grow"/>
+                    <Button onClick={handleFetchExpenses} disabled={isLoadingExpenses} className="h-10">
+                        {isLoadingExpenses ? <Loader2 className="h-4 w-4 animate-spin"/> : <Search className="h-4 w-4"/>}
+                        <span className="sr-only sm:not-sr-only sm:ml-2">View</span>
+                    </Button>
                 </div>
             </div>
           </CardHeader>
           <CardContent>
             <ScrollArea className="h-[calc(100vh-27rem)]">
-              {isLoading && expenses.length === 0 ? (
+              {isLoadingExpenses ? (
                 <div className="flex justify-center items-center h-48">
                   <Loader2 className="h-8 w-8 animate-spin" />
                 </div>
-              ) : filteredExpenses.length === 0 ? (
+              ) : expenses.length === 0 ? (
                  <div className="text-center py-10 text-muted-foreground">
-                    <p>No expenses recorded for the selected period.</p>
+                    <p>No expenses found for the selected period.</p>
+                    <p className="text-sm">Select a date range and click "View".</p>
                 </div>
               ) : isMobile ? (
                   <div className="space-y-2">
-                    {filteredExpenses.map(expense => (
+                    {expenses.map(expense => (
                       <Card key={expense.id} className="p-3">
                          <div className="flex justify-between items-start">
                             <div>
@@ -296,7 +308,7 @@ export default function ExpensesPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredExpenses.map((expense) => (
+                    {expenses.map((expense) => (
                       <TableRow key={expense.id}>
                         <TableCell>{format(expense.expenseDate, "yyyy-MM-dd")}</TableCell>
                         <TableCell className="capitalize">{expense.category}</TableCell>
