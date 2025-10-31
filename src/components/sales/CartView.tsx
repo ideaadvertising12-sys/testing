@@ -60,18 +60,31 @@ export function CartView({
 }: CartViewProps) {
   const [openCustomerPopover, setOpenCustomerPopover] = React.useState(false);
   const [customerSearch, setCustomerSearch] = React.useState("");
+  const [debouncedSearch, setDebouncedSearch] = React.useState("");
   const [searchedCustomers, setSearchedCustomers] = React.useState<Customer[]>([]);
   const [isSearching, setIsSearching] = React.useState(false);
 
+  // Debounce effect for customer search
   React.useEffect(() => {
-    const handler = setTimeout(async () => {
-      if (customerSearch.length < 2) {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(customerSearch);
+    }, 300); // 300ms delay
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [customerSearch]);
+
+
+  React.useEffect(() => {
+    const searchCustomers = async () => {
+      if (debouncedSearch.length < 2) {
         setSearchedCustomers([]);
         return;
       }
       setIsSearching(true);
       try {
-        const response = await fetch(`/api/customers/search?q=${customerSearch}`);
+        const response = await fetch(`/api/customers/search?q=${debouncedSearch}`);
         if (response.ok) {
           const data: Customer[] = await response.json();
           setSearchedCustomers(data);
@@ -84,12 +97,10 @@ export function CartView({
       } finally {
         setIsSearching(false);
       }
-    }, 300); // Debounce search by 300ms
-
-    return () => {
-      clearTimeout(handler);
     };
-  }, [customerSearch]);
+    
+    searchCustomers();
+  }, [debouncedSearch]);
 
 
   const getCustomerDisplayLabel = (customer: Customer | null): string => {
