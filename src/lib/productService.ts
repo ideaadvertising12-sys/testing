@@ -1,3 +1,4 @@
+
 import { db, checkFirebase } from "./firebase";
 import { 
   collection, 
@@ -8,7 +9,6 @@ import {
   deleteDoc, 
   query, 
   where,
-  onSnapshot,
   getDoc,
   Timestamp,
   runTransaction,
@@ -119,17 +119,5 @@ export const ProductService = {
       product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (product.sku && product.sku.toLowerCase().includes(searchTerm.toLowerCase()))
     );
-  },
-
-  subscribeToProducts(callback: (products: Product[]) => void): () => void {
-    checkFirebase();
-    const q = query(collection(db, 'products')).withConverter(productConverter);
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const products = snapshot.docs.map(doc => doc.data());
-      callback(products);
-    }, (error) => {
-      console.error("Error subscribing to products:", error);
-    });
-    return unsubscribe;
   }
 };

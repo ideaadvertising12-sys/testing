@@ -1,3 +1,4 @@
+
 import { db, checkFirebase } from "./firebase";
 import { 
   collection, 
@@ -7,7 +8,6 @@ import {
   updateDoc, 
   deleteDoc, 
   query, 
-  onSnapshot,
   getDoc,
   Timestamp
 } from "firebase/firestore";
@@ -60,17 +60,5 @@ export const CustomerService = {
     checkFirebase();
     const docRef = doc(db, 'customers', id);
     await deleteDoc(docRef);
-  },
-
-  subscribeToCustomers(callback: (customers: Customer[]) => void): () => void {
-    checkFirebase();
-    const q = query(collection(db, 'customers')).withConverter(customerConverter);
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const customers = snapshot.docs.map(docSnapshot => docSnapshot.data());
-      callback(customers);
-    }, (error) => {
-      console.error("Error subscribing to customers:", error);
-    });
-    return unsubscribe;
   }
 };

@@ -1,3 +1,4 @@
+
 "use client";
 
 import Image from "next/image";
@@ -35,14 +36,14 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
-import { ProductService } from "@/lib/productService";
 import { useToast } from "@/hooks/use-toast";
 import type { Product } from "@/lib/types";
+import { useProducts } from "@/hooks/useProducts";
 
 export function ProductDataTable() {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { products, isLoading, error, addProduct, updateProduct, deleteProduct } = useProducts();
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [isProductDialogOpen, setIsProductDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
   const [productToDeleteId, setProductToDeleteId] = useState<string | null>(null);
@@ -52,44 +53,27 @@ export function ProductDataTable() {
 
   const isAdmin = currentUser?.role === 'admin';
 
-  useEffect(() => {
-    const unsubscribe = ProductService.subscribeToProducts((products) => {
-      setProducts(products);
-      setLoading(false);
-    });
+  const handleOpenAddDialog = () => {
+    setEditingProduct(null);
+    setIsProductDialogOpen(true);
+  };
 
-    return () => unsubscribe();
-  }, []);
-
+  const handleOpenEditDialog = (product: Product) => {
+    setEditingProduct(product);
+    setIsProductDialogOpen(true);
+  };
+  
   const handleSaveProduct = async (productToSave: Product) => {
-    if (!isAdmin) return;
-    
-    try {
-      setLoading(true);
-      if (editingProduct) {
-        const { id, ...updateData } = productToSave;
-        await ProductService.updateProduct(id, updateData);
-        toast({
-          title: "Success",
-          description: "Product updated successfully",
-        });
-      } else {
-        const { id, ...createData } = productToSave;
-        const newProduct = await ProductService.createProduct(createData);
-        toast({
-          title: "Success",
-          description: "Product created successfully",
-        });
-      }
+    let success = false;
+    if (editingProduct) {
+      success = !!(await updateProduct(productToSave.id, productToSave));
+    } else {
+      success = !!(await addProduct(productToSave));
+    }
+
+    if (success) {
+      setIsProductDialogOpen(false);
       setEditingProduct(null);
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: `Failed to ${editingProduct ? 'update' : 'create'} product`,
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -101,30 +85,9 @@ export function ProductDataTable() {
 
   const handleDeleteProduct = async () => {
     if (!isAdmin || !productToDeleteId) return;
-    
-    try {
-      setLoading(true);
-      await ProductService.deleteProduct(productToDeleteId);
-      toast({
-        title: "Success",
-        description: "Product deleted successfully",
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to delete product",
-        variant: "destructive",
-      });
-    } finally {
-      setIsDeleteAlertOpen(false);
-      setProductToDeleteId(null);
-      setLoading(false);
-    }
-  };
-
-  const handleEditProduct = (product: Product) => {
-    if (!isAdmin) return;
-    setEditingProduct(product);
+    await deleteProduct(productToDeleteId);
+    setIsDeleteAlertOpen(false);
+    setProductToDeleteId(null);
   };
 
   const toggleFullScreen = () => {
@@ -136,7 +99,7 @@ export function ProductDataTable() {
     (product.sku && product.sku.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  if (loading && products.length === 0) {
+  if (isLoading && products.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
@@ -163,15 +126,9 @@ export function ProductDataTable() {
               />
             </div>
             {isAdmin && (
-              <ProductDialog
-                product={null}
-                onSave={handleSaveProduct}
-                trigger={
-                  <Button size="sm" className="w-full sm:w-auto shrink-0">
-                    <PlusCircle className="mr-2 h-4 w-4" /> Add Product
-                  </Button>
-                }
-              />
+               <Button size="sm" className="w-full sm:w-auto shrink-0" onClick={handleOpenAddDialog}>
+                <PlusCircle className="mr-2 h-4 w-4" /> Add Product
+              </Button>
             )}
             <Button
               variant="outline"
@@ -226,7 +183,7 @@ export function ProductDataTable() {
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
                                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                            <DropdownMenuItem onClick={() => handleEditProduct(product)}>
+                                            <DropdownMenuItem onClick={() => handleOpenEditDialog(product)}>
                                             <Edit className="mr-2 h-4 w-4" /> Edit
                                             </DropdownMenuItem>
                                             <DropdownMenuItem className="text-destructive focus:text-destructive focus:bg-destructive/10" onClick={() => openDeleteConfirmation(product.id)}>
@@ -315,7 +272,7 @@ export function ProductDataTable() {
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
                                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                <DropdownMenuItem onClick={() => handleEditProduct(product)}>
+                                <DropdownMenuItem onClick={() => handleOpenEditDialog(product)}>
                                   <Edit className="mr-2 h-4 w-4" /> Edit
                                 </DropdownMenuItem>
                                 <DropdownMenuItem className="text-destructive focus:text-destructive focus:bg-destructive/10" onClick={() => openDeleteConfirmation(product.id)}>
@@ -335,14 +292,17 @@ export function ProductDataTable() {
         </CardContent>
       </Card>
 
-      {/* Edit Product Dialog */}
-      {isAdmin && editingProduct && (
+      {/* Edit/Add Product Dialog */}
+      {isAdmin && isProductDialogOpen && (
         <ProductDialog
           product={editingProduct}
           onSave={handleSaveProduct}
-          open={!!editingProduct}
-          onOpenChange={(isOpen) => !isOpen && setEditingProduct(null)}
-          loading={loading}
+          open={isProductDialogOpen}
+          onOpenChange={(isOpen) => {
+            if (!isOpen) setEditingProduct(null);
+            setIsProductDialogOpen(isOpen);
+          }}
+          loading={isLoading}
         />
       )}
 
@@ -359,7 +319,7 @@ export function ProductDataTable() {
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setProductToDeleteId(null)}>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteProduct} className="bg-destructive hover:bg-destructive/90">
-              {loading ? "Deleting..." : "Yes, delete product"}
+              {isLoading ? "Deleting..." : "Yes, delete product"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
