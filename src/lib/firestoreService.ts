@@ -81,10 +81,11 @@ export const addProduct = async (productData: Omit<Product, 'id'>): Promise<stri
 export const updateProduct = async (id: string, productData: Partial<Omit<Product, 'id'>>): Promise<void> => {
   checkFirebase();
   const productDocRef = doc(db, "products", id);
-  const dataWithTimestamp = {
+  const dataWithTimestamp: { [key: string]: any } = {
     ...productData,
     updatedAt: Timestamp.now()
   };
+   Object.keys(dataWithTimestamp).forEach(key => dataWithTimestamp[key] === undefined && delete dataWithTimestamp[key]);
   await updateDoc(productDocRef, dataWithTimestamp);
 };
 
@@ -140,10 +141,11 @@ export const addCustomer = async (customerData: Omit<Customer, 'id'>): Promise<s
 export const updateCustomer = async (id: string, customerData: Partial<Omit<Customer, 'id'>>): Promise<void> => {
   checkFirebase();
   const customerDocRef = doc(db, "customers", id);
-  const dataWithTimestamp = {
+  const dataWithTimestamp: { [key: string]: any } = {
     ...customerData,
     updatedAt: Timestamp.now()
   };
+   Object.keys(dataWithTimestamp).forEach(key => dataWithTimestamp[key] === undefined && delete dataWithTimestamp[key]);
   await updateDoc(customerDocRef, dataWithTimestamp);
 };
 
@@ -286,20 +288,12 @@ export const addSale = async (saleData: Omit<Sale, 'id'>): Promise<string> => {
   return newCustomId;
 };
 
-export const getSales = async (lastVisible?: QueryDocumentSnapshot<Sale> | undefined, dateRange?: DateRange, staffId?: string): Promise<{ sales: Sale[], lastVisible: QueryDocumentSnapshot<Sale> | null }> => {
+export const getSales = async (lastVisible?: QueryDocumentSnapshot<Sale> | null, dateRange?: DateRange, staffId?: string): Promise<{ sales: Sale[], lastVisible: QueryDocumentSnapshot<Sale> | null }> => {
   checkFirebase();
   const salesCol = collection(db, "sales").withConverter(saleConverter);
   
   const constraints: any[] = [orderBy("saleDate", "desc")];
 
-  // Logic to fetch specific date ranges, for example, for charts
-  const now = new Date();
-  const currentYearStart = startOfYear(now);
-  const previousYearStart = startOfYear(new Date(now.getFullYear() - 1, 0, 1));
-  const previousYearEnd = endOfYear(previousYearStart);
-
-  // If useSalesData requests all data, we might want to limit it for chart performance
-  // This logic is now handled in the useSalesData hook itself.
   if (dateRange?.from) constraints.push(where("saleDate", ">=", dateRange.from));
   if (dateRange?.to) constraints.push(where("saleDate", "<=", dateRange.to));
   
@@ -308,10 +302,15 @@ export const getSales = async (lastVisible?: QueryDocumentSnapshot<Sale> | undef
   if (lastVisible) {
       constraints.push(startAfter(lastVisible));
   }
-  // Only apply page size limit if paginating
+
+  // Only apply page size limit if we are paginating (i.e., lastVisible is being used or it's the first page of a paginated query)
+  // For dashboard "fetch all", we don't pass lastVisible, so no limit is applied initially.
+  // This logic is simplified: hooks should decide if they paginate or not. If they want to paginate, they handle lastVisible.
+  // If no lastVisible is provided, we fetch all, otherwise we paginate.
   if (lastVisible !== undefined) {
-      constraints.push(limit(PAGE_SIZE));
+    constraints.push(limit(PAGE_SIZE));
   }
+
 
   const q = query(salesCol, ...constraints);
 

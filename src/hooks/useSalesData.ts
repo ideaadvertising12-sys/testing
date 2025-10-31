@@ -25,35 +25,22 @@ export function useSalesData(fetchAllInitially: boolean = false, dateRange?: Dat
   const refetchSales = useCallback(async () => {
     setIsLoading(true);
     setError(null);
-    setHasMore(true);
+    setHasMore(true); // Reset pagination state on refetch
     
     try {
-      // For a full refetch for dashboard, we want current and previous year's data.
-      // For other pages, it will use the provided dateRange or fetch paginated.
-      const now = new Date();
-      const fetchRange = dateRange ?? { from: startOfYear(new Date(now.getFullYear() - 1, 0, 1)), to: now };
+      // For a full refetch (like on dashboard), we don't paginate initially. We get all documents.
+      // The `getSales` function is now assumed to fetch all if no `lastVisible` is passed.
+      const { sales: fetchedSales, lastVisible: newLastVisible } = await getSales(undefined, dateRange, staffId);
       
-      let allSales: Sale[] = [];
-      let lastDoc: QueryDocumentSnapshot<Sale> | undefined = undefined;
-      let moreToFetch = true;
-
-      while(moreToFetch) {
-        const { sales: fetchedSales, lastVisible: newLastVisible } = await getSales(lastDoc, fetchRange, staffId);
-        allSales.push(...fetchedSales);
-        if (newLastVisible) {
-            lastDoc = newLastVisible;
-        } else {
-            moreToFetch = false;
-        }
+      setSales(fetchedSales);
+      setLastVisible(newLastVisible);
+      if (!newLastVisible || fetchedSales.length < PAGE_SIZE) {
+        setHasMore(false); 
       }
       
-      setSales(allSales);
-      setLastVisible(null); // Reset pagination tracking
-      setHasMore(false); // We have fetched everything for this context
-      
-      // Only cache if we are fetching all data (no specific filters)
+      // Only cache if we are fetching all data for the initial load.
       if (fetchAllInitially && !dateRange && !staffId) {
-        localStorage.setItem(CACHE_KEY, JSON.stringify(allSales));
+        localStorage.setItem(CACHE_KEY, JSON.stringify(fetchedSales));
       }
 
     } catch (err: any) {
@@ -72,23 +59,46 @@ export function useSalesData(fetchAllInitially: boolean = false, dateRange?: Dat
   useEffect(() => {
     if (fetchAllInitially) {
         const loadData = async () => {
-            // Only use cache if we are fetching ALL data (no filters)
+            // Only use cache if we are fetching ALL data for the dashboard (no filters)
             if (!dateRange && !staffId) {
                 try {
                     const cachedData = localStorage.getItem(CACHE_KEY);
                     if (cachedData) {
                         setSales(JSON.parse(cachedData).map((s: any) => ({...s, saleDate: new Date(s.saleDate)})));
-                        setIsLoading(false);
+                        setIsLoading(false); // We have data to show, not "loading"
                     }
                 } catch (e) {
                     console.warn("Could not read sales from cache", e);
                 }
             }
+            // Always fetch fresh data in the background to update cache
             await refetchSales();
         };
         loadData();
+    } else {
+      // If not fetching all initially, just do a normal paginated fetch
+      const fetchPaginatedInitial = async () => {
+        setIsLoading(true);
+        setError(null);
+        setHasMore(true);
+        try {
+            const { sales: initialSales, lastVisible: newLastVisible } = await getSales(undefined, dateRange, staffId);
+            setSales(initialSales);
+            setLastVisible(newLastVisible);
+            if (!newLastVisible || initialSales.length < PAGE_SIZE) {
+                setHasMore(false);
+            }
+        } catch (err: any) {
+            const errorMessage = err.message || "An error occurred fetching initial sales.";
+            setError(errorMessage);
+            toast({ variant: 'destructive', title: 'Error', description: errorMessage });
+        } finally {
+            setIsLoading(false);
+        }
+      };
+      fetchPaginatedInitial();
     }
-  }, [fetchAllInitially, refetchSales, dateRange, staffId]);
+  }, [fetchAllInitially, dateRange, staffId, refetchSales, toast]);
 
   const loadMoreSales = useCallback(async () => {
     if (!hasMore || isLoading) return;
