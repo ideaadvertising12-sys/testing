@@ -68,7 +68,7 @@ export function CartView({
   React.useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedSearch(customerSearch);
-    }, 300); // 300ms delay
+    }, 400); // 400ms delay
 
     return () => {
       clearTimeout(handler);
@@ -147,7 +147,8 @@ export function CartView({
                   <CommandEmpty>{!isSearching && "No customer found."}</CommandEmpty>
                   <CommandGroup>
                      <CommandItem
-                        value="guest"
+                        key="guest-customer"
+                        value="Walk-in / Guest"
                         onSelect={() => {
                           onSelectCustomer(null);
                           setOpenCustomerPopover(false);
@@ -335,5 +336,3 @@ export function CartView({
     </Card>
   );
 }
-
-    
