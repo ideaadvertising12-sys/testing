@@ -52,7 +52,7 @@ export default function ReturnInvoicesPage() {
       {hasMore && (
           <div className="text-center mt-4">
             <Button onClick={loadMoreReturns} disabled={isLoading}>
-                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
+                {isLoading && returns.length > 0 ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
                 Load More Returns
             </Button>
           </div>

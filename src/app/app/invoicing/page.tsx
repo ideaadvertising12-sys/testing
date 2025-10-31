@@ -65,7 +65,7 @@ export default function InvoicingPage() {
       {hasMore && (
         <div className="text-center mt-4">
             <Button onClick={loadMoreSales} disabled={isLoading}>
-                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
+                {isLoading && sales.length > 0 ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
                 Load More
             </Button>
         </div>

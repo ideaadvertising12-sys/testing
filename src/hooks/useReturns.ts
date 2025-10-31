@@ -8,6 +8,8 @@ import { getReturns } from "@/lib/firestoreService";
 import type { DateRange } from "react-day-picker";
 import type { QueryDocumentSnapshot } from "firebase/firestore";
 
+const PAGE_SIZE = 50;
+
 export function useReturns(fetchAll: boolean = false, dateRange?: DateRange, staffId?: string) {
   const [returns, setReturns] = useState<ReturnTransaction[]>([]);
   const [isLoading, setIsLoading] = useState(fetchAll);
@@ -25,7 +27,7 @@ export function useReturns(fetchAll: boolean = false, dateRange?: DateRange, sta
       const { returns: initialReturns, lastVisible: newLastVisible } = await getReturns(undefined, dateRange, staffId);
       setReturns(initialReturns);
       setLastVisible(newLastVisible);
-      if (!newLastVisible) {
+      if (!newLastVisible || initialReturns.length < PAGE_SIZE) {
         setHasMore(false);
       }
     } catch (err: any) {
@@ -48,7 +50,7 @@ export function useReturns(fetchAll: boolean = false, dateRange?: DateRange, sta
       const { returns: newReturns, lastVisible: newLastVisible } = await getReturns(lastVisible, dateRange, staffId);
       setReturns(prev => [...prev, ...newReturns]);
       setLastVisible(newLastVisible);
-      if (!newLastVisible) {
+      if (!newLastVisible || newReturns.length < PAGE_SIZE) {
         setHasMore(false);
       }
     } catch (err: any) {

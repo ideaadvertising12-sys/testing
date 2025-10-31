@@ -9,7 +9,7 @@ import type { QueryDocumentSnapshot } from "firebase/firestore";
 import type { DateRange } from "react-day-picker";
 
 const CACHE_KEY = "salesCache";
-const PAGE_SIZE = 50; // Keep pagination for backend efficiency
+const PAGE_SIZE = 50; 
 
 export function useSalesData(fetchAllInitially: boolean = false, dateRange?: DateRange, staffId?: string) {
   const [sales, setSales] = useState<Sale[]>([]);
@@ -20,30 +20,17 @@ export function useSalesData(fetchAllInitially: boolean = false, dateRange?: Dat
   
   const { toast } = useToast();
 
-  const fetchAllSales = useCallback(async () => {
-    let allSalesData: Sale[] = [];
-    let lastDoc: QueryDocumentSnapshot<Sale> | undefined = undefined;
-    let moreToFetch = true;
-
-    while(moreToFetch) {
-      const { sales: fetchedSales, lastVisible: newLastVisible } = await getSales(lastDoc, dateRange, staffId);
-      allSalesData = [...allSalesData, ...fetchedSales];
-      if (newLastVisible) {
-        lastDoc = newLastVisible as QueryDocumentSnapshot<Sale>;
-      } else {
-        moreToFetch = false;
-      }
-    }
-    return allSalesData;
-  }, [dateRange, staffId]);
-
-  const refetchSales = useCallback(async () => {
+  const fetchInitialSales = useCallback(async () => {
     setIsLoading(true);
     setError(null);
+    setHasMore(true);
     try {
-      const allSalesData = await fetchAllSales();
-      setSales(allSalesData);
-      localStorage.setItem(CACHE_KEY, JSON.stringify(allSalesData));
+      const { sales: initialSales, lastVisible: newLastVisible } = await getSales(undefined, dateRange, staffId);
+      setSales(initialSales);
+      setLastVisible(newLastVisible);
+      if (!newLastVisible || initialSales.length < PAGE_SIZE) {
+        setHasMore(false);
+      }
     } catch (err: any) {
       const errorMessage = err.message || "An unknown error occurred while fetching sales.";
       setError(errorMessage);
@@ -55,35 +42,42 @@ export function useSalesData(fetchAllInitially: boolean = false, dateRange?: Dat
     } finally {
       setIsLoading(false);
     }
-  }, [toast, fetchAllSales]);
+  }, [toast, dateRange, staffId]);
+  
+  const loadMoreSales = useCallback(async () => {
+    if (!hasMore || isLoading) return;
+    setIsLoading(true);
+    try {
+      const { sales: newSales, lastVisible: newLastVisible } = await getSales(lastVisible, dateRange, staffId);
+      setSales(prev => [...prev, ...newSales]);
+      setLastVisible(newLastVisible);
+      if (!newLastVisible || newSales.length < PAGE_SIZE) {
+        setHasMore(false);
+      }
+    } catch (err: any) {
+      const errorMessage = err.message || "An unknown error occurred while fetching more sales.";
+      setError(errorMessage);
+      toast({
+        variant: "destructive",
+        title: "Error Loading More Sales",
+        description: errorMessage,
+      });
+    } finally {
+        setIsLoading(false);
+    }
+  }, [lastVisible, hasMore, isLoading, toast, dateRange, staffId]);
 
   useEffect(() => {
-    const loadData = async () => {
-        if (!fetchAllInitially) return;
-        
-        setIsLoading(true);
-        try {
-            const cachedData = localStorage.getItem(CACHE_KEY);
-            if (cachedData) {
-                setSales(JSON.parse(cachedData).map((s: any) => ({...s, saleDate: new Date(s.saleDate)})));
-                setIsLoading(false); // We have data, loading is "done" for the UI
-            }
-        } catch (e) {
-            console.warn("Could not read sales from cache", e);
-        }
-        await refetchSales(); // Always fetch fresh data
-    };
-
     if (fetchAllInitially) {
-      loadData();
+      fetchInitialSales();
     }
-  }, [fetchAllInitially, refetchSales]);
+  }, [fetchAllInitially, fetchInitialSales]);
   
   useEffect(() => {
     if (dateRange || staffId) {
-      refetchSales();
+      fetchInitialSales();
     }
-  }, [dateRange, staffId, refetchSales]);
+  }, [dateRange, staffId, fetchInitialSales]);
 
   const totalRevenue = sales.reduce((sum, sale) => sum + (sale.status !== 'cancelled' ? sale.totalAmount : 0), 0);
 
@@ -92,10 +86,8 @@ export function useSalesData(fetchAllInitially: boolean = false, dateRange?: Dat
     isLoading,
     error,
     totalRevenue,
-    // Note: Pagination logic (hasMore, loadMoreSales) is removed as we now fetch all.
-    // Kept for potential future re-implementation if needed.
-    hasMore: false, 
-    loadMoreSales: () => {},
-    refetchSales,
+    hasMore, 
+    loadMoreSales,
+    refetchSales: fetchInitialSales,
   };
 }
