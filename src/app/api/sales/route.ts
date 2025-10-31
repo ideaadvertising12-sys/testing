@@ -55,20 +55,20 @@ export async function POST(request: NextRequest) {
       staffId: saleDataFromClient.staffId || "staff001",
       offerApplied: saleDataFromClient.offerApplied || false,
       discountPercentage: saleDataFromClient.discountPercentage || 0,
+
+      // Handle optional fields safely to prevent 'undefined'
+      customerId: saleDataFromClient.customerId || undefined,
+      customerName: saleDataFromClient.customerName || undefined,
+      customerShopName: saleDataFromClient.customerShopName || undefined,
+      staffName: saleDataFromClient.staffName || undefined,
+      vehicleId: saleDataFromClient.vehicleId || undefined,
+      paidAmountCash: saleDataFromClient.paidAmountCash || undefined,
+      paidAmountCheque: saleDataFromClient.paidAmountCheque || undefined,
+      paidAmountBankTransfer: saleDataFromClient.paidAmountBankTransfer || undefined,
+      creditUsed: saleDataFromClient.creditUsed || undefined,
+      changeGiven: saleDataFromClient.changeGiven || undefined,
     };
     
-    // Add optional fields ONLY if they exist and are not undefined
-    if (saleDataFromClient.customerId !== undefined) payload.customerId = saleDataFromClient.customerId;
-    if (saleDataFromClient.customerName !== undefined) payload.customerName = saleDataFromClient.customerName;
-    if (saleDataFromClient.customerShopName !== undefined) payload.customerShopName = saleDataFromClient.customerShopName;
-    if (saleDataFromClient.staffName !== undefined) payload.staffName = saleDataFromClient.staffName;
-    if (saleDataFromClient.vehicleId !== undefined) payload.vehicleId = saleDataFromClient.vehicleId;
-    if (saleDataFromClient.paidAmountCash !== undefined) payload.paidAmountCash = saleDataFromClient.paidAmountCash;
-    if (saleDataFromClient.paidAmountCheque !== undefined) payload.paidAmountCheque = saleDataFromClient.paidAmountCheque;
-    if (saleDataFromClient.paidAmountBankTransfer !== undefined) payload.paidAmountBankTransfer = saleDataFromClient.paidAmountBankTransfer;
-    if (saleDataFromClient.creditUsed !== undefined) payload.creditUsed = saleDataFromClient.creditUsed;
-    if (saleDataFromClient.changeGiven !== undefined) payload.changeGiven = saleDataFromClient.changeGiven;
-
     if (payload.outstandingBalance > 0) {
       payload.initialOutstandingBalance = payload.outstandingBalance;
     }
