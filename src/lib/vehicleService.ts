@@ -1,4 +1,5 @@
 
+
 import { db, checkFirebase } from "./firebase";
 import { 
   collection, 
@@ -32,8 +33,8 @@ export const VehicleService = {
   async createVehicle(vehicleData: Omit<Vehicle, 'id'>): Promise<string> {
     checkFirebase();
     
-    // Manually construct the data for creation to ensure type safety.
-    const dataToCreate: any = {
+    // Manually construct the data for creation to ensure type safety and no undefined values.
+    const dataToCreate: { [key: string]: any } = {
       vehicleNumber: vehicleData.vehicleNumber,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now()
@@ -50,7 +51,7 @@ export const VehicleService = {
     checkFirebase();
     const docRef = doc(db, 'vehicles', id);
     
-    // Explicitly build the update object to avoid type conflicts and unintended field updates.
+    // Explicitly build the update object to avoid passing undefined.
     const dataToUpdate: { [key: string]: any } = {
       updatedAt: Timestamp.now()
     };

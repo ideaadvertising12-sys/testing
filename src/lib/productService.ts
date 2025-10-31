@@ -1,4 +1,5 @@
 
+
 import { db, checkFirebase } from "./firebase";
 import { 
   collection, 
@@ -66,14 +67,30 @@ export const ProductService = {
     const newCustomId = await generateCustomProductId();
     const productDocRef = doc(db, 'products', newCustomId);
     
+    // Explicitly build the object to ensure no undefined values are passed to the converter
+    const cleanProductData: Omit<Product, 'id'> = {
+        name: productData.name,
+        category: productData.category,
+        price: productData.price,
+        stock: productData.stock,
+        wholesalePrice: productData.wholesalePrice || undefined,
+        description: productData.description || undefined,
+        sku: productData.sku || undefined,
+        reorderLevel: productData.reorderLevel || undefined,
+        imageUrl: productData.imageUrl || undefined,
+        aiHint: productData.aiHint || undefined,
+        createdAt: productData.createdAt || new Date(),
+        updatedAt: new Date(),
+    };
+
     const productForConverter: Product = {
         id: newCustomId,
-        ...productData,
+        ...cleanProductData,
     };
     
     await setDoc(productDocRef.withConverter(productConverter), productForConverter);
 
-    return { id: newCustomId, ...productData }; 
+    return { id: newCustomId, ...cleanProductData }; 
   },
 
   async updateProduct(id: string, productData: Partial<Omit<Product, 'id'>>): Promise<void> {
@@ -81,23 +98,20 @@ export const ProductService = {
     try {
       const docRef = doc(db, 'products', id);
       
-      const cleanProductData: Partial<Omit<Product, 'id'>> = {};
+      const cleanProductData: { [key: string]: any } = {};
       for (const key in productData) {
         if (Object.prototype.hasOwnProperty.call(productData, key)) {
           const value = productData[key as keyof typeof productData];
           if (value !== undefined) {
-            (cleanProductData as any)[key] = value;
+            cleanProductData[key] = value;
           }
         }
       }
       
-      const dataToUpdate: Partial<FirestoreProduct> = {
-        ...(cleanProductData as Partial<FirestoreProduct>),
+      const dataToUpdate = {
+        ...cleanProductData,
         updatedAt: Timestamp.now(),
       };
-      
-      console.log("Updating product with ID:", id);
-      console.log("Update data for Firestore:", dataToUpdate);
       
       await updateDoc(docRef, dataToUpdate);
     } catch (error) {

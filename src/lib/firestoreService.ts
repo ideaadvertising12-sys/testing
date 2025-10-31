@@ -246,7 +246,39 @@ export const addSale = async (saleData: Omit<Sale, 'id'>): Promise<string> => {
         }
     }
     
-    const saleObjectForConversion: Sale = { id: newCustomId, ...saleData };
+    // Explicitly construct the final object to avoid undefined values.
+    const cleanSaleData: Omit<Sale, 'id'> = {
+      items: saleData.items,
+      subTotal: saleData.subTotal,
+      discountAmount: saleData.discountAmount,
+      totalAmount: saleData.totalAmount,
+      totalAmountPaid: saleData.totalAmountPaid,
+      outstandingBalance: saleData.outstandingBalance,
+      paymentSummary: saleData.paymentSummary,
+      saleDate: saleData.saleDate,
+      staffId: saleData.staffId,
+      offerApplied: saleData.offerApplied || false,
+      discountPercentage: saleData.discountPercentage || 0,
+      customerId: saleData.customerId || undefined,
+      customerName: saleData.customerName || undefined,
+      customerShopName: saleData.customerShopName || undefined,
+      staffName: saleData.staffName || undefined,
+      vehicleId: saleData.vehicleId || undefined,
+      paidAmountCash: saleData.paidAmountCash || undefined,
+      paidAmountCheque: saleData.paidAmountCheque || undefined,
+      chequeDetails: saleData.chequeDetails || undefined,
+      paidAmountBankTransfer: saleData.paidAmountBankTransfer || undefined,
+      bankTransferDetails: saleData.bankTransferDetails || undefined,
+      creditUsed: saleData.creditUsed || undefined,
+      changeGiven: saleData.changeGiven || undefined,
+      initialOutstandingBalance: saleData.initialOutstandingBalance || undefined,
+      additionalPayments: saleData.additionalPayments || undefined,
+      status: saleData.status || 'completed',
+      cancellationReason: saleData.cancellationReason || undefined,
+    };
+
+
+    const saleObjectForConversion: Sale = { id: newCustomId, ...cleanSaleData };
     const firestoreSaleData = saleConverter.toFirestore(saleObjectForConversion);
     transaction.set(saleDocRef, firestoreSaleData);
   });
