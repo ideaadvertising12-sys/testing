@@ -30,14 +30,16 @@ export function useSalesData(fetchAllInitially: boolean = false, dateRange?: Dat
     try {
       const { sales: fetchedSales, lastVisible: newLastVisible } = await getSales(undefined, dateRange, staffId);
       
-      setSales(fetchedSales);
+      const processedSales = fetchedSales.map((s: any) => ({...s, saleDate: new Date(s.saleDate)}));
+
+      setSales(processedSales);
       setLastVisible(newLastVisible);
       if (!newLastVisible || fetchedSales.length < PAGE_SIZE) {
         setHasMore(false); 
       }
       
       if (fetchAllInitially && !dateRange && !staffId) {
-        localStorage.setItem(CACHE_KEY, JSON.stringify(fetchedSales));
+        localStorage.setItem(CACHE_KEY, JSON.stringify(processedSales));
       }
 
     } catch (err: any) {
@@ -60,7 +62,8 @@ export function useSalesData(fetchAllInitially: boolean = false, dateRange?: Dat
                 try {
                     const cachedData = localStorage.getItem(CACHE_KEY);
                     if (cachedData) {
-                        setSales(JSON.parse(cachedData).map((s: any) => ({...s, saleDate: new Date(s.saleDate)})));
+                        const parsedSales = JSON.parse(cachedData).map((s: any) => ({...s, saleDate: new Date(s.saleDate)}));
+                        setSales(parsedSales);
                         setIsLoading(false); 
                     }
                 } catch (e) {
@@ -77,7 +80,8 @@ export function useSalesData(fetchAllInitially: boolean = false, dateRange?: Dat
         setHasMore(true);
         try {
             const { sales: initialSales, lastVisible: newLastVisible } = await getSales(undefined, dateRange, staffId);
-            setSales(initialSales);
+            const processedSales = initialSales.map((s: any) => ({...s, saleDate: new Date(s.saleDate)}));
+            setSales(processedSales);
             setLastVisible(newLastVisible);
             if (!newLastVisible || initialSales.length < PAGE_SIZE) {
                 setHasMore(false);
@@ -99,7 +103,8 @@ export function useSalesData(fetchAllInitially: boolean = false, dateRange?: Dat
     setIsLoading(true);
     try {
       const { sales: newSales, lastVisible: newLastVisible } = await getSales(lastVisible, dateRange, staffId);
-      setSales(prev => [...prev, ...newSales]);
+      const processedSales = newSales.map((s: any) => ({...s, saleDate: new Date(s.saleDate)}));
+      setSales(prev => [...prev, ...processedSales]);
       setLastVisible(newLastVisible);
       if (!newLastVisible || newSales.length < PAGE_SIZE) {
         setHasMore(false);
@@ -121,6 +126,7 @@ export function useSalesData(fetchAllInitially: boolean = false, dateRange?: Dat
 
   return {
     sales,
+    setSales,
     isLoading,
     error,
     totalRevenue,
