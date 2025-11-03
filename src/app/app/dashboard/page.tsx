@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { SalesChart } from "@/components/dashboard/SalesChart";
 import { AlertQuantityTable } from "@/components/dashboard/AlertQuantityTable";
-import type { Sale, ReturnTransaction } from "@/lib/types";
+import type { Sale, ReturnTransaction, SalesChartData } from "@/lib/types";
 import {
   Table,
   TableBody,
@@ -18,7 +18,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
 import { AccessDenied } from "@/components/AccessDenied";
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { GlobalPreloaderScreen } from "@/components/GlobalPreloaderScreen";
 import { useCustomers } from "@/hooks/useCustomers";
@@ -34,6 +34,7 @@ import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { isSameDay, addDays } from "date-fns";
 
+const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 export default function DashboardPage() {
   const { currentUser } = useAuth();
@@ -56,6 +57,24 @@ export default function DashboardPage() {
   const { returns, isLoading: isLoadingReturns, error: returnsError } = useReturns(true);
   const { expenses, isLoading: isLoadingExpenses, error: expensesError } = useExpenses();
   const { transactions: stockTransactions, isLoading: isLoadingStock, error: stockError } = useStockTransactions(true);
+  
+  const [monthlySalesData, setMonthlySalesData] = useState<SalesChartData[]>(MONTH_NAMES.map(name => ({ name, sales: 0 })));
+  const [monthlyComparison, setMonthlyComparison] = useState<number[]>(Array(12).fill(0));
+
+  useEffect(() => {
+    try {
+      const cachedChartData = localStorage.getItem("dashboardChartData");
+      if (cachedChartData) {
+        const { salesData, comparisonData } = JSON.parse(cachedChartData);
+        if (salesData && comparisonData) {
+            setMonthlySalesData(salesData);
+            setMonthlyComparison(comparisonData);
+        }
+      }
+    } catch (e) {
+      console.warn("Could not read dashboard chart data from cache", e);
+    }
+  }, []);
 
   const {
     revenueToday,
@@ -141,50 +160,51 @@ export default function DashboardPage() {
   }, [allSales]);
 
 
-  const { monthlySalesData, monthlyComparison } = useMemo(() => {
-    const activeSales = allSales ? allSales.filter(s => s.status !== 'cancelled') : [];
-    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  useEffect(() => {
+    if (!isLoadingAllSales && allSales && allSales.length > 0) {
+      const activeSales = allSales.filter(s => s.status !== 'cancelled');
+      const monthlyTotals: Record<number, number> = {};
+      const monthlyTotalsPrevYear: Record<number, number> = {};
+      const currentYear = new Date().getFullYear();
 
-    if (isLoadingAllSales || !activeSales || activeSales.length === 0) {
-      return {
-        monthlySalesData: monthNames.map(name => ({ name, sales: 0 })),
-        monthlyComparison: Array(12).fill(0)
-      };
-    }
-
-    const monthlyTotals: Record<number, number> = {};
-    const monthlyTotalsPrevYear: Record<number, number> = {};
-    const currentYear = new Date().getFullYear();
-
-    activeSales.forEach(sale => {
-      const saleDate = sale.saleDate instanceof Date ? sale.saleDate : new Date(sale.saleDate);
-      const month = saleDate.getMonth();
-      const year = saleDate.getFullYear();
+      activeSales.forEach(sale => {
+        const saleDate = sale.saleDate instanceof Date ? sale.saleDate : new Date(sale.saleDate);
+        const month = saleDate.getMonth();
+        const year = saleDate.getFullYear();
+        
+        if (year === currentYear) {
+          monthlyTotals[month] = (monthlyTotals[month] || 0) + (sale.totalAmount || 0);
+        } else if (year === currentYear - 1) {
+          monthlyTotalsPrevYear[month] = (monthlyTotalsPrevYear[month] || 0) + (sale.totalAmount || 0);
+        }
+      });
       
-      if (year === currentYear) {
-        monthlyTotals[month] = (monthlyTotals[month] || 0) + (sale.totalAmount || 0);
-      } else if (year === currentYear - 1) {
-        monthlyTotalsPrevYear[month] = (monthlyTotalsPrevYear[month] || 0) + (sale.totalAmount || 0);
-      }
-    });
-    
-    const comparison = monthNames.map((_, index) => {
-      const current = monthlyTotals[index] || 0;
-      const previous = monthlyTotalsPrevYear[index] || 0;
-      if (previous === 0) {
-        return current > 0 ? 100 : 0; // If there were no sales last year, any sale is a 100% increase
-      }
-      return ((current - previous) / previous) * 100;
-    });
+      const newComparisonData = MONTH_NAMES.map((_, index) => {
+        const current = monthlyTotals[index] || 0;
+        const previous = monthlyTotalsPrevYear[index] || 0;
+        if (previous === 0) return current > 0 ? 100 : 0;
+        return ((current - previous) / previous) * 100;
+      });
 
-    return {
-      monthlySalesData: monthNames.map((name, index) => ({
+      const newSalesData = MONTH_NAMES.map((name, index) => ({
         name,
         sales: monthlyTotals[index] || 0
-      })),
-      monthlyComparison: comparison
-    };
+      }));
+
+      setMonthlySalesData(newSalesData);
+      setMonthlyComparison(newComparisonData);
+
+      try {
+        localStorage.setItem("dashboardChartData", JSON.stringify({
+            salesData: newSalesData,
+            comparisonData: newComparisonData
+        }));
+      } catch (e) {
+        console.warn("Could not write dashboard chart data to cache", e);
+      }
+    }
   }, [allSales, isLoadingAllSales]);
+
 
   const customerGrowth = useMemo(() => {
     if (isLoadingCustomers || !customers) return 0;
@@ -503,3 +523,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    
