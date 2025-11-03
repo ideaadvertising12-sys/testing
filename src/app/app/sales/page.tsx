@@ -25,6 +25,7 @@ import { useVehicles } from "@/hooks/useVehicles";
 import { useAuth } from "@/contexts/AuthContext";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useSalesData } from "@/hooks/useSalesData";
+import { useProducts } from "@/hooks/useProducts"; // Import the useProducts hook
 
 // Helper function to reconcile offer items in the cart
 function reconcileOfferItems(
@@ -88,12 +89,8 @@ export default function SalesPage() {
   const isCashier = currentUser?.role === 'cashier';
   
   const { sales: allSales, refetchSales } = useSalesData(true);
-  
-  const [allProducts, setAllProducts] = useState<Product[]>([]);
-  const [isLoadingProducts, setIsLoadingProducts] = useState(true);
-  const [productsError, setProductsError] = useState<string | null>(null);
+  const { products: allProducts, isLoading: isLoadingProducts, error: productsError, refetch: fetchProducts } = useProducts();
 
-  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
@@ -130,33 +127,20 @@ export default function SalesPage() {
     };
   }, [searchTerm]);
 
-  const fetchProducts = useCallback(async (search = '', category: typeof selectedCategory = 'All') => {
-    setIsLoadingProducts(true);
-    setProductsError(null);
-    try {
-      const queryParams = new URLSearchParams();
-      if (search) queryParams.append('q', search);
-      if (category !== 'All') queryParams.append('category', category);
+  const filteredProducts = useMemo(() => {
+    let productsToFilter = allProducts;
+    
+    if (!productsToFilter) return [];
 
-      const response = await fetch(`/api/products/search?${queryParams.toString()}`);
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Failed to fetch products');
-      }
-      const products: Product[] = await response.json();
-      setAllProducts(products); // Keep a copy of all fetched products for reconciliation
-      setFilteredProducts(products);
-    } catch (err: any) {
-      setProductsError(err.message);
-    } finally {
-      setIsLoadingProducts(false);
-    }
-  }, []);
-
-  // Fetch products when search term or category changes
-  useEffect(() => {
-    fetchProducts(debouncedSearchTerm, selectedCategory);
-  }, [debouncedSearchTerm, selectedCategory, fetchProducts]);
+    return productsToFilter.filter(product => {
+      const matchesCategory = selectedCategory === 'All' || product.category === selectedCategory;
+      const matchesSearch = debouncedSearchTerm 
+        ? product.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) || 
+          (product.sku && product.sku.toLowerCase().includes(debouncedSearchTerm.toLowerCase()))
+        : true;
+      return matchesCategory && matchesSearch;
+    });
+  }, [allProducts, selectedCategory, debouncedSearchTerm]);
   
   const categories: (Product["category"] | "All")[] = useMemo(() => {
     if (isLoadingProducts || !allProducts) return ["All"];
@@ -524,7 +508,7 @@ export default function SalesPage() {
       });
 
       handleCancelOrder(); 
-      await fetchProducts(debouncedSearchTerm, selectedCategory);
+      await fetchProducts();
       await refetchSales();
       if (viewMode === 'vehicle' && selectedVehicleId) {
         await handleFetchVehicleStock(selectedVehicleId); // Refresh vehicle stock after sale
