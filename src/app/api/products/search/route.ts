@@ -4,7 +4,7 @@ import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { productConverter, type Product } from '@/lib/types';
 
-export const revalidate = 60; // Re-add server-side caching for 60 seconds
+export const revalidate = 300; // cache for 5 minutes
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);

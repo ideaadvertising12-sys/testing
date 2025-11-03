@@ -88,7 +88,7 @@ export default function SalesPage() {
   const { currentUser } = useAuth();
   const isCashier = currentUser?.role === 'cashier';
   
-  const { sales: allSales, refetchSales } = useSalesData(true);
+  const { sales: allSales, setSales: setAllSales, refetchSales } = useSalesData(true);
   const { products: allProducts, isLoading: isLoadingProducts, error: productsError, refetch: fetchProducts } = useProducts();
 
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
@@ -214,6 +214,15 @@ export default function SalesPage() {
     setIsVehicleStockLoading(true);
     setVehicleStock(null);
     setSelectedVehicleId(vehicleId);
+    
+    const cacheKey = `vehicleStock_${vehicleId}`;
+    const cachedData = sessionStorage.getItem(cacheKey);
+
+    if (cachedData) {
+        setVehicleStock(JSON.parse(cachedData));
+        setIsVehicleStockLoading(false);
+        return;
+    }
 
     const targetVehicle = vehicles.find(v => v.id === vehicleId);
 
@@ -248,7 +257,6 @@ export default function SalesPage() {
         }
       });
       
-      // We need to fetch the full product details for the stock in the vehicle
       const stockIds = Array.from(stockMap.keys());
       const productDetailsResponse = await fetch(`/api/products/search?ids=${stockIds.join(',')}`);
       if(!productDetailsResponse.ok) throw new Error("Could not fetch vehicle product details.");
@@ -264,6 +272,7 @@ export default function SalesPage() {
       }
       
       setVehicleStock(vehicleProducts);
+      sessionStorage.setItem(cacheKey, JSON.stringify(vehicleProducts));
 
     } catch (error: any) {
       console.error(error);
@@ -277,19 +286,17 @@ export default function SalesPage() {
   const productsForDisplay = viewMode === 'vehicle' ? vehicleStock : filteredProducts;
   
   const handleAddToCart = (productToAdd: Product) => {
-    // Corrected stock check: Count ALL items of this product in cart (paid and free)
     const totalQuantityOfProductInCart = cartItems
       .filter(item => item.id === productToAdd.id)
       .reduce((sum, item) => sum + item.quantity, 0);
 
-    // Check against available stock
     if (totalQuantityOfProductInCart >= productToAdd.stock) {
       toast({
         variant: "destructive",
         title: "Out of Stock",
         description: `Cannot add more ${productToAdd.name}. All available stock (${productToAdd.stock} units) is already in the cart.`,
       });
-      return; // Exit if no more stock is available
+      return; 
     }
 
     setCartItems(prevItems => {
@@ -355,7 +362,6 @@ export default function SalesPage() {
         }
         return item;
       });
-      // No need to reconcile offers here as price doesn't affect offer logic
       return updatedCart;
     });
   };
@@ -398,11 +404,10 @@ export default function SalesPage() {
     setExcludedOfferProductIds(new Set<string>());
   };
 
-  // The subtotal before any manual per-item discounts are applied.
   const currentSubtotal = useMemo(() => {
     return cartItems.filter(item => !item.isOfferItem).reduce((sum, item) => {
       const originalProduct = allProducts.find(p => p.id === item.id);
-      if (!originalProduct) return sum; // Should not happen if cart is consistent
+      if (!originalProduct) return sum;
       
       const priceToUse = (item.saleType === 'wholesale' && originalProduct.wholesalePrice && originalProduct.wholesalePrice > 0)
         ? originalProduct.wholesalePrice
@@ -412,12 +417,10 @@ export default function SalesPage() {
     }, 0);
   }, [cartItems, allProducts]);
 
-  // The final total after manual per-item discounts.
   const currentTotalAmountDue = useMemo(() => {
     return cartItems.filter(item => !item.isOfferItem).reduce((sum, item) => sum + item.appliedPrice * item.quantity, 0);
   }, [cartItems]);
   
-  // The total discount amount, which is the difference.
   const currentDiscountAmount = useMemo(() => {
     return Math.max(0, currentSubtotal - currentTotalAmountDue);
   }, [currentSubtotal, currentTotalAmountDue]);
@@ -445,7 +448,7 @@ export default function SalesPage() {
         isOfferItem: item.isOfferItem || false,
       })),
       subTotal: currentSubtotal,
-      discountPercentage: 0, // No longer using global percentage
+      discountPercentage: 0,
       discountAmount: currentDiscountAmount,
       totalAmount: currentTotalAmountDue,
       
@@ -506,12 +509,15 @@ export default function SalesPage() {
           title: "Sale Successful!",
           description: `Sale ID: ${newSaleResponse.id}`,
       });
-
+      
+      // Optimistically update local state instead of full refetch
+      setAllSales(prevSales => [newSaleResponse, ...prevSales]);
       handleCancelOrder(); 
       await fetchProducts();
-      await refetchSales();
+      
       if (viewMode === 'vehicle' && selectedVehicleId) {
-        await handleFetchVehicleStock(selectedVehicleId); // Refresh vehicle stock after sale
+        sessionStorage.removeItem(`vehicleStock_${selectedVehicleId}`);
+        await handleFetchVehicleStock(selectedVehicleId);
       }
       return newSaleResponse;
 
