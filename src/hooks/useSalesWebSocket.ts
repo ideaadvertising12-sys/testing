@@ -16,10 +16,9 @@ export function useSalesWebSocket() {
       totalAmount: Number(sale.totalAmount) || 0,
       subTotal: Number(sale.subTotal) || 0,
       discountAmount: Number(sale.discountAmount) || 0,
-      cashGiven: sale.cashGiven !== undefined ? Number(sale.cashGiven) || 0 : undefined,
-      balanceReturned: sale.balanceReturned !== undefined ? Number(sale.balanceReturned) || 0 : undefined,
-      amountPaidOnCredit: sale.amountPaidOnCredit !== undefined ? Number(sale.amountPaidOnCredit) || 0 : undefined,
-      remainingCreditBalance: sale.remainingCreditBalance !== undefined ? Number(sale.remainingCreditBalance) || 0 : undefined,
+      totalAmountPaid: Number(sale.totalAmountPaid) || 0,
+      outstandingBalance: Number(sale.outstandingBalance) || 0,
+      changeGiven: sale.changeGiven !== undefined ? Number(sale.changeGiven) || 0 : undefined,
     }));
   }, []);
 

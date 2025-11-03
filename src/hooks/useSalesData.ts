@@ -28,8 +28,6 @@ export function useSalesData(fetchAllInitially: boolean = false, dateRange?: Dat
     setHasMore(true); // Reset pagination state on refetch
     
     try {
-      // For a full refetch (like on dashboard), we don't paginate initially. We get all documents.
-      // The `getSales` function is now assumed to fetch all if no `lastVisible` is passed.
       const { sales: fetchedSales, lastVisible: newLastVisible } = await getSales(undefined, dateRange, staffId);
       
       setSales(fetchedSales);
@@ -38,7 +36,6 @@ export function useSalesData(fetchAllInitially: boolean = false, dateRange?: Dat
         setHasMore(false); 
       }
       
-      // Only cache if we are fetching all data for the initial load.
       if (fetchAllInitially && !dateRange && !staffId) {
         localStorage.setItem(CACHE_KEY, JSON.stringify(fetchedSales));
       }
@@ -59,24 +56,21 @@ export function useSalesData(fetchAllInitially: boolean = false, dateRange?: Dat
   useEffect(() => {
     if (fetchAllInitially) {
         const loadData = async () => {
-            // Only use cache if we are fetching ALL data for the dashboard (no filters)
             if (!dateRange && !staffId) {
                 try {
                     const cachedData = localStorage.getItem(CACHE_KEY);
                     if (cachedData) {
                         setSales(JSON.parse(cachedData).map((s: any) => ({...s, saleDate: new Date(s.saleDate)})));
-                        setIsLoading(false); // We have data to show, not "loading"
+                        setIsLoading(false); 
                     }
                 } catch (e) {
                     console.warn("Could not read sales from cache", e);
                 }
             }
-            // Always fetch fresh data in the background to update cache
             await refetchSales();
         };
         loadData();
     } else {
-      // If not fetching all initially, just do a normal paginated fetch
       const fetchPaginatedInitial = async () => {
         setIsLoading(true);
         setError(null);

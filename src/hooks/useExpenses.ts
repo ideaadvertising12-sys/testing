@@ -9,17 +9,17 @@ import type { DateRange } from "react-day-picker";
 
 const API_BASE_URL = "/api/expenses";
 
-export function useExpenses() {
+export function useExpenses(initialFetch: boolean = false, dateRange?: DateRange, staffId?: string) {
   const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(initialFetch);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const fetchExpenses = useCallback(async (dateRange?: DateRange, staffId?: string) => {
+  const fetchExpenses = useCallback(async (range?: DateRange, sId?: string) => {
     setIsLoading(true);
     setError(null);
     try {
-      const fetchedExpenses = await getExpenses(dateRange, staffId);
+      const fetchedExpenses = await getExpenses(range, sId);
       setExpenses(fetchedExpenses);
     } catch (err: any) {
       const errorMessage = err.message || "Could not load expenses.";
@@ -29,6 +29,15 @@ export function useExpenses() {
       setIsLoading(false);
     }
   }, [toast]);
+  
+  useEffect(() => {
+    if (initialFetch) {
+      fetchExpenses(dateRange, staffId);
+    } else {
+      setIsLoading(false);
+    }
+  }, [initialFetch, dateRange, staffId, fetchExpenses]);
+
 
   const addExpense = async (expenseData: Omit<Expense, "id">): Promise<Expense | null> => {
     try {
@@ -60,7 +69,8 @@ export function useExpenses() {
             const errorData = await response.json();
             throw new Error(errorData.error || "Failed to delete expense");
         }
-        // No automatic refetch
+        // Optimistically remove from local state to update UI instantly
+        setExpenses(prev => prev.filter(exp => exp.id !== id));
         toast({ title: "Success", description: "Expense deleted." });
         return true;
     } catch (err: any) {
@@ -69,5 +79,5 @@ export function useExpenses() {
     }
   };
 
-  return { expenses, isLoading, error, addExpense, deleteExpense, fetchExpenses };
-}//es
+  return { expenses, setExpenses, isLoading, error, addExpense, deleteExpense, fetchExpenses };
+}

@@ -39,7 +39,7 @@ const formatCurrency = (amount: number) => new Intl.NumberFormat('en-LK', { styl
 export default function ExpensesPage() {
   const { currentUser } = useAuth();
   const router = useRouter();
-  const { expenses, isLoading: isLoadingExpenses, addExpense, deleteExpense, fetchExpenses } = useExpenses();
+  const { expenses, setExpenses, isLoading: isLoadingExpenses, addExpense, deleteExpense, fetchExpenses } = useExpenses();
   const { vehicles, isLoading: isLoadingVehicles } = useVehicles();
   const { toast } = useToast();
   const isMobile = useMediaQuery("(max-width: 768px)");
@@ -87,7 +87,7 @@ export default function ExpensesPage() {
     }
 
     setIsSubmitting(true);
-    const newExpense: Omit<Expense, 'id'> = {
+    const newExpenseData: Omit<Expense, 'id'> = {
       category: finalCategory,
       amount: numericAmount,
       expenseDate: new Date(),
@@ -96,19 +96,19 @@ export default function ExpensesPage() {
       vehicleId: selectedVehicleId && selectedVehicleId !== "none" ? selectedVehicleId : undefined,
     };
 
-    const result = await addExpense(newExpense);
-    if (result) {
+    const newExpense = await addExpense(newExpenseData);
+    if (newExpense) {
       setCategory("Fuel");
       setCustomCategory("");
       setAmount("");
       setSelectedVehicleId("");
-      // Refetch expenses if the new expense is within the current date range
-      if (dateRange && dateRange.from) {
+      // Add to local state if it's within the currently displayed range
+      if (dateRange?.from) {
         const from = dateRange.from;
         const to = dateRange.to || from;
-        const expenseDate = new Date(result.expenseDate);
+        const expenseDate = new Date(newExpense.expenseDate);
         if (expenseDate >= from && expenseDate <= to) {
-            fetchExpenses(dateRange);
+            setExpenses(prev => [newExpense, ...prev].sort((a,b) => b.expenseDate.getTime() - a.expenseDate.getTime()));
         }
       }
     }
@@ -125,11 +125,8 @@ export default function ExpensesPage() {
 
   const confirmDelete = async () => {
     if (expenseToDelete) {
-      const success = await deleteExpense(expenseToDelete.id);
-      if (success) {
-        // Optimistically remove from state or refetch
-        setExpenses(prev => prev.filter(exp => exp.id !== expenseToDelete.id));
-      }
+      await deleteExpense(expenseToDelete.id);
+      // The hook now optimistically updates, so no need to call setExpenses here
       setExpenseToDelete(null);
     }
   };

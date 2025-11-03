@@ -302,15 +302,12 @@ export const getSales = async (lastVisible?: QueryDocumentSnapshot<Sale> | null,
   if (lastVisible) {
       constraints.push(startAfter(lastVisible));
   }
-
-  // Only apply page size limit if we are paginating (i.e., lastVisible is being used or it's the first page of a paginated query)
-  // For dashboard "fetch all", we don't pass lastVisible, so no limit is applied initially.
-  // This logic is simplified: hooks should decide if they paginate or not. If they want to paginate, they handle lastVisible.
-  // If no lastVisible is provided, we fetch all, otherwise we paginate.
-  if (lastVisible !== undefined) {
-    constraints.push(limit(PAGE_SIZE));
+  
+  // If we are not paginating for a specific date range, don't limit the results.
+  // This allows the main dashboard to fetch all data once.
+  if (lastVisible !== undefined || dateRange) {
+      constraints.push(limit(PAGE_SIZE));
   }
-
 
   const q = query(salesCol, ...constraints);
 
