@@ -151,7 +151,6 @@ export function ManageStockForm() {
       return;
     }
 
-    // Unload from vehicle stock validation
     if (transactionType === 'UNLOAD_FROM_VEHICLE' && vehicleStock) {
         for (const item of transactionItems) {
             const stockInVehicle = vehicleStock.get(item.product.id) || 0;
@@ -198,63 +197,88 @@ export function ManageStockForm() {
     }
 
     try {
-      await Promise.all(transactionItems.map(async (item) => {
-        const product = item.product;
-        const quantity = Number(item.quantity);
-        const previousStock = product.stock;
-        let newStock = previousStock;
+        for (const item of transactionItems) {
+            const product = item.product;
+            const quantity = Number(item.quantity);
+            const previousStock = product.stock;
+            let newStock = previousStock;
+            
+            const baseTransactionData = {
+                productId: product.id,
+                productName: product.name,
+                productSku: product.sku,
+                quantity: quantity,
+                transactionDate: transactionDate ? new Date(transactionDate) : new Date(),
+                notes: notes || undefined,
+                userId: currentUser?.username || 'system',
+            };
 
-        switch (transactionType) {
-          case "ADD_STOCK_INVENTORY":
-          case "UNLOAD_FROM_VEHICLE":
-            newStock += quantity;
-            break;
-          case "LOAD_TO_VEHICLE":
-          case "REMOVE_STOCK_WASTAGE":
-          case "STOCK_ADJUSTMENT_MANUAL":
-            newStock -= quantity;
-            break;
+            if (transactionType === "UNLOAD_FROM_VEHICLE") {
+                // First, record the UNLOAD from vehicle (no change to main stock)
+                await StockService.createTransaction({
+                    ...baseTransactionData,
+                    type: 'UNLOAD_FROM_VEHICLE',
+                    previousStock: previousStock,
+                    newStock: previousStock, 
+                    vehicleId: selectedVehicleId,
+                    endMeter: endMeter ? Number(endMeter) : undefined,
+                });
+
+                // Then, record the ADD to main inventory and update the product
+                newStock = previousStock + quantity;
+                await StockService.createTransaction({
+                    ...baseTransactionData,
+                    type: 'ADD_STOCK_INVENTORY',
+                    previousStock: previousStock,
+                    newStock: newStock,
+                    notes: `Unloaded from vehicle ${selectedVehicleId}`
+                });
+                await ProductService.updateProduct(product.id, { stock: newStock });
+
+            } else { // Handle all other transaction types
+                switch (transactionType) {
+                    case "ADD_STOCK_INVENTORY":
+                        newStock += quantity;
+                        break;
+                    case "LOAD_TO_VEHICLE":
+                    case "REMOVE_STOCK_WASTAGE":
+                    case "STOCK_ADJUSTMENT_MANUAL":
+                        newStock -= quantity;
+                        break;
+                }
+                
+                await StockService.createTransaction({
+                    ...baseTransactionData,
+                    type: transactionType,
+                    previousStock: previousStock,
+                    newStock: newStock,
+                    vehicleId: (transactionType === 'LOAD_TO_VEHICLE') ? selectedVehicleId : undefined,
+                    startMeter: transactionType === 'LOAD_TO_VEHICLE' && startMeter ? Number(startMeter) : undefined,
+                });
+                await ProductService.updateProduct(product.id, { stock: newStock });
+            }
         }
+
+        toast({
+            title: "Success",
+            description: `Stock transaction recorded for ${transactionItems.length} product(s)`,
+        });
         
-        const transactionData: Omit<StockTransaction, 'id'> = {
-            productId: product.id,
-            productName: product.name,
-            productSku: product.sku,
-            type: transactionType,
-            quantity: quantity,
-            previousStock: previousStock,
-            newStock: newStock,
-            transactionDate: transactionDate ? new Date(transactionDate) : new Date(),
-            notes: notes || undefined,
-            vehicleId: (transactionType === 'LOAD_TO_VEHICLE' || transactionType === 'UNLOAD_FROM_VEHICLE') ? selectedVehicleId : undefined,
-            userId: currentUser?.username || 'system',
-            startMeter: transactionType === 'LOAD_TO_VEHICLE' && startMeter ? Number(startMeter) : undefined,
-            endMeter: transactionType === 'UNLOAD_FROM_VEHICLE' && endMeter ? Number(endMeter) : undefined,
-        };
-
-        await StockService.createTransaction(transactionData);
-        await ProductService.updateProduct(product.id, { stock: newStock });
-      }));
-
-      toast({
-        title: "Success",
-        description: `Stock transaction recorded for ${transactionItems.length} product(s)`,
-      });
-      
-      resetForm();
-      await refetchProducts();
+        resetForm();
+        await refetchProducts();
 
     } catch (error) {
-      console.error("Error updating stock:", error);
-      toast({
-        title: "Error",
-        description: "Failed to update stock. Please try again.",
-        variant: "destructive",
-      });
+        console.error("Error updating stock:", error);
+        toast({
+            title: "Error",
+            description: "Failed to update stock. Please try again.",
+            variant: "destructive",
+        });
     } finally {
-      setIsSubmitting(false);
+        setIsSubmitting(false);
     }
   };
+
 
   const transactionTypes: { value: StockTransactionType; label: string }[] = [
     { value: "ADD_STOCK_INVENTORY", label: "Add Stock to Inventory" },
